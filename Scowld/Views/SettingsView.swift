@@ -16,7 +16,7 @@ struct SettingsView: View {
     @State private var ttsBackend: String = "native_ios"
     @State private var elevenLabsAPIKey: String = ""
     @State private var hasElevenLabsKey: Bool = false
-    @State private var elevenLabsVoiceId: String = "21m00Tcm4TlvDq8ikWAM"
+    @State private var elevenLabsVoiceId: String = "cgSgspJ2msm6clMCkdW9"
     @State private var speechRate: Float = 0.95
     @State private var speechPitch: Float = 1.2
 
@@ -219,7 +219,7 @@ struct SettingsView: View {
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
 
-                        Text("Get your API key at elevenlabs.io. Default voice: Rachel.")
+                        Text("Get your API key at elevenlabs.io. Default voice: Jessica (playful, warm).")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } header: {
@@ -384,7 +384,7 @@ struct SettingsView: View {
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
         visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
-        elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "21m00Tcm4TlvDq8ikWAM"
+        elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
         hasElevenLabsKey = KeychainManager.exists(key: "com.scowld.elevenlabs.apikey")
 
         loadAPIKey()

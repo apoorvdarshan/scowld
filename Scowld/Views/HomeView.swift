@@ -131,7 +131,7 @@ struct AmicaFullView: UIViewRepresentable {
         let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
         let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
-        let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "21m00Tcm4TlvDq8ikWAM"
+        let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
         let whisperApiKey = defaults.string(forKey: "amica_openai_whisper_apikey") ?? ""
         // Fall back to the main OpenAI key if no separate whisper key
@@ -146,6 +146,7 @@ struct AmicaFullView: UIViewRepresentable {
                 vision_backend: '\(visionBackend)',
                 elevenlabs_apikey: '\(elevenLabsKey)',
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
+                elevenlabs_model: 'eleven_flash_v2_5',
                 openai_whisper_apikey: '\(effectiveWhisperKey)'
             };
             """,
@@ -285,7 +286,7 @@ struct AmicaFullView: UIViewRepresentable {
             let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
             let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
             let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
-            let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "21m00Tcm4TlvDq8ikWAM"
+            let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
             let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
             let whisperKey = defaults.string(forKey: "amica_openai_whisper_apikey") ?? ""
             let effectiveWhisperKey = whisperKey.isEmpty ? (KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "") : whisperKey
@@ -298,6 +299,7 @@ struct AmicaFullView: UIViewRepresentable {
             window.__nativeConfig.vision_backend = '\(visionBackend)';
             window.__nativeConfig.elevenlabs_apikey = '\(elevenLabsKey)';
             window.__nativeConfig.elevenlabs_voiceid = '\(elevenLabsVoiceId)';
+            window.__nativeConfig.elevenlabs_model = 'eleven_flash_v2_5';
             window.__nativeConfig.openai_whisper_apikey = '\(effectiveWhisperKey)';
             console.log('Native config updated: tts=\(ttsBackend), stt=\(sttBackend)');
             """
