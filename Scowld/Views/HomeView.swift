@@ -216,6 +216,10 @@ struct AmicaFullView: UIViewRepresentable {
             }
         }
 
+        // Clear old cache/data on launch
+        let dataStore = WKWebsiteDataStore.default()
+        dataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) { }
+
         context.coordinator.webView = webView
         return webView
     }
