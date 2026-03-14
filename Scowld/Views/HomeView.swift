@@ -198,6 +198,7 @@ struct AmicaFullView: UIViewRepresentable {
     class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         weak var webView: WKWebView?
         let memoryStore: MemoryStore
+        let speechManager = SpeechManager()
 
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
@@ -234,6 +235,10 @@ struct AmicaFullView: UIViewRepresentable {
                 guard let callbackId = json["callbackId"] as? String,
                       let messages = json["messages"] as? [[String: String]] else { return }
                 Task { await handleChatRequest(callbackId: callbackId, messages: messages) }
+            case "speak":
+                if let text = json["text"] as? String {
+                    speechManager.speak(text)
+                }
             case "console":
                 let level = json["level"] as? String ?? "log"
                 let msg = json["message"] as? String ?? ""
