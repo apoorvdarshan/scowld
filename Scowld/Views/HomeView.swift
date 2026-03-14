@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import UIKit
 import os
 
 private let logger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "Amica")
@@ -453,7 +454,8 @@ struct AmicaFullView: UIViewRepresentable {
             case "chat":
                 guard let callbackId = json["callbackId"] as? String,
                       let messages = json["messages"] as? [[String: String]] else { return }
-                Task { await handleChatRequest(callbackId: callbackId, messages: messages) }
+                let imageData = json["imageData"] as? String
+                Task { await handleChatRequest(callbackId: callbackId, messages: messages, imageData: imageData) }
             case "speak":
                 if let text = json["text"] as? String {
                     speechManager.speak(text)
@@ -470,7 +472,7 @@ struct AmicaFullView: UIViewRepresentable {
 
         // MARK: Native AI
 
-        private func handleChatRequest(callbackId: String, messages: [[String: String]]) async {
+        private func handleChatRequest(callbackId: String, messages: [[String: String]], imageData: String? = nil) async {
             guard let provider = buildCurrentProvider() else {
                 await MainActor.run {
                     deliverError(callbackId: callbackId, error: "No API key configured")
@@ -485,7 +487,19 @@ struct AmicaFullView: UIViewRepresentable {
             }
 
             do {
-                let response = try await provider.generate(messages: chatMessages, systemPrompt: "")
+                let response: String
+                if let imageBase64 = imageData,
+                   !imageBase64.isEmpty,
+                   let imgData = Data(base64Encoded: imageBase64),
+                   let image = UIImage(data: imgData) {
+                    // Vision request — send image with the message
+                    logger.info("[Amica] Vision request with image: \(imgData.count) bytes")
+                    response = try await provider.generateWithVision(
+                        messages: chatMessages, systemPrompt: "", image: image
+                    )
+                } else {
+                    response = try await provider.generate(messages: chatMessages, systemPrompt: "")
+                }
                 await MainActor.run {
                     deliverResponse(callbackId: callbackId, response: response)
                 }
