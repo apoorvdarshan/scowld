@@ -3,8 +3,6 @@ import WebKit
 
 // MARK: - Home View
 
-/// Main app screen — embeds Amica's full web-based VRM character system.
-/// Native Swift handles LLM responses via JS bridge.
 struct HomeView: View {
     var memoryStore: MemoryStore
 
@@ -14,80 +12,151 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Amica URL Scheme Handler
+// MARK: - Local HTTP Server for Amica
 
-/// Serves bundled Amica files under a custom URL scheme so absolute paths work.
-/// e.g. amica://host/_next/static/... → Bundle/amica/_next/static/...
-class AmicaSchemeHandler: NSObject, WKURLSchemeHandler {
-    func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
-        guard let url = urlSchemeTask.request.url else {
-            urlSchemeTask.didFailWithError(URLError(.badURL))
-            return
-        }
+/// Serves Amica's static files via a local HTTP server so fetch() works with normal CORS.
+class AmicaLocalServer {
+    static let shared = AmicaLocalServer()
+    private var listener: (any NSObjectProtocol)?
+    private var serverSocket: Int32 = -1
+    var port: UInt16 = 0
+    private var isRunning = false
+    private let amicaBasePath: String
 
-        // Convert amica://host/path → find file in bundle
-        var path = url.path
-        if path.hasPrefix("/") { path = String(path.dropFirst()) }
-        if path.isEmpty { path = "index.html" }
-
-        // Try multiple base locations (Xcode may place resources differently)
-        let bundleRoot = Bundle.main.bundleURL
-        let basePaths = [
-            bundleRoot.appendingPathComponent("amica.bundle"),
-            bundleRoot,
-            bundleRoot.appendingPathComponent("amica"),
+    init() {
+        // Find amica.bundle in app bundle
+        let bundle = Bundle.main.bundlePath
+        let paths = [
+            "\(bundle)/amica.bundle",
+            bundle,
+            "\(bundle)/amica"
         ]
+        amicaBasePath = paths.first { FileManager.default.fileExists(atPath: "\($0)/index.html") } ?? bundle
+        print("[Server] Amica base: \(amicaBasePath)")
+    }
 
-        var resolvedURL: URL? = nil
-        for base in basePaths {
-            let candidate = base.appendingPathComponent(path)
-            if FileManager.default.fileExists(atPath: candidate.path) {
-                resolvedURL = candidate
-                break
+    func start() {
+        guard !isRunning else { return }
+
+        // Create socket
+        serverSocket = socket(AF_INET, SOCK_STREAM, 0)
+        guard serverSocket >= 0 else { print("[Server] Socket failed"); return }
+
+        var yes: Int32 = 1
+        setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &yes, socklen_t(MemoryLayout<Int32>.size))
+
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        addr.sin_port = 0 // Let OS pick a port
+
+        let bindResult = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(serverSocket, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
-            // Try with /index.html for directory paths
-            if path.hasSuffix("/") {
-                let indexCandidate = candidate.appendingPathComponent("index.html")
-                if FileManager.default.fileExists(atPath: indexCandidate.path) {
-                    resolvedURL = indexCandidate
-                    break
+        }
+        guard bindResult >= 0 else { print("[Server] Bind failed"); return }
+
+        // Get assigned port
+        var assignedAddr = sockaddr_in()
+        var addrLen = socklen_t(MemoryLayout<sockaddr_in>.size)
+        withUnsafeMutablePointer(to: &assignedAddr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                getsockname(serverSocket, $0, &addrLen)
+            }
+        }
+        port = UInt16(bigEndian: assignedAddr.sin_port)
+
+        guard listen(serverSocket, 10) >= 0 else { print("[Server] Listen failed"); return }
+
+        isRunning = true
+        print("[Server] Running on http://127.0.0.1:\(port)")
+
+        // Accept connections in background
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            while self?.isRunning == true {
+                guard let self else { return }
+                let client = accept(self.serverSocket, nil, nil)
+                if client >= 0 {
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        self.handleClient(client)
+                    }
                 }
             }
-            // Try with .html extension
-            let htmlCandidate = base.appendingPathComponent(path + ".html")
-            if FileManager.default.fileExists(atPath: htmlCandidate.path) {
-                resolvedURL = htmlCandidate
-                break
-            }
-        }
-
-        guard let resolvedURL else {
-            urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
-            return
-        }
-
-        do {
-            let data = try Data(contentsOf: resolvedURL)
-            let mimeType = Self.mimeType(for: resolvedURL.pathExtension)
-            let response = URLResponse(
-                url: url,
-                mimeType: mimeType,
-                expectedContentLength: data.count,
-                textEncodingName: mimeType.hasPrefix("text/") ? "utf-8" : nil
-            )
-            urlSchemeTask.didReceive(response)
-            urlSchemeTask.didReceive(data)
-            urlSchemeTask.didFinish()
-        } catch {
-            urlSchemeTask.didFailWithError(error)
         }
     }
 
-    func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
+    private func handleClient(_ client: Int32) {
+        defer { close(client) }
+
+        // Read request
+        var buffer = [UInt8](repeating: 0, count: 8192)
+        let bytesRead = read(client, &buffer, buffer.count)
+        guard bytesRead > 0 else { return }
+
+        let request = String(bytes: buffer[0..<bytesRead], encoding: .utf8) ?? ""
+        let lines = request.components(separatedBy: "\r\n")
+        guard let firstLine = lines.first else { return }
+
+        let parts = firstLine.split(separator: " ")
+        guard parts.count >= 2 else { return }
+
+        var path = String(parts[1])
+        if path == "/" { path = "/index.html" }
+
+        // URL decode
+        path = path.removingPercentEncoding ?? path
+
+        // Remove query string
+        if let qIndex = path.firstIndex(of: "?") {
+            path = String(path[..<qIndex])
+        }
+
+        // Remove leading slash
+        let relativePath = String(path.dropFirst())
+
+        let filePath = "\(amicaBasePath)/\(relativePath)"
+
+        guard FileManager.default.fileExists(atPath: filePath),
+              let data = try? Data(contentsOf: URL(fileURLWithPath: filePath)) else {
+            // Try with .html
+            let htmlPath = "\(amicaBasePath)/\(relativePath).html"
+            if FileManager.default.fileExists(atPath: htmlPath),
+               let data = try? Data(contentsOf: URL(fileURLWithPath: htmlPath)) {
+                sendResponse(client: client, data: data, mimeType: "text/html", statusCode: 200)
+                return
+            }
+            sendResponse(client: client, data: Data("Not Found".utf8), mimeType: "text/plain", statusCode: 404)
+            return
+        }
+
+        let ext = (filePath as NSString).pathExtension
+        let mimeType = Self.mimeType(for: ext)
+        sendResponse(client: client, data: data, mimeType: mimeType, statusCode: 200)
+    }
+
+    private func sendResponse(client: Int32, data: Data, mimeType: String, statusCode: Int) {
+        let statusText = statusCode == 200 ? "OK" : "Not Found"
+        var header = "HTTP/1.1 \(statusCode) \(statusText)\r\n"
+        header += "Content-Type: \(mimeType)\r\n"
+        header += "Content-Length: \(data.count)\r\n"
+        header += "Access-Control-Allow-Origin: *\r\n"
+        header += "Cache-Control: no-cache\r\n"
+        header += "Connection: close\r\n"
+        header += "\r\n"
+
+        let headerData = Data(header.utf8)
+        headerData.withUnsafeBytes { ptr in
+            _ = write(client, ptr.baseAddress!, headerData.count)
+        }
+        data.withUnsafeBytes { ptr in
+            _ = write(client, ptr.baseAddress!, data.count)
+        }
+    }
 
     static func mimeType(for ext: String) -> String {
         switch ext.lowercased() {
-        case "html": return "text/html"
+        case "html": return "text/html; charset=utf-8"
         case "css": return "text/css"
         case "js": return "application/javascript"
         case "json": return "application/json"
@@ -100,13 +169,13 @@ class AmicaSchemeHandler: NSObject, WKURLSchemeHandler {
         case "wasm": return "application/wasm"
         case "vrm", "glb": return "model/gltf-binary"
         case "vrma": return "model/gltf-binary"
-        case "webmanifest": return "application/manifest+json"
+        case "mp3": return "audio/mpeg"
         default: return "application/octet-stream"
         }
     }
 }
 
-// MARK: - Amica Full View (WKWebView)
+// MARK: - Amica Full View
 
 struct AmicaFullView: UIViewRepresentable {
     var memoryStore: MemoryStore
@@ -116,26 +185,24 @@ struct AmicaFullView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        let schemeHandler = AmicaSchemeHandler()
+        // Start local server
+        AmicaLocalServer.shared.start()
+        let port = AmicaLocalServer.shared.port
 
         let config = WKWebViewConfiguration()
-        config.setURLSchemeHandler(schemeHandler, forURLScheme: "amica")
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
 
         let contentController = config.userContentController
         contentController.add(context.coordinator, name: "nativeAI")
 
-        // Inject settings into localStorage BEFORE page loads
+        // Inject native config before page loads
         let defaults = UserDefaults.standard
-        let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
+        let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "elevenlabs"
         let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
         let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
-        let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
+        let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
-        let whisperApiKey = defaults.string(forKey: "amica_openai_whisper_apikey") ?? ""
-        // Fall back to the main OpenAI key if no separate whisper key
-        let effectiveWhisperKey = whisperApiKey.isEmpty ? (KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "") : whisperApiKey
 
         let settingsScript = WKUserScript(
             source: """
@@ -146,8 +213,7 @@ struct AmicaFullView: UIViewRepresentable {
                 vision_backend: '\(visionBackend)',
                 elevenlabs_apikey: '\(elevenLabsKey)',
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
-                elevenlabs_model: 'eleven_flash_v2_5',
-                openai_whisper_apikey: '\(effectiveWhisperKey)'
+                elevenlabs_model: 'eleven_flash_v2_5'
             };
             """,
             injectionTime: .atDocumentStart,
@@ -155,11 +221,11 @@ struct AmicaFullView: UIViewRepresentable {
         )
         contentController.addUserScript(settingsScript)
 
-        // Forward JS console to Swift
+        // Console forwarding
         let consoleScript = WKUserScript(
             source: """
             (function() {
-                var origLog = console.log, origError = console.error, origWarn = console.warn;
+                var origLog = console.log, origError = console.error;
                 function send(level, args) {
                     try { window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({
                         type: 'console', level: level, message: Array.from(args).map(String).join(' ')
@@ -167,10 +233,7 @@ struct AmicaFullView: UIViewRepresentable {
                 }
                 console.log = function() { send('log', arguments); origLog.apply(console, arguments); };
                 console.error = function() { send('error', arguments); origError.apply(console, arguments); };
-                console.warn = function() { send('warn', arguments); origWarn.apply(console, arguments); };
-                window.onerror = function(msg, url, line) {
-                    send('error', ['JS Error: ' + msg + ' at ' + url + ':' + line]);
-                };
+                window.onerror = function(msg, url, line) { send('error', ['JS: ' + msg + ' at ' + url + ':' + line]); };
             })();
             """,
             injectionTime: .atDocumentStart,
@@ -184,36 +247,11 @@ struct AmicaFullView: UIViewRepresentable {
         webView.scrollView.isScrollEnabled = true
         webView.navigationDelegate = context.coordinator
 
-        // Verify amica files exist in bundle, then load via custom scheme
-        let bundleRoot = Bundle.main.bundlePath
-        let possiblePaths = [
-            "\(bundleRoot)/amica.bundle/index.html",
-            "\(bundleRoot)/index.html",
-            "\(bundleRoot)/amica/index.html",
-        ]
-        var foundPath: String? = nil
-        for p in possiblePaths {
-            if FileManager.default.fileExists(atPath: p) {
-                foundPath = p
-                break
-            }
-        }
-
-        if let found = foundPath {
-            print("[Amica] Found index.html at: \(found)")
-            webView.load(URLRequest(url: URL(string: "amica://host/index.html")!))
-        } else {
-            print("[Amica] ERROR: index.html not found in bundle")
-            // Debug: list bundle contents
-            let contents = (try? FileManager.default.contentsOfDirectory(atPath: bundleRoot)) ?? []
-            print("[Amica] Bundle root contents: \(contents.sorted())")
-            // Check for amica folder
-            for dir in ["amica", "Resources", "Resources/amica"] {
-                let dirPath = "\(bundleRoot)/\(dir)"
-                if let items = try? FileManager.default.contentsOfDirectory(atPath: dirPath) {
-                    print("[Amica] \(dir)/: \(items.prefix(15))")
-                }
-            }
+        // Load from local HTTP server (not custom scheme — so fetch() works with CORS)
+        if port > 0 {
+            let url = URL(string: "http://127.0.0.1:\(port)/index.html")!
+            print("[Amica] Loading from \(url)")
+            webView.load(URLRequest(url: url))
         }
 
         context.coordinator.webView = webView
@@ -229,38 +267,12 @@ struct AmicaFullView: UIViewRepresentable {
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
 
-        private var settingsObserver: Any?
-
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
-            super.init()
-            // Listen for settings changes from Settings tab
-            settingsObserver = NotificationCenter.default.addObserver(
-                forName: .amicaSettingsChanged, object: nil, queue: .main
-            ) { [weak self] _ in
-                self?.pushSettingsToAmica()
-            }
-        }
-
-        deinit {
-            if let observer = settingsObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             print("[Amica] Page loaded")
-            // Clear any stale localStorage config and push fresh settings
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.webView?.evaluateJavaScript("""
-                    // Clear old cached config that might override __nativeConfig
-                    localStorage.removeItem('chatvrm_elevenlabs_model');
-                    localStorage.removeItem('chatvrm_elevenlabs_voiceid');
-                    localStorage.removeItem('chatvrm_tts_backend');
-                    localStorage.removeItem('chatvrm_chatbot_backend');
-                """)
-                self?.pushSettingsToAmica()
-            }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -271,52 +283,15 @@ struct AmicaFullView: UIViewRepresentable {
             print("[Amica] Provisional navigation failed: \(error.localizedDescription)")
         }
 
-        // Allow navigation within the amica scheme
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
             return .allow
         }
 
-        // Auto-grant microphone/camera permissions so it doesn't keep asking
         func webView(_ webView: WKWebView,
                      requestMediaCapturePermissionFor origin: WKSecurityOrigin,
                      initiatedByFrame frame: WKFrameInfo,
                      type: WKMediaCaptureType) async -> WKPermissionDecision {
             return .grant
-        }
-
-        // MARK: Push Settings to Amica
-
-        func pushSettingsToAmica() {
-            guard let webView else { return }
-            let defaults = UserDefaults.standard
-
-            let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
-            let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
-            let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
-            let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
-            let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
-            let whisperKey = defaults.string(forKey: "amica_openai_whisper_apikey") ?? ""
-            let effectiveWhisperKey = whisperKey.isEmpty ? (KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "") : whisperKey
-
-            let js = """
-            window.__nativeConfig = window.__nativeConfig || {};
-            window.__nativeConfig.chatbot_backend = 'native_ios';
-            window.__nativeConfig.tts_backend = '\(ttsBackend)';
-            window.__nativeConfig.stt_backend = '\(sttBackend)';
-            window.__nativeConfig.vision_backend = '\(visionBackend)';
-            window.__nativeConfig.elevenlabs_apikey = '\(elevenLabsKey)';
-            window.__nativeConfig.elevenlabs_voiceid = '\(elevenLabsVoiceId)';
-            window.__nativeConfig.elevenlabs_model = 'eleven_flash_v2_5';
-            window.__nativeConfig.openai_whisper_apikey = '\(effectiveWhisperKey)';
-            console.log('Native config updated: tts=\(ttsBackend), stt=\(sttBackend)');
-            """
-            webView.evaluateJavaScript(js) { _, error in
-                if let error {
-                    print("[Amica] Settings push error: \(error.localizedDescription)")
-                } else {
-                    print("[Amica] Settings pushed to Amica")
-                }
-            }
         }
 
         // MARK: WKScriptMessageHandler
@@ -337,64 +312,12 @@ struct AmicaFullView: UIViewRepresentable {
                 if let text = json["text"] as? String {
                     speechManager.speak(text)
                 }
-            case "elevenlabs_tts":
-                guard let callbackId = json["callbackId"] as? String,
-                      let text = json["text"] as? String,
-                      let voiceId = json["voiceId"] as? String,
-                      let apiKey = json["apiKey"] as? String else { return }
-                Task { await handleElevenLabsTTS(callbackId: callbackId, text: text, voiceId: voiceId, apiKey: apiKey) }
             case "console":
                 let level = json["level"] as? String ?? "log"
                 let msg = json["message"] as? String ?? ""
                 print("[Amica-JS] [\(level)] \(msg)")
             default:
-                print("[Amica] Bridge: \(type)")
-            }
-        }
-
-        // MARK: ElevenLabs TTS Proxy
-
-        private func handleElevenLabsTTS(callbackId: String, text: String, voiceId: String, apiKey: String) async {
-            let url = URL(string: "https://api.elevenlabs.io/v1/text-to-speech/\(voiceId)?output_format=mp3_44100_128")!
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-            request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
-
-            let body: [String: Any] = [
-                "text": text,
-                "model_id": "eleven_flash_v2_5",
-                "voice_settings": [
-                    "stability": 0.5,
-                    "similarity_boost": 0.75,
-                    "style": 0,
-                    "use_speaker_boost": true
-                ]
-            ]
-            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                let httpResponse = response as? HTTPURLResponse
-                if httpResponse?.statusCode == 200 {
-                    let base64 = data.base64EncodedString()
-                    await MainActor.run {
-                        webView?.evaluateJavaScript("window.elTtsResponse('\(callbackId)', '\(base64)')")
-                    }
-                    print("[ElevenLabs] Success: \(data.count) bytes")
-                } else {
-                    let errMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse?.statusCode ?? 0)"
-                    print("[ElevenLabs] Error \(httpResponse?.statusCode ?? 0): \(errMsg)")
-                    await MainActor.run {
-                        webView?.evaluateJavaScript("window.elTtsError('\(callbackId)', 'HTTP \(httpResponse?.statusCode ?? 0)')")
-                    }
-                }
-            } catch {
-                print("[ElevenLabs] Network error: \(error.localizedDescription)")
-                await MainActor.run {
-                    webView?.evaluateJavaScript("window.elTtsError('\(callbackId)', 'Network error')")
-                }
+                break
             }
         }
 
@@ -464,4 +387,10 @@ struct AmicaFullView: UIViewRepresentable {
             }
         }
     }
+}
+
+// MARK: - Notification for Settings Changes
+
+extension Notification.Name {
+    static let amicaSettingsChanged = Notification.Name("amicaSettingsChanged")
 }
