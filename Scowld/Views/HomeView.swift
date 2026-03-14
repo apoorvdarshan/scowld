@@ -35,7 +35,7 @@ class AmicaLocalServer {
             "\(bundle)/amica"
         ]
         amicaBasePath = paths.first { FileManager.default.fileExists(atPath: "\($0)/index.html") } ?? bundle
-        logger.info("[Server] Amica base: \(amicaBasePath)")
+        logger.info("[Server] Amica base: \(self.amicaBasePath)")
     }
 
     func start() {
@@ -73,7 +73,7 @@ class AmicaLocalServer {
         guard listen(serverSocket, 10) >= 0 else { logger.info("[Server] Listen failed"); return }
 
         isRunning = true
-        logger.info("[Server] Running on http://127.0.0.1:\(port)")
+        logger.info("[Server] Running on http://127.0.0.1:\(self.port)")
 
         // Accept connections in background
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
