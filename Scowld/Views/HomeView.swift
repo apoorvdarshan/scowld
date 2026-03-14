@@ -6,55 +6,87 @@ import WebKit
 /// Main app screen — embeds Amica's full web-based VRM character system.
 /// Native Swift handles LLM responses via JS bridge.
 struct HomeView: View {
-    // MARK: - Managers
     var memoryStore: MemoryStore
-    @State private var cameraManager = CameraManager()
-    @State private var faceDetector = FaceDetector()
-
-    // MARK: - UI State
-    @State private var errorMessage: String?
 
     var body: some View {
-        ZStack {
-            AmicaFullView(memoryStore: memoryStore)
-                .ignoresSafeArea()
+        AmicaFullView(memoryStore: memoryStore)
+            .ignoresSafeArea()
+    }
+}
 
-            // Error toast
-            if let error = errorMessage {
-                VStack {
-                    Spacer()
-                    glassErrorToast(error)
-                        .padding(.bottom, 100)
-                }
-                .transition(.opacity)
+// MARK: - Amica URL Scheme Handler
+
+/// Serves bundled Amica files under a custom URL scheme so absolute paths work.
+/// e.g. amica://host/_next/static/... → Bundle/amica/_next/static/...
+class AmicaSchemeHandler: NSObject, WKURLSchemeHandler {
+    func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
+        guard let url = urlSchemeTask.request.url else {
+            urlSchemeTask.didFailWithError(URLError(.badURL))
+            return
+        }
+
+        // Convert amica://host/path → Bundle/amica/path
+        var path = url.path
+        if path.hasPrefix("/") { path = String(path.dropFirst()) }
+        if path.isEmpty { path = "index.html" }
+
+        // Try to find the file in the bundle
+        let amicaBase = Bundle.main.bundleURL.appendingPathComponent("amica")
+        let fileURL = amicaBase.appendingPathComponent(path)
+
+        // If path ends with /, try index.html
+        var resolvedURL = fileURL
+        if path.hasSuffix("/") {
+            resolvedURL = fileURL.appendingPathComponent("index.html")
+        }
+
+        guard FileManager.default.fileExists(atPath: resolvedURL.path) else {
+            // Try with .html extension
+            let htmlURL = amicaBase.appendingPathComponent(path + ".html")
+            if FileManager.default.fileExists(atPath: htmlURL.path) {
+                resolvedURL = htmlURL
+            } else {
+                urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
+                return
             }
+        }
+
+        do {
+            let data = try Data(contentsOf: resolvedURL)
+            let mimeType = Self.mimeType(for: resolvedURL.pathExtension)
+            let response = URLResponse(
+                url: url,
+                mimeType: mimeType,
+                expectedContentLength: data.count,
+                textEncodingName: mimeType.hasPrefix("text/") ? "utf-8" : nil
+            )
+            urlSchemeTask.didReceive(response)
+            urlSchemeTask.didReceive(data)
+            urlSchemeTask.didFinish()
+        } catch {
+            urlSchemeTask.didFailWithError(error)
         }
     }
 
-    // MARK: - Glass Error Toast
+    func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
 
-    @ViewBuilder
-    private func glassErrorToast(_ message: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-            Text(message)
-                .font(.caption)
-                .lineLimit(2)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(
-            Capsule()
-                .strokeBorder(Color.red.opacity(0.3), lineWidth: 0.5)
-        )
-        .padding(.horizontal, 24)
-        .onAppear {
-            Task {
-                try? await Task.sleep(for: .seconds(3))
-                withAnimation { errorMessage = nil }
-            }
+    static func mimeType(for ext: String) -> String {
+        switch ext.lowercased() {
+        case "html": return "text/html"
+        case "css": return "text/css"
+        case "js": return "application/javascript"
+        case "json": return "application/json"
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "svg": return "image/svg+xml"
+        case "woff2": return "font/woff2"
+        case "woff": return "font/woff"
+        case "ttf": return "font/ttf"
+        case "wasm": return "application/wasm"
+        case "vrm", "glb": return "model/gltf-binary"
+        case "vrma": return "model/gltf-binary"
+        case "webmanifest": return "application/manifest+json"
+        default: return "application/octet-stream"
         }
     }
 }
@@ -69,10 +101,12 @@ struct AmicaFullView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
+        let schemeHandler = AmicaSchemeHandler()
+
         let config = WKWebViewConfiguration()
+        config.setURLSchemeHandler(schemeHandler, forURLScheme: "amica")
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
 
         let contentController = config.userContentController
         contentController.add(context.coordinator, name: "nativeAI")
@@ -84,12 +118,9 @@ struct AmicaFullView: UIViewRepresentable {
         webView.scrollView.bounces = false
         webView.navigationDelegate = context.coordinator
 
-        // Load Amica
-        if let indexURL = Bundle.main.url(forResource: "amica/index", withExtension: "html"),
-           let amicaDir = Bundle.main.url(forResource: "amica", withExtension: nil) {
-            webView.loadFileURL(indexURL, allowingReadAccessTo: amicaDir)
-        } else {
-            print("[Amica] ERROR: amica/index.html not found in bundle")
+        // Load via custom scheme so absolute paths resolve correctly
+        if let url = URL(string: "amica://host/index.html") {
+            webView.load(URLRequest(url: url))
         }
 
         context.coordinator.webView = webView
@@ -98,7 +129,7 @@ struct AmicaFullView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
-    // MARK: - Coordinator (handles native AI bridge)
+    // MARK: - Coordinator
 
     class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         weak var webView: WKWebView?
@@ -107,8 +138,6 @@ struct AmicaFullView: UIViewRepresentable {
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
         }
-
-        // MARK: WKNavigationDelegate
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             print("[Amica] Page loaded")
@@ -120,6 +149,11 @@ struct AmicaFullView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             print("[Amica] Provisional navigation failed: \(error.localizedDescription)")
+        }
+
+        // Allow navigation within the amica scheme
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            return .allow
         }
 
         // MARK: WKScriptMessageHandler
@@ -137,19 +171,20 @@ struct AmicaFullView: UIViewRepresentable {
                       let messages = json["messages"] as? [[String: String]] else { return }
                 Task { await handleChatRequest(callbackId: callbackId, messages: messages) }
             default:
-                print("[Amica] Bridge message: \(type)")
+                print("[Amica] Bridge: \(type)")
             }
         }
 
-        // MARK: - Native AI Chat
+        // MARK: Native AI
 
         private func handleChatRequest(callbackId: String, messages: [[String: String]]) async {
             guard let provider = buildCurrentProvider() else {
-                deliverError(callbackId: callbackId, error: "No API key configured")
+                await MainActor.run {
+                    deliverError(callbackId: callbackId, error: "No API key configured")
+                }
                 return
             }
 
-            // Convert message dicts to ChatMessage
             let chatMessages = messages.compactMap { dict -> ChatMessage? in
                 guard let roleStr = dict["role"], let content = dict["content"] else { return nil }
                 let role: MessageRole = roleStr == "user" ? .user : roleStr == "assistant" ? .assistant : .system
@@ -181,8 +216,6 @@ struct AmicaFullView: UIViewRepresentable {
             let escaped = error.replacingOccurrences(of: "'", with: "\\'")
             webView?.evaluateJavaScript("window.nativeAIError && window.nativeAIError('\(callbackId)', '\(escaped)')")
         }
-
-        // MARK: - Provider Builder
 
         private func buildCurrentProvider() -> (any LLMProvider)? {
             let defaults = UserDefaults.standard
