@@ -250,8 +250,15 @@ struct AmicaFullView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             print("[Amica] Page loaded")
-            // Double-check: push settings again after page load (user script may not have localStorage access on custom schemes)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            // Clear any stale localStorage config and push fresh settings
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.webView?.evaluateJavaScript("""
+                    // Clear old cached config that might override __nativeConfig
+                    localStorage.removeItem('chatvrm_elevenlabs_model');
+                    localStorage.removeItem('chatvrm_elevenlabs_voiceid');
+                    localStorage.removeItem('chatvrm_tts_backend');
+                    localStorage.removeItem('chatvrm_chatbot_backend');
+                """)
                 self?.pushSettingsToAmica()
             }
         }
