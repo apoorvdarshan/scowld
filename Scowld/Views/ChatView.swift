@@ -2,8 +2,7 @@ import SwiftUI
 
 // MARK: - Chat View
 
-/// Displays conversation messages as chat bubbles.
-/// Appears at the bottom of the home screen below the character.
+/// Glass-styled chat bubble view with message list and text input.
 struct ChatView: View {
     let messages: [ChatMessage]
     @Binding var inputText: String
@@ -30,34 +29,32 @@ struct ChatView: View {
                             .id("typing")
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 12)
                     .padding(.top, 8)
                 }
+                .scrollIndicators(.hidden)
                 .onChange(of: messages.count) {
                     withAnimation {
-                        if let lastMessage = messages.last {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                        }
+                        if let last = messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
                     }
                 }
                 .onChange(of: isGenerating) {
                     if isGenerating {
-                        withAnimation {
-                            proxy.scrollTo("typing", anchor: .bottom)
-                        }
+                        withAnimation { proxy.scrollTo("typing", anchor: .bottom) }
                     }
                 }
             }
 
-            // Text input bar
-            HStack(spacing: 12) {
-                TextField("Type a message...", text: $inputText)
+            // Glass input bar
+            HStack(spacing: 10) {
+                TextField("Message Scowld...", text: $inputText)
                     .textFieldStyle(.plain)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(
                         Capsule()
-                            .fill(Color(.systemGray6))
+                            .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
                     )
                     .onSubmit {
                         if !inputText.isEmpty { onSend() }
@@ -68,13 +65,13 @@ struct ChatView: View {
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 32))
+                        .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(inputText.isEmpty ? .gray : .orange)
                 }
                 .disabled(inputText.isEmpty || isGenerating)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
         }
     }
 }
@@ -83,31 +80,49 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
-
     private var isUser: Bool { message.role == .user }
 
     var body: some View {
         HStack {
-            if isUser { Spacer(minLength: 60) }
+            if isUser { Spacer(minLength: 50) }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
                 Text(message.content)
                     .font(.body)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(isUser ? Color.orange : Color(.systemGray5))
-                    )
+                    .background(bubbleBackground)
                     .foregroundStyle(isUser ? .white : .primary)
 
                 if let emotion = message.emotion, !isUser {
                     Text(emotion.emoji)
                         .font(.caption2)
+                        .padding(.leading, 4)
                 }
             }
 
-            if !isUser { Spacer(minLength: 60) }
+            if !isUser { Spacer(minLength: 50) }
+        }
+    }
+
+    @ViewBuilder
+    private var bubbleBackground: some View {
+        if isUser {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(
+                    LinearGradient(
+                        colors: [.orange, .orange.opacity(0.8)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        } else {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                )
         }
     }
 }
@@ -115,31 +130,23 @@ struct MessageBubble: View {
 // MARK: - Typing Indicator
 
 struct TypingIndicator: View {
-    @State private var animationPhase = 0
+    @State private var phase = 0.0
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             ForEach(0..<3) { index in
                 Circle()
                     .fill(Color.orange.opacity(0.6))
-                    .frame(width: 8, height: 8)
-                    .offset(y: animationPhase == index ? -4 : 0)
+                    .frame(width: 7, height: 7)
+                    .offset(y: sin(phase + Double(index) * 0.8) * 4)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(.systemGray5))
-        )
+        .padding(.vertical, 14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
-                animationPhase = 1
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
-                    animationPhase = 2
-                }
+            withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) {
+                phase = .pi * 2
             }
         }
     }

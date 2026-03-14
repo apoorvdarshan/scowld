@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - Settings View
 
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedProvider: AIProvider = .gemini
     @State private var selectedModel: String = AIProvider.gemini.defaultModel
     @State private var apiKeyInput: String = ""
@@ -13,19 +12,16 @@ struct SettingsView: View {
     @State private var isTesting: Bool = false
     @State private var speechRate: Float = 0.5
     @State private var speechPitch: Float = 1.1
-
-    // Character selection
     @State private var selectedCharacterId: String = "default"
-    let characters = CharacterPack.defaultPacks
 
-    // Memory
+    let characters = CharacterPack.defaultPacks
     var memoryStore: MemoryStore
 
     var body: some View {
         NavigationStack {
-            Form {
+            List {
                 // MARK: - AI Provider
-                Section("AI Provider") {
+                Section {
                     Picker("Provider", selection: $selectedProvider) {
                         ForEach(AIProvider.allCases, id: \.self) { provider in
                             Text(provider.displayName).tag(provider)
@@ -41,13 +37,18 @@ struct SettingsView: View {
                             Text(model).tag(model)
                         }
                     }
+                } header: {
+                    Label("AI Provider", systemImage: "cpu")
                 }
 
                 // MARK: - API Key
                 if selectedProvider.requiresAPIKey {
-                    Section("API Key") {
+                    Section {
                         if hasAPIKey {
                             HStack {
+                                Image(systemName: "lock.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.caption)
                                 Text(String(repeating: "\u{2022}", count: 20))
                                     .foregroundStyle(.secondary)
                                 Spacer()
@@ -56,6 +57,7 @@ struct SettingsView: View {
                                     apiKeyInput = ""
                                 }
                                 .font(.caption)
+                                .tint(.orange)
                             }
                         } else {
                             SecureField("Enter API Key", text: $apiKeyInput)
@@ -63,23 +65,29 @@ struct SettingsView: View {
                                 .autocorrectionDisabled()
 
                             if !apiKeyInput.isEmpty {
-                                Button("Save Key") {
+                                Button {
                                     saveAPIKey()
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "key.fill")
+                                        Text("Save to Keychain")
+                                    }
                                 }
-                                .buttonStyle(.borderedProminent)
                                 .tint(.orange)
                             }
                         }
 
-                        Text("Stored securely in iOS Keychain only")
+                        Text("Stored securely in iOS Keychain only. Never sent anywhere.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    } header: {
+                        Label("API Key", systemImage: "key")
                     }
                 }
 
                 // MARK: - Ollama Settings
                 if selectedProvider == .ollama {
-                    Section("Ollama Configuration") {
+                    Section {
                         TextField("Server URL", text: $ollamaURL)
                             .textContentType(.URL)
                             .autocorrectionDisabled()
@@ -88,18 +96,23 @@ struct SettingsView: View {
                         Text("Default: \(OllamaConfig.defaultURL)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    } header: {
+                        Label("Ollama", systemImage: "server.rack")
                     }
                 }
 
                 // MARK: - Test Connection
-                Section("Connection") {
+                Section {
                     Button {
                         Task { await testConnection() }
                     } label: {
                         HStack {
                             if isTesting {
                                 ProgressView()
+                                    .controlSize(.small)
                                     .padding(.trailing, 4)
+                            } else {
+                                Image(systemName: "antenna.radiowaves.left.and.right")
                             }
                             Text(isTesting ? "Testing..." : "Test Connection")
                         }
@@ -107,37 +120,47 @@ struct SettingsView: View {
                     .disabled(isTesting || (!hasAPIKey && selectedProvider.requiresAPIKey && apiKeyInput.isEmpty))
 
                     if !testResult.isEmpty {
-                        Text(testResult)
-                            .font(.caption)
-                            .foregroundStyle(testResult.starts(with: "Success") ? .green : .red)
+                        HStack {
+                            Image(systemName: testResult.starts(with: "Success") ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(testResult.starts(with: "Success") ? .green : .red)
+                            Text(testResult)
+                                .font(.caption)
+                                .foregroundStyle(testResult.starts(with: "Success") ? .green : .red)
+                        }
                     }
+                } header: {
+                    Label("Connection", systemImage: "wifi")
                 }
 
                 // MARK: - Voice Settings
-                Section("Voice") {
-                    VStack(alignment: .leading) {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Speech Rate: \(String(format: "%.1f", speechRate))")
+                            .font(.subheadline)
                         Slider(value: $speechRate, in: 0.1...1.0)
                             .tint(.orange)
                     }
-
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Pitch: \(String(format: "%.1f", speechPitch))")
+                            .font(.subheadline)
                         Slider(value: $speechPitch, in: 0.5...2.0)
                             .tint(.orange)
                     }
+                } header: {
+                    Label("Voice", systemImage: "waveform")
                 }
 
                 // MARK: - Character
-                Section("Character") {
+                Section {
                     ForEach(characters) { character in
                         Button {
                             selectedCharacterId = character.id
                         } label: {
                             HStack {
-                                VStack(alignment: .leading) {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text(character.name)
                                         .foregroundStyle(.primary)
+                                        .fontWeight(.medium)
                                     Text(character.description)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -150,57 +173,67 @@ struct SettingsView: View {
                             }
                         }
                     }
+                } header: {
+                    Label("Character", systemImage: "bird.fill")
                 }
 
                 // MARK: - Memory Management
-                Section("Memory") {
+                Section {
                     HStack {
                         Text("Stored Memories")
                         Spacer()
                         Text("\(memoryStore.totalMemoryCount)")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.orange)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3)
+                            .background(.orange.opacity(0.15), in: Capsule())
                     }
 
-                    NavigationLink("Browse Memories") {
+                    NavigationLink {
                         MemoryView(memoryStore: memoryStore)
+                    } label: {
+                        Label("Browse Memories", systemImage: "brain.head.profile.fill")
                     }
 
-                    Button("Clear All Memories", role: .destructive) {
+                    Button(role: .destructive) {
                         memoryStore.clearAllMemories()
+                    } label: {
+                        Label("Clear All Memories", systemImage: "trash")
                     }
+                } header: {
+                    Label("Memory", systemImage: "brain")
                 }
 
                 // MARK: - About
-                Section("About") {
+                Section {
                     HStack {
                         Text("Scowld")
+                            .fontWeight(.medium)
                         Spacer()
                         Text("v1.0")
                             .foregroundStyle(.secondary)
                     }
-                    Text("Open Source AI Owl Assistant")
+                    Text("Open Source AI Owl Assistant — MIT License")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("MIT License")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                } header: {
+                    Label("About", systemImage: "info.circle")
                 }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
+                    Button("Save") {
                         saveSettings()
-                        dismiss()
                     }
                     .fontWeight(.semibold)
+                    .tint(.orange)
                 }
             }
         }
-        .onAppear {
-            loadSettings()
-        }
+        .onAppear { loadSettings() }
     }
 
     // MARK: - Settings Persistence
@@ -252,14 +285,13 @@ struct SettingsView: View {
     private func testConnection() async {
         isTesting = true
         testResult = ""
-
         defer { isTesting = false }
 
         do {
             let provider = buildProvider()
             let response = try await provider.generate(
                 messages: [ChatMessage(role: .user, content: "Say 'Connection successful!' in exactly those words.")],
-                systemPrompt: "You are a test assistant. Respond with exactly: Connection successful!"
+                systemPrompt: "Respond with exactly: Connection successful!"
             )
             testResult = "Success: \(response.prefix(50))"
         } catch {
@@ -273,14 +305,10 @@ struct SettingsView: View {
             : apiKeyInput
 
         switch selectedProvider {
-        case .gemini:
-            return GeminiProvider(apiKey: apiKey, model: selectedModel)
-        case .openai:
-            return OpenAIProvider(apiKey: apiKey, model: selectedModel)
-        case .claude:
-            return ClaudeProvider(apiKey: apiKey, model: selectedModel)
-        case .ollama:
-            return OllamaProvider(baseURL: ollamaURL, model: selectedModel)
+        case .gemini: return GeminiProvider(apiKey: apiKey, model: selectedModel)
+        case .openai: return OpenAIProvider(apiKey: apiKey, model: selectedModel)
+        case .claude: return ClaudeProvider(apiKey: apiKey, model: selectedModel)
+        case .ollama: return OllamaProvider(baseURL: ollamaURL, model: selectedModel)
         }
     }
 }
