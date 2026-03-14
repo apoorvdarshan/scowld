@@ -145,34 +145,47 @@ window.loadModel = function(url) {
             scene.add(vrm.scene);
 
             // Set idle pose — bring arms down from T-pose
+            // VRM normalized bones use: +X=left, +Y=up, +Z=forward
+            // For upper arms: rotate around Z to bring down
             var humanoid = vrm.humanoid;
             if (humanoid) {
-                var leftUpper = humanoid.getRawBoneNode('leftUpperArm');
-                var rightUpper = humanoid.getRawBoneNode('rightUpperArm');
-                var leftLower = humanoid.getRawBoneNode('leftLowerArm');
-                var rightLower = humanoid.getRawBoneNode('rightLowerArm');
-
-                if (leftUpper) {
-                    leftUpper.rotation.z = 1.1;   // Arm down (~63 degrees)
-                    leftUpper.rotation.x = 0.1;   // Slight forward
-                }
-                if (rightUpper) {
-                    rightUpper.rotation.z = -1.1;
-                    rightUpper.rotation.x = 0.1;
-                }
-                if (leftLower) {
-                    leftLower.rotation.z = 0.15;   // Slight bend at elbow
-                }
-                if (rightLower) {
-                    rightLower.rotation.z = -0.15;
+                // Try both normalized and raw bone nodes
+                var bones = {};
+                var boneNames = ['leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm',
+                                 'leftHand', 'rightHand', 'leftShoulder', 'rightShoulder'];
+                for (var i = 0; i < boneNames.length; i++) {
+                    var name = boneNames[i];
+                    bones[name] = humanoid.getNormalizedBoneNode(name) || humanoid.getRawBoneNode(name);
+                    if (bones[name]) {
+                        console.log('Found bone: ' + name);
+                    }
                 }
 
-                // Store rest pose for idle animation
+                // Arms down: VRM normalized space rotations
+                if (bones.leftUpperArm) {
+                    bones.leftUpperArm.rotation.set(0.3, 0, 0.8);  // forward tilt + down
+                }
+                if (bones.rightUpperArm) {
+                    bones.rightUpperArm.rotation.set(0.3, 0, -0.8);
+                }
+                if (bones.leftLowerArm) {
+                    bones.leftLowerArm.rotation.set(0, 0, 0.2);  // slight bend
+                }
+                if (bones.rightLowerArm) {
+                    bones.rightLowerArm.rotation.set(0, 0, -0.2);
+                }
+
+                window._bones = bones;
                 window._restPose = {
-                    leftUpperZ: 1.1, rightUpperZ: -1.1,
-                    leftUpperX: 0.1, rightUpperX: 0.1,
-                    leftLowerZ: 0.15, rightLowerZ: -0.15
+                    leftUpperArm: { x: 0.3, y: 0, z: 0.8 },
+                    rightUpperArm: { x: 0.3, y: 0, z: -0.8 },
+                    leftLowerArm: { x: 0, y: 0, z: 0.2 },
+                    rightLowerArm: { x: 0, y: 0, z: -0.2 }
                 };
+
+                console.log('Idle pose applied');
+            } else {
+                console.log('No humanoid found on VRM');
             }
 
             // Adjust camera — upper body framing
@@ -316,18 +329,17 @@ function animate() {
         }
 
         // Idle arm sway (subtle natural movement)
-        if (window._restPose && currentVRM.humanoid) {
+        if (window._bones && window._restPose) {
             var rp = window._restPose;
             var sway = Math.sin(idleTime * 1.2) * 0.03;
-            var leftUpper = currentVRM.humanoid.getRawBoneNode('leftUpperArm');
-            var rightUpper = currentVRM.humanoid.getRawBoneNode('rightUpperArm');
-            if (leftUpper) {
-                leftUpper.rotation.z = rp.leftUpperZ + sway;
-                leftUpper.rotation.x = rp.leftUpperX + Math.sin(idleTime * 0.8) * 0.02;
+            var breathX = Math.sin(idleTime * 0.8) * 0.02;
+            if (window._bones.leftUpperArm) {
+                window._bones.leftUpperArm.rotation.z = rp.leftUpperArm.z + sway;
+                window._bones.leftUpperArm.rotation.x = rp.leftUpperArm.x + breathX;
             }
-            if (rightUpper) {
-                rightUpper.rotation.z = rp.rightUpperZ - sway;
-                rightUpper.rotation.x = rp.rightUpperX + Math.sin(idleTime * 0.8 + 0.5) * 0.02;
+            if (window._bones.rightUpperArm) {
+                window._bones.rightUpperArm.rotation.z = rp.rightUpperArm.z - sway;
+                window._bones.rightUpperArm.rotation.x = rp.rightUpperArm.x + breathX;
             }
         }
 
