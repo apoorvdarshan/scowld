@@ -339,7 +339,11 @@ struct HomeView: View {
 
             speechManager.speak(cleanText)
         } catch {
-            errorMessage = error.localizedDescription
+            let errText = error.localizedDescription
+            errorMessage = errText
+            // Also show error in chat so user can read it
+            let errMessage = ChatMessage(role: .assistant, content: "Error: \(errText)")
+            messages.append(errMessage)
         }
     }
 
