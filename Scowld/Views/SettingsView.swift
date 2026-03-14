@@ -12,7 +12,7 @@ struct SettingsView: View {
     @State private var isTesting: Bool = false
     @State private var speechRate: Float = 0.5
     @State private var speechPitch: Float = 1.1
-    @State private var selectedCharacterId: String = "default"
+    @State private var selectedCharacterId: String = "avatar_a"
 
     let characters = CharacterPack.defaultPacks
     var memoryStore: MemoryStore
@@ -174,7 +174,7 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    Label("Character", systemImage: "bird.fill")
+                    Label("Character", systemImage: "person.fill")
                 }
 
                 // MARK: - Memory Management
@@ -214,7 +214,7 @@ struct SettingsView: View {
                         Text("v1.0")
                             .foregroundStyle(.secondary)
                     }
-                    Text("Open Source AI Owl Assistant — MIT License")
+                    Text("Open Source AI Assistant — MIT License")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } header: {
@@ -250,7 +250,7 @@ struct SettingsView: View {
         if speechRate == 0 { speechRate = 0.5 }
         speechPitch = defaults.float(forKey: "speechPitch")
         if speechPitch == 0 { speechPitch = 1.1 }
-        selectedCharacterId = defaults.string(forKey: "selectedCharacter") ?? "default"
+        selectedCharacterId = defaults.string(forKey: "selectedCharacter") ?? "avatar_a"
         loadAPIKey()
     }
 

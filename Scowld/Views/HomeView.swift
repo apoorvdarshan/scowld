@@ -153,7 +153,8 @@ struct HomeView: View {
                 pupilOffsetY: characterManager.pupilOffsetY,
                 headRotation: characterManager.headRotation,
                 isBlinking: characterManager.isBlinking,
-                bodyBounce: characterManager.bodyBounce
+                bodyBounce: characterManager.bodyBounce,
+                modelFileName: characterManager.selectedCharacter.fileName
             )
             .frame(height: height * 0.85)
             .onTapGesture { toggleListening() }

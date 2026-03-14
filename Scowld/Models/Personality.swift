@@ -92,9 +92,12 @@ struct CharacterPack: Identifiable, Codable, Sendable {
     let description: String
 
     static let defaultPacks: [CharacterPack] = [
-        CharacterPack(id: "default", name: "Scowld", fileName: "default_owl", description: "The original wise owl"),
-        CharacterPack(id: "stern", name: "Professor Hoot", fileName: "stern_owl", description: "A stern, scholarly owl"),
-        CharacterPack(id: "chill", name: "Mellow", fileName: "chill_owl", description: "A relaxed, easygoing owl"),
+        CharacterPack(id: "avatar_a", name: "Aria", fileName: "AvatarSample_A", description: "Elegant and composed"),
+        CharacterPack(id: "avatar_c", name: "Ciel", fileName: "AvatarSample_C", description: "Cool and collected"),
+        CharacterPack(id: "avatar_e", name: "Elena", fileName: "AvatarSample_E", description: "Bright and cheerful"),
+        CharacterPack(id: "avatar_i", name: "Izumi", fileName: "AvatarSample_I", description: "Traditional and graceful"),
+        CharacterPack(id: "avatar_o", name: "Olivia", fileName: "AvatarSample_O", description: "Gentle and thoughtful"),
+        CharacterPack(id: "avatar_r", name: "Rin", fileName: "AvatarSample_R", description: "Bold and confident"),
     ]
 }
 
@@ -103,8 +106,8 @@ struct CharacterPack: Identifiable, Codable, Sendable {
 enum SystemPromptTemplate {
     static func build(userName: String?, memories: [String], visionDescription: String?) -> String {
         var prompt = """
-        You are Scowld, a wise and friendly owl AI assistant. You are warm, curious, and genuinely care about helping.
-        You speak naturally and conversationally. You have a slight owl-like charm — occasionally making bird puns or references, but not excessively.
+        You are Scowld, a friendly and expressive AI assistant with an anime avatar. You are warm, curious, and genuinely care about helping.
+        You speak naturally and conversationally. You're cheerful and engaging, with a playful personality.
 
         IMPORTANT: Start every response with an emotion tag in brackets that reflects the emotional tone of your response.
         Valid emotions: [neutral], [happy], [sad], [angry], [surprised], [thinking], [concerned], [excited]

@@ -7,7 +7,10 @@ import Foundation
 @Observable
 final class CharacterManager {
     // MARK: - Character Identity
-    var selectedCharacter: CharacterPack = CharacterPack.defaultPacks[0]
+    var selectedCharacter: CharacterPack = {
+        let savedId = UserDefaults.standard.string(forKey: "selectedCharacter") ?? "avatar_a"
+        return CharacterPack.defaultPacks.first { $0.id == savedId } ?? CharacterPack.defaultPacks[0]
+    }()
 
     // MARK: - Animation State
     var emotion: Emotion = .neutral
