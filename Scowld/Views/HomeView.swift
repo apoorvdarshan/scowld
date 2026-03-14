@@ -202,7 +202,11 @@ struct AmicaFullView: UIViewRepresentable {
         let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
         let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
-        let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+        var elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+        // Temp hardcode for testing - remove after confirming it works
+        if elevenLabsKey.isEmpty {
+            elevenLabsKey = "sk_543bd57e4491227db8bf599e6af48dc10a777818dac5c004"
+        }
 
         let settingsScript = WKUserScript(
             source: """
