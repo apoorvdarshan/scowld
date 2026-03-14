@@ -18,29 +18,13 @@ canvas { display: block; width: 100%; height: 100%; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 #loader .status { font-size: 13px; }
-#error-display {
-    position: absolute; bottom: 20px; left: 10px; right: 10px;
-    font-family: monospace; font-size: 10px; color: #ff6666;
-    background: rgba(0,0,0,0.7); padding: 8px; border-radius: 6px;
-    max-height: 80px; overflow-y: auto; display: none;
-}
 </style>
 </head>
 <body>
 <div id="loader"><div class="spinner"></div><div class="status" id="status">Loading 3D engine...</div></div>
-<div id="error-display" id="errors"></div>
 
 <script>
-// Error display helper
-function showError(msg) {
-    var el = document.getElementById('error-display');
-    el.style.display = 'block';
-    el.textContent += msg + '\n';
-    document.getElementById('status').textContent = 'Error occurred';
-}
-function setStatus(msg) {
-    document.getElementById('status').textContent = msg;
-}
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
 </script>
 
 <script type="importmap">
@@ -59,304 +43,284 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as VRM from '@pixiv/three-vrm';
 
 setStatus('Engine loaded. Waiting for model...');
-console.log('Three.js and VRM loaded successfully');
 
-// Scene setup
+// ─── Scene ───
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(25, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 1.35, 1.8);
-camera.lookAt(0, 1.2, 0);
-
+const camera = new THREE.PerspectiveCamera(22, window.innerWidth / window.innerHeight, 0.1, 100);
 const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = 1.3;
 document.body.appendChild(renderer.domElement);
 
-// Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-scene.add(ambientLight);
-
-const mainLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+// ─── Lighting ───
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+var mainLight = new THREE.DirectionalLight(0xffeedd, 1.3);
 mainLight.position.set(1, 2, 3);
 scene.add(mainLight);
-
-const fillLight = new THREE.DirectionalLight(0xddeeff, 0.4);
+var fillLight = new THREE.DirectionalLight(0xddeeff, 0.5);
 fillLight.position.set(-1, 1, -1);
 scene.add(fillLight);
-
-const rimLight = new THREE.DirectionalLight(0xff8844, 0.3);
-rimLight.position.set(0, 1, -2);
+var rimLight = new THREE.DirectionalLight(0xffaa66, 0.4);
+rimLight.position.set(0, 0.5, -2);
 scene.add(rimLight);
 
-// State
-let currentVRM = null;
-let clock = new THREE.Clock();
-let targetMouth = 0;
-let targetBlinkL = 0;
-let targetBlinkR = 0;
-let targetLookX = 0;
-let targetLookY = 0;
-let targetHeadYaw = 0;
-let targetHeadPitch = 0;
-let targetBodyBounce = 0;
-let emotionTargets = {};
-let idleTime = 0;
+// ─── State ───
+var currentVRM = null;
+var clock = new THREE.Clock();
+var t = 0; // global time for animations
+
+// Targets (set from Swift)
+var targetMouth = 0;
+var targetBlinkL = 0, targetBlinkR = 0;
+var targetLookX = 0, targetLookY = 0;
+var targetHeadYaw = 0, targetHeadPitch = 0;
+var targetBodyBounce = 0;
+var emotionTargets = {};
+
+// Auto-blink state (JS-driven for smooth idle)
+var nextBlinkTime = 2 + Math.random() * 3;
+var blinkPhase = 0; // 0=open, 1=closing, 2=opening
+var blinkValue = 0;
+var externalBlink = false; // true when Swift controls blink
 
 function sendEvent(obj) {
-    try {
-        window.webkit.messageHandlers.vrmEvent.postMessage(JSON.stringify(obj));
-    } catch(e) {
-        console.log('sendEvent failed:', e);
+    try { window.webkit.messageHandlers.vrmEvent.postMessage(JSON.stringify(obj)); } catch(e) {}
+}
+
+// ─── Pose helper: find bone by traversing scene ───
+function findBoneByName(scene, name) {
+    var found = null;
+    scene.traverse(function(obj) {
+        if (obj.isBone && obj.name && obj.name.toLowerCase().indexOf(name.toLowerCase()) >= 0) {
+            found = obj;
+        }
+    });
+    return found;
+}
+
+// Store original (rest) quaternions for each bone so we can add relative rotations
+var restQuaternions = {};
+var boneRefs = {};
+
+function captureRestPose(vrm) {
+    var humanoid = vrm.humanoid;
+    if (!humanoid) return;
+
+    var names = [
+        'hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
+        'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
+        'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand'
+    ];
+
+    for (var i = 0; i < names.length; i++) {
+        var n = names[i];
+        var bone = humanoid.getRawBoneNode(n);
+        if (bone) {
+            boneRefs[n] = bone;
+            restQuaternions[n] = bone.quaternion.clone();
+            console.log('Bone: ' + n + ' = ' + bone.name);
+        }
     }
 }
 
-// Load VRM model
+function applyIdlePose(time) {
+    // Breathing
+    if (boneRefs.spine) {
+        boneRefs.spine.rotation.x = restQuaternions.spine ? 0 : 0;
+        var breathe = Math.sin(time * 1.8) * 0.012;
+        boneRefs.spine.quaternion.copy(restQuaternions.spine || new THREE.Quaternion());
+        boneRefs.spine.rotateX(breathe);
+    }
+    if (boneRefs.chest) {
+        boneRefs.chest.quaternion.copy(restQuaternions.chest || new THREE.Quaternion());
+        boneRefs.chest.rotateX(Math.sin(time * 1.8) * 0.006);
+    }
+
+    // Arms down from T-pose
+    var armDown = new THREE.Quaternion();
+    var armBendL = new THREE.Quaternion();
+    var armBendR = new THREE.Quaternion();
+
+    // Left arm: rotate around local Z by ~70 degrees to bring down
+    armDown.setFromAxisAngle(new THREE.Vector3(0, 0, 1), 1.15 + Math.sin(time * 0.9) * 0.03);
+    if (boneRefs.leftUpperArm) {
+        boneRefs.leftUpperArm.quaternion.copy(restQuaternions.leftUpperArm || new THREE.Quaternion());
+        boneRefs.leftUpperArm.quaternion.multiply(armDown);
+        // Slight forward
+        var fwd = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.15);
+        boneRefs.leftUpperArm.quaternion.multiply(fwd);
+    }
+
+    // Right arm: opposite Z rotation
+    armDown.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -(1.15 + Math.sin(time * 0.9 + 0.5) * 0.03));
+    if (boneRefs.rightUpperArm) {
+        boneRefs.rightUpperArm.quaternion.copy(restQuaternions.rightUpperArm || new THREE.Quaternion());
+        boneRefs.rightUpperArm.quaternion.multiply(armDown);
+        var fwd2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.15);
+        boneRefs.rightUpperArm.quaternion.multiply(fwd2);
+    }
+
+    // Lower arms: slight bend inward
+    armBendL.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -0.25);
+    if (boneRefs.leftLowerArm) {
+        boneRefs.leftLowerArm.quaternion.copy(restQuaternions.leftLowerArm || new THREE.Quaternion());
+        boneRefs.leftLowerArm.quaternion.multiply(armBendL);
+    }
+    armBendR.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.25);
+    if (boneRefs.rightLowerArm) {
+        boneRefs.rightLowerArm.quaternion.copy(restQuaternions.rightLowerArm || new THREE.Quaternion());
+        boneRefs.rightLowerArm.quaternion.multiply(armBendR);
+    }
+
+    // Subtle body sway
+    if (boneRefs.hips) {
+        boneRefs.hips.quaternion.copy(restQuaternions.hips || new THREE.Quaternion());
+        var sway = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.sin(time * 0.5) * 0.015);
+        boneRefs.hips.quaternion.multiply(sway);
+    }
+}
+
+// ─── Load model ───
 window.loadModel = function(url) {
-    console.log('loadModel called with:', url);
+    console.log('loadModel:', url);
     setStatus('Loading character...');
     document.getElementById('loader').style.display = 'block';
 
-    if (currentVRM) {
-        scene.remove(currentVRM.scene);
-        currentVRM = null;
-    }
+    if (currentVRM) { scene.remove(currentVRM.scene); currentVRM = null; }
+    boneRefs = {};
+    restQuaternions = {};
 
-    const loader = new GLTFLoader();
-    loader.register(function(parser) {
-        return new VRM.VRMLoaderPlugin(parser);
-    });
+    var loader = new GLTFLoader();
+    loader.register(function(parser) { return new VRM.VRMLoaderPlugin(parser); });
 
-    loader.load(
-        url,
-        function(gltf) {
-            console.log('GLTF loaded, extracting VRM...');
-            const vrm = gltf.userData.vrm;
-            if (!vrm) {
-                showError('No VRM data in file');
-                sendEvent({ type: 'error', message: 'No VRM data found in file' });
-                return;
-            }
+    loader.load(url, function(gltf) {
+        var vrm = gltf.userData.vrm;
+        if (!vrm) { sendEvent({ type: 'error', message: 'No VRM data' }); return; }
 
-            currentVRM = vrm;
-            vrm.scene.rotation.y = Math.PI;
-            scene.add(vrm.scene);
+        currentVRM = vrm;
+        vrm.scene.rotation.y = Math.PI;
+        scene.add(vrm.scene);
 
-            // Set idle pose — bring arms down from T-pose
-            // VRM normalized bones use: +X=left, +Y=up, +Z=forward
-            // For upper arms: rotate around Z to bring down
-            var humanoid = vrm.humanoid;
-            if (humanoid) {
-                // Try both normalized and raw bone nodes
-                var bones = {};
-                var boneNames = ['leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm',
-                                 'leftHand', 'rightHand', 'leftShoulder', 'rightShoulder'];
-                for (var i = 0; i < boneNames.length; i++) {
-                    var name = boneNames[i];
-                    bones[name] = humanoid.getNormalizedBoneNode(name) || humanoid.getRawBoneNode(name);
-                    if (bones[name]) {
-                        console.log('Found bone: ' + name);
-                    }
-                }
+        // Capture rest pose quaternions before we modify anything
+        captureRestPose(vrm);
 
-                // Arms down: VRM normalized space rotations
-                if (bones.leftUpperArm) {
-                    bones.leftUpperArm.rotation.set(0.3, 0, 0.8);  // forward tilt + down
-                }
-                if (bones.rightUpperArm) {
-                    bones.rightUpperArm.rotation.set(0.3, 0, -0.8);
-                }
-                if (bones.leftLowerArm) {
-                    bones.leftLowerArm.rotation.set(0, 0, 0.2);  // slight bend
-                }
-                if (bones.rightLowerArm) {
-                    bones.rightLowerArm.rotation.set(0, 0, -0.2);
-                }
+        // Camera: frame head and upper body
+        camera.position.set(0, 1.35, 1.6);
+        camera.lookAt(0, 1.2, 0);
 
-                window._bones = bones;
-                window._restPose = {
-                    leftUpperArm: { x: 0.3, y: 0, z: 0.8 },
-                    rightUpperArm: { x: 0.3, y: 0, z: -0.8 },
-                    leftLowerArm: { x: 0, y: 0, z: 0.2 },
-                    rightLowerArm: { x: 0, y: 0, z: -0.2 }
-                };
+        document.getElementById('loader').style.display = 'none';
 
-                console.log('Idle pose applied');
-            } else {
-                console.log('No humanoid found on VRM');
-            }
-
-            // Adjust camera — upper body framing
-            camera.position.set(0, 1.3, 1.5);
-            camera.lookAt(0, 1.15, 0);
-
-            // Hide loader
-            document.getElementById('loader').style.display = 'none';
-
-            console.log('VRM model loaded with idle pose');
-            if (vrm.expressionManager) {
-                var names = vrm.expressionManager.expressions.map(function(e) { return e.expressionName; });
-                console.log('Available expressions:', names.join(', '));
-            }
-
-            sendEvent({ type: 'loaded', model: url });
-        },
-        function(progress) {
-            if (progress.total > 0) {
-                var pct = Math.round((progress.loaded / progress.total) * 100);
-                setStatus('Loading character... ' + pct + '%');
-            }
-        },
-        function(error) {
-            console.error('VRM load error:', error);
-            showError('Load failed: ' + (error.message || error));
-            sendEvent({ type: 'error', message: error.message || 'Model load failed' });
+        if (vrm.expressionManager) {
+            var names = vrm.expressionManager.expressions.map(function(e) { return e.expressionName; });
+            console.log('Expressions:', names.join(', '));
         }
-    );
+
+        sendEvent({ type: 'loaded', model: url });
+    }, function(progress) {
+        if (progress.total > 0) {
+            setStatus('Loading... ' + Math.round((progress.loaded / progress.total) * 100) + '%');
+        }
+    }, function(error) {
+        console.error('Load error:', error);
+        sendEvent({ type: 'error', message: error.message || 'Load failed' });
+    });
 };
 
-// Control functions
+// ─── Controls (called from Swift) ───
 window.setEmotion = function(emotion) {
     emotionTargets = {};
     switch (emotion) {
-        case 'happy':
-        case 'excited':
-            emotionTargets = { happy: 0.8 };
-            break;
-        case 'sad':
-        case 'concerned':
-            emotionTargets = { sad: 0.7 };
-            break;
-        case 'angry':
-            emotionTargets = { angry: 0.8 };
-            break;
-        case 'surprised':
-            emotionTargets = { surprised: 0.9 };
-            break;
-        case 'thinking':
-            emotionTargets = { neutral: 0.3 };
-            break;
-        default:
-            emotionTargets = { neutral: 0.0 };
-            break;
+        case 'happy': case 'excited': emotionTargets = { happy: 0.7 }; break;
+        case 'sad': case 'concerned': emotionTargets = { sad: 0.6 }; break;
+        case 'angry': emotionTargets = { angry: 0.7 }; break;
+        case 'surprised': emotionTargets = { surprised: 0.8 }; break;
+        default: break;
     }
 };
+window.setMouthOpenness = function(v) { targetMouth = Math.max(0, Math.min(1, v)); };
+window.setBlink = function(b) { externalBlink = b; if (b) { targetBlinkL = 1; targetBlinkR = 1; } else { targetBlinkL = 0; targetBlinkR = 0; } };
+window.setEyeGaze = function(x, y) { targetLookX = x; targetLookY = y; };
+window.setHeadRotation = function(yaw, pitch) { targetHeadYaw = yaw * Math.PI / 180; targetHeadPitch = (pitch || 0) * Math.PI / 180; };
+window.setBodyBounce = function(v) { targetBodyBounce = v; };
 
-window.setMouthOpenness = function(value) {
-    targetMouth = Math.max(0, Math.min(1, value));
-};
-
-window.setBlink = function(blinking) {
-    targetBlinkL = blinking ? 1 : 0;
-    targetBlinkR = blinking ? 1 : 0;
-};
-
-window.setEyeGaze = function(x, y) {
-    targetLookX = Math.max(-1, Math.min(1, x));
-    targetLookY = Math.max(-1, Math.min(1, y));
-};
-
-window.setHeadRotation = function(yaw, pitch) {
-    targetHeadYaw = yaw * (Math.PI / 180);
-    targetHeadPitch = (pitch || 0) * (Math.PI / 180);
-};
-
-window.setBodyBounce = function(value) {
-    targetBodyBounce = value;
-};
-
-// Animation loop
+// ─── Animation loop ───
 function animate() {
     requestAnimationFrame(animate);
     var delta = clock.getDelta();
-    idleTime += delta;
+    t += delta;
 
-    if (currentVRM) {
-        var mgr = currentVRM.expressionManager;
-        var lerpSpeed = 8 * delta;
+    if (!currentVRM) { renderer.render(scene, camera); return; }
 
-        if (mgr) {
-            // Lip sync
-            var curMouth = mgr.getValue('aa') || 0;
-            mgr.setValue('aa', THREE.MathUtils.lerp(curMouth, targetMouth, lerpSpeed));
+    var mgr = currentVRM.expressionManager;
+    var s = 10 * delta; // lerp speed
 
-            // Blink
-            var curBlinkL = mgr.getValue('blinkLeft') || 0;
-            var curBlinkR = mgr.getValue('blinkRight') || 0;
-            mgr.setValue('blinkLeft', THREE.MathUtils.lerp(curBlinkL, targetBlinkL, lerpSpeed * 2));
-            mgr.setValue('blinkRight', THREE.MathUtils.lerp(curBlinkR, targetBlinkR, lerpSpeed * 2));
+    // ── Expressions ──
+    if (mgr) {
+        // Lip sync
+        mgr.setValue('aa', THREE.MathUtils.lerp(mgr.getValue('aa') || 0, targetMouth, s));
 
-            // Emotions
-            for (var name in emotionTargets) {
-                var cur = mgr.getValue(name) || 0;
-                mgr.setValue(name, THREE.MathUtils.lerp(cur, emotionTargets[name], lerpSpeed * 0.5));
-            }
-            var allEmotions = ['happy', 'sad', 'angry', 'surprised', 'neutral', 'relaxed'];
-            for (var i = 0; i < allEmotions.length; i++) {
-                var e = allEmotions[i];
-                if (!(e in emotionTargets)) {
-                    var cur = mgr.getValue(e) || 0;
-                    if (cur > 0.01) {
-                        mgr.setValue(e, THREE.MathUtils.lerp(cur, 0, lerpSpeed * 0.5));
-                    }
+        // Auto-blink (when Swift isn't controlling it)
+        if (!externalBlink) {
+            if (blinkPhase === 0) {
+                if (t >= nextBlinkTime) { blinkPhase = 1; }
+            } else if (blinkPhase === 1) {
+                blinkValue = Math.min(1, blinkValue + delta * 15);
+                if (blinkValue >= 1) { blinkPhase = 2; }
+            } else {
+                blinkValue = Math.max(0, blinkValue - delta * 10);
+                if (blinkValue <= 0) {
+                    blinkPhase = 0;
+                    nextBlinkTime = t + 2 + Math.random() * 4;
                 }
             }
-
-            // Eye gaze
-            var lookRight = Math.max(0, targetLookX);
-            var lookLeft = Math.max(0, -targetLookX);
-            var lookUp = Math.max(0, targetLookY);
-            var lookDown = Math.max(0, -targetLookY);
-            mgr.setValue('lookRight', THREE.MathUtils.lerp(mgr.getValue('lookRight') || 0, lookRight, lerpSpeed));
-            mgr.setValue('lookLeft', THREE.MathUtils.lerp(mgr.getValue('lookLeft') || 0, lookLeft, lerpSpeed));
-            mgr.setValue('lookUp', THREE.MathUtils.lerp(mgr.getValue('lookUp') || 0, lookUp, lerpSpeed));
-            mgr.setValue('lookDown', THREE.MathUtils.lerp(mgr.getValue('lookDown') || 0, lookDown, lerpSpeed));
-        }
-
-        // Head bone rotation
-        var head = currentVRM.humanoid ? currentVRM.humanoid.getRawBoneNode('head') : null;
-        if (head) {
-            head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, targetHeadYaw, lerpSpeed);
-            head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, targetHeadPitch, lerpSpeed);
-        }
-
-        // Idle breathing
-        var spine = currentVRM.humanoid ? currentVRM.humanoid.getRawBoneNode('spine') : null;
-        if (spine) {
-            spine.rotation.x = Math.sin(idleTime * 1.5) * 0.01;
-        }
-
-        // Idle arm sway (subtle natural movement)
-        if (window._bones && window._restPose) {
-            var rp = window._restPose;
-            var sway = Math.sin(idleTime * 1.2) * 0.03;
-            var breathX = Math.sin(idleTime * 0.8) * 0.02;
-            if (window._bones.leftUpperArm) {
-                window._bones.leftUpperArm.rotation.z = rp.leftUpperArm.z + sway;
-                window._bones.leftUpperArm.rotation.x = rp.leftUpperArm.x + breathX;
-            }
-            if (window._bones.rightUpperArm) {
-                window._bones.rightUpperArm.rotation.z = rp.rightUpperArm.z - sway;
-                window._bones.rightUpperArm.rotation.x = rp.rightUpperArm.x + breathX;
-            }
-        }
-
-        // Body bounce
-        if (targetBodyBounce > 0) {
-            currentVRM.scene.position.y = Math.sin(idleTime * 8) * 0.02 * targetBodyBounce;
+            mgr.setValue('blink', blinkValue);
         } else {
-            currentVRM.scene.position.y = THREE.MathUtils.lerp(currentVRM.scene.position.y, 0, lerpSpeed);
+            mgr.setValue('blink', THREE.MathUtils.lerp(mgr.getValue('blink') || 0, targetBlinkL, s * 2));
         }
 
-        currentVRM.update(delta);
+        // Emotions — smooth blend
+        var allEmotions = ['happy', 'sad', 'angry', 'surprised', 'relaxed'];
+        for (var i = 0; i < allEmotions.length; i++) {
+            var e = allEmotions[i];
+            var target = emotionTargets[e] || 0;
+            var cur = mgr.getValue(e) || 0;
+            mgr.setValue(e, THREE.MathUtils.lerp(cur, target, s * 0.3));
+        }
+
+        // Eye gaze
+        mgr.setValue('lookRight', THREE.MathUtils.lerp(mgr.getValue('lookRight') || 0, Math.max(0, targetLookX), s));
+        mgr.setValue('lookLeft', THREE.MathUtils.lerp(mgr.getValue('lookLeft') || 0, Math.max(0, -targetLookX), s));
+        mgr.setValue('lookUp', THREE.MathUtils.lerp(mgr.getValue('lookUp') || 0, Math.max(0, targetLookY), s));
+        mgr.setValue('lookDown', THREE.MathUtils.lerp(mgr.getValue('lookDown') || 0, Math.max(0, -targetLookY), s));
+    }
+
+    // ── Head rotation (on normalized bone — vrm.update will apply it) ──
+    var headNorm = currentVRM.humanoid ? currentVRM.humanoid.getNormalizedBoneNode('head') : null;
+    if (headNorm) {
+        headNorm.rotation.y = THREE.MathUtils.lerp(headNorm.rotation.y, targetHeadYaw + Math.sin(t * 0.4) * 0.02, s);
+        headNorm.rotation.x = THREE.MathUtils.lerp(headNorm.rotation.x, targetHeadPitch + Math.sin(t * 0.6) * 0.015, s);
+        headNorm.rotation.z = Math.sin(t * 0.3) * 0.01; // subtle tilt
+    }
+
+    // Let VRM process normalized → raw
+    currentVRM.update(delta);
+
+    // ── AFTER vrm.update: apply arm pose on RAW bones ──
+    applyIdlePose(t);
+
+    // Body bounce
+    if (targetBodyBounce > 0) {
+        currentVRM.scene.position.y = Math.sin(t * 8) * 0.015 * targetBodyBounce;
+    } else {
+        currentVRM.scene.position.y *= 0.9;
     }
 
     renderer.render(scene, camera);
 }
 
-// Handle resize
 window.addEventListener('resize', function() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -364,9 +328,6 @@ window.addEventListener('resize', function() {
 });
 
 animate();
-
-// Notify Swift we're ready
-console.log('Sending ready event to Swift');
 sendEvent({ type: 'ready' });
 </script>
 </body>
