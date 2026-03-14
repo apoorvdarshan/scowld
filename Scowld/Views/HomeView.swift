@@ -25,6 +25,7 @@ struct HomeView: View {
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
     @State private var isListening = false
     @State private var speechManager = SpeechManager()
+    @State private var cameraEnabled = false
 
     var body: some View {
         AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
@@ -34,27 +35,39 @@ struct HomeView: View {
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
+                    // Camera toggle
+                    Button {
+                        cameraEnabled.toggle()
+                        amicaCoordinator?.webView?.evaluateJavaScript(
+                            "window.__toggleWebcam && window.__toggleWebcam(\(cameraEnabled));"
+                        )
+                    } label: {
+                        Image(systemName: cameraEnabled ? "eye.circle.fill" : "eye.slash.circle")
+                            .font(.title2)
+                            .foregroundStyle(cameraEnabled ? .green : .secondary)
+                    }
+
                     // Mic button
                     Button {
                         toggleListening()
                     } label: {
                         Image(systemName: isListening ? "stop.circle.fill" : "mic.circle.fill")
-                            .font(.title)
+                            .font(.title2)
                             .foregroundStyle(isListening ? .red : .orange)
                     }
 
-                    // Text field (shows live speech text when listening)
+                    // Text field
                     TextField(isListening ? "Listening..." : "Message...", text: $messageText)
                         .textFieldStyle(.roundedBorder)
                         .submitLabel(.send)
                         .onSubmit { stopAndSend() }
 
-                    // Send button (always visible)
+                    // Send button
                     Button {
                         stopAndSend()
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
-                            .font(.title)
+                            .font(.title2)
                             .foregroundStyle(.orange)
                     }
                     .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
