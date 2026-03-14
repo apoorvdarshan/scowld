@@ -126,11 +126,33 @@ struct AmicaFullView: UIViewRepresentable {
         let contentController = config.userContentController
         contentController.add(context.coordinator, name: "nativeAI")
 
+        // Forward JS console to Swift
+        let consoleScript = WKUserScript(
+            source: """
+            (function() {
+                var origLog = console.log, origError = console.error, origWarn = console.warn;
+                function send(level, args) {
+                    try { window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({
+                        type: 'console', level: level, message: Array.from(args).map(String).join(' ')
+                    })); } catch(e) {}
+                }
+                console.log = function() { send('log', arguments); origLog.apply(console, arguments); };
+                console.error = function() { send('error', arguments); origError.apply(console, arguments); };
+                console.warn = function() { send('warn', arguments); origWarn.apply(console, arguments); };
+                window.onerror = function(msg, url, line) {
+                    send('error', ['JS Error: ' + msg + ' at ' + url + ':' + line]);
+                };
+            })();
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        )
+        contentController.addUserScript(consoleScript)
+
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
-        webView.underPageBackgroundColor = .clear
+        webView.isOpaque = true
         webView.scrollView.bounces = false
+        webView.scrollView.isScrollEnabled = true
         webView.navigationDelegate = context.coordinator
 
         // Verify amica files exist in bundle, then load via custom scheme
@@ -212,6 +234,10 @@ struct AmicaFullView: UIViewRepresentable {
                 guard let callbackId = json["callbackId"] as? String,
                       let messages = json["messages"] as? [[String: String]] else { return }
                 Task { await handleChatRequest(callbackId: callbackId, messages: messages) }
+            case "console":
+                let level = json["level"] as? String ?? "log"
+                let msg = json["message"] as? String ?? ""
+                print("[Amica-JS] [\(level)] \(msg)")
             default:
                 print("[Amica] Bridge: \(type)")
             }
