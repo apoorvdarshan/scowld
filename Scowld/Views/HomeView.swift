@@ -1,5 +1,8 @@
 import SwiftUI
 import WebKit
+import os
+
+private let logger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "Amica")
 
 // MARK: - Home View
 
@@ -32,7 +35,7 @@ class AmicaLocalServer {
             "\(bundle)/amica"
         ]
         amicaBasePath = paths.first { FileManager.default.fileExists(atPath: "\($0)/index.html") } ?? bundle
-        print("[Server] Amica base: \(amicaBasePath)")
+        logger.info("[Server] Amica base: \(amicaBasePath)")
     }
 
     func start() {
@@ -40,7 +43,7 @@ class AmicaLocalServer {
 
         // Create socket
         serverSocket = socket(AF_INET, SOCK_STREAM, 0)
-        guard serverSocket >= 0 else { print("[Server] Socket failed"); return }
+        guard serverSocket >= 0 else { logger.info("[Server] Socket failed"); return }
 
         var yes: Int32 = 1
         setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &yes, socklen_t(MemoryLayout<Int32>.size))
@@ -55,7 +58,7 @@ class AmicaLocalServer {
                 bind(serverSocket, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
-        guard bindResult >= 0 else { print("[Server] Bind failed"); return }
+        guard bindResult >= 0 else { logger.info("[Server] Bind failed"); return }
 
         // Get assigned port
         var assignedAddr = sockaddr_in()
@@ -67,10 +70,10 @@ class AmicaLocalServer {
         }
         port = UInt16(bigEndian: assignedAddr.sin_port)
 
-        guard listen(serverSocket, 10) >= 0 else { print("[Server] Listen failed"); return }
+        guard listen(serverSocket, 10) >= 0 else { logger.info("[Server] Listen failed"); return }
 
         isRunning = true
-        print("[Server] Running on http://127.0.0.1:\(port)")
+        logger.info("[Server] Running on http://127.0.0.1:\(port)")
 
         // Accept connections in background
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -254,7 +257,7 @@ struct AmicaFullView: UIViewRepresentable {
         // Load from local HTTP server (not custom scheme — so fetch() works with CORS)
         if port > 0 {
             let url = URL(string: "http://127.0.0.1:\(port)/index.html")!
-            print("[Amica] Loading from \(url)")
+            logger.info("[Amica] Loading from \(url)")
             webView.load(URLRequest(url: url))
         }
 
@@ -276,15 +279,15 @@ struct AmicaFullView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            print("[Amica] Page loaded")
+            logger.info("[Amica] Page loaded")
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("[Amica] Navigation failed: \(error.localizedDescription)")
+            logger.info("[Amica] Navigation failed: \(error.localizedDescription)")
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            print("[Amica] Provisional navigation failed: \(error.localizedDescription)")
+            logger.info("[Amica] Provisional navigation failed: \(error.localizedDescription)")
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
@@ -319,7 +322,7 @@ struct AmicaFullView: UIViewRepresentable {
             case "console":
                 let level = json["level"] as? String ?? "log"
                 let msg = json["message"] as? String ?? ""
-                print("[Amica-JS] [\(level)] \(msg)")
+                logger.info("[Amica-JS] [\(level)] \(msg)")
             default:
                 break
             }
