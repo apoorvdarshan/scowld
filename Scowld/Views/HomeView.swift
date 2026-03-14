@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import UIKit
+import AVFoundation
 import os
 
 private let logger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "Amica")
@@ -79,7 +80,14 @@ struct HomeView: View {
             }
         }
         .onAppear {
-            // Request permissions on appear
+            // Set audio session to allow both playback and recording
+            try? AVAudioSession.sharedInstance().setCategory(
+                .playAndRecord,
+                mode: .default,
+                options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers]
+            )
+            try? AVAudioSession.sharedInstance().setActive(true)
+
             Task {
                 _ = await speechManager.requestPermissions()
             }
