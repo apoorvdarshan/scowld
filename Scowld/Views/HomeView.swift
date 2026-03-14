@@ -337,12 +337,65 @@ struct AmicaFullView: UIViewRepresentable {
                 if let text = json["text"] as? String {
                     speechManager.speak(text)
                 }
+            case "elevenlabs_tts":
+                guard let callbackId = json["callbackId"] as? String,
+                      let text = json["text"] as? String,
+                      let voiceId = json["voiceId"] as? String,
+                      let apiKey = json["apiKey"] as? String else { return }
+                Task { await handleElevenLabsTTS(callbackId: callbackId, text: text, voiceId: voiceId, apiKey: apiKey) }
             case "console":
                 let level = json["level"] as? String ?? "log"
                 let msg = json["message"] as? String ?? ""
                 print("[Amica-JS] [\(level)] \(msg)")
             default:
                 print("[Amica] Bridge: \(type)")
+            }
+        }
+
+        // MARK: ElevenLabs TTS Proxy
+
+        private func handleElevenLabsTTS(callbackId: String, text: String, voiceId: String, apiKey: String) async {
+            let url = URL(string: "https://api.elevenlabs.io/v1/text-to-speech/\(voiceId)?output_format=mp3_44100_128")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+            request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
+
+            let body: [String: Any] = [
+                "text": text,
+                "model_id": "eleven_flash_v2_5",
+                "voice_settings": [
+                    "stability": 0.5,
+                    "similarity_boost": 0.75,
+                    "style": 0,
+                    "use_speaker_boost": true
+                ]
+            ]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let httpResponse = response as? HTTPURLResponse
+                if httpResponse?.statusCode == 200 {
+                    let base64 = data.base64EncodedString()
+                    await MainActor.run {
+                        let js = "window.__nativeCallbacks && window.__nativeCallbacks['\(callbackId)'] && window.__nativeCallbacks['\(callbackId)'].resolve('\(base64)')"
+                        webView?.evaluateJavaScript(js)
+                    }
+                } else {
+                    let errMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse?.statusCode ?? 0)"
+                    print("[ElevenLabs] Error: \(errMsg)")
+                    await MainActor.run {
+                        let js = "window.__nativeCallbacks && window.__nativeCallbacks['\(callbackId)'] && window.__nativeCallbacks['\(callbackId)'].reject('ElevenLabs error: \(httpResponse?.statusCode ?? 0)')"
+                        webView?.evaluateJavaScript(js)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    let js = "window.__nativeCallbacks && window.__nativeCallbacks['\(callbackId)'] && window.__nativeCallbacks['\(callbackId)'].reject('\(error.localizedDescription)')"
+                    webView?.evaluateJavaScript(js)
+                }
             }
         }
 
