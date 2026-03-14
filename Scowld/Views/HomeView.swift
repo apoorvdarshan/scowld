@@ -32,36 +32,68 @@ struct HomeView: View {
         })
         .ignoresSafeArea()
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 10) {
-                // Mic button
-                Button {
-                    toggleListening()
-                } label: {
-                    Image(systemName: isListening ? "waveform.circle.fill" : "mic.circle.fill")
-                        .font(.title)
-                        .foregroundStyle(isListening ? .red : .orange)
-                        .symbolEffect(.variableColor, isActive: isListening)
+            VStack(spacing: 0) {
+                // Show recognized text while listening
+                if isListening && !speechManager.recognizedText.isEmpty {
+                    Text(speechManager.recognizedText)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.ultraThinMaterial)
                 }
 
-                // Text field
-                TextField("Message...", text: $messageText)
-                    .textFieldStyle(.roundedBorder)
-                    .submitLabel(.send)
-                    .onSubmit { sendMessage() }
+                HStack(spacing: 10) {
+                    // Mic button
+                    Button {
+                        toggleListening()
+                    } label: {
+                        Image(systemName: isListening ? "stop.circle.fill" : "mic.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(isListening ? .red : .orange)
+                    }
 
-                // Send button
-                Button {
-                    sendMessage()
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title)
-                        .foregroundStyle(.orange)
+                    if isListening {
+                        // Listening indicator
+                        Text("Listening...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        // Text field
+                        TextField("Message...", text: $messageText)
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.send)
+                            .onSubmit { sendMessage() }
+
+                        // Send button
+                        Button {
+                            sendMessage()
+                        } label: {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.title)
+                                .foregroundStyle(.orange)
+                        }
+                        .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
                 }
-                .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
+        }
+        .onAppear {
+            // Request permissions on appear
+            Task {
+                _ = await speechManager.requestPermissions()
+            }
+        }
+        .onChange(of: speechManager.recognizedText) {
+            // Update live text while listening
+            if isListening {
+                messageText = speechManager.recognizedText
+            }
         }
     }
 
@@ -83,18 +115,18 @@ struct HomeView: View {
         if isListening {
             speechManager.stopListening()
             isListening = false
-            if !speechManager.recognizedText.isEmpty {
-                messageText = speechManager.recognizedText
-                speechManager.recognizedText = ""
+            // Send whatever was recognized
+            let text = speechManager.recognizedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            speechManager.recognizedText = ""
+            if !text.isEmpty {
+                messageText = text
                 sendMessage()
             }
         } else {
             speechManager.stopSpeaking()
-            Task {
-                _ = await speechManager.requestPermissions()
-                speechManager.startListening()
-                isListening = true
-            }
+            speechManager.recognizedText = ""
+            speechManager.startListening()
+            isListening = true
         }
     }
 }
