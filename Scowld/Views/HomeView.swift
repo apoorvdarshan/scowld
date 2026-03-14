@@ -33,17 +33,6 @@ struct HomeView: View {
         .ignoresSafeArea()
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 0) {
-                // Show recognized text while listening
-                if isListening && !speechManager.recognizedText.isEmpty {
-                    Text(speechManager.recognizedText)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.ultraThinMaterial)
-                }
-
                 HStack(spacing: 10) {
                     // Mic button
                     Button {
@@ -54,29 +43,21 @@ struct HomeView: View {
                             .foregroundStyle(isListening ? .red : .orange)
                     }
 
-                    if isListening {
-                        // Listening indicator
-                        Text("Listening...")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        // Text field
-                        TextField("Message...", text: $messageText)
-                            .textFieldStyle(.roundedBorder)
-                            .submitLabel(.send)
-                            .onSubmit { sendMessage() }
+                    // Text field (shows live speech text when listening)
+                    TextField(isListening ? "Listening..." : "Message...", text: $messageText)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.send)
+                        .onSubmit { stopAndSend() }
 
-                        // Send button
-                        Button {
-                            sendMessage()
-                        } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(.orange)
-                        }
-                        .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    // Send button (always visible)
+                    Button {
+                        stopAndSend()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(.orange)
                     }
+                    .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -97,10 +78,26 @@ struct HomeView: View {
         }
     }
 
+    private func stopAndSend() {
+        // Stop listening if active
+        if isListening {
+            speechManager.stopListening()
+            isListening = false
+            // Use recognized text if messageText is empty
+            if messageText.trimmingCharacters(in: .whitespaces).isEmpty {
+                messageText = speechManager.recognizedText
+            }
+            speechManager.recognizedText = ""
+        }
+        sendMessage()
+    }
+
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         messageText = ""
+
+        logger.info("[HomeView] Sending message: \(text)")
 
         let escaped = text
             .replacingOccurrences(of: "\\", with: "\\\\")
@@ -108,23 +105,23 @@ struct HomeView: View {
             .replacingOccurrences(of: "\n", with: " ")
         amicaCoordinator?.webView?.evaluateJavaScript(
             "window.__sendMessageFromNative && window.__sendMessageFromNative('\(escaped)');"
-        )
+        ) { result, error in
+            if let error {
+                logger.info("[HomeView] JS error: \(error.localizedDescription)")
+            } else {
+                logger.info("[HomeView] Message sent OK")
+            }
+        }
     }
 
     private func toggleListening() {
         if isListening {
-            speechManager.stopListening()
-            isListening = false
-            // Send whatever was recognized
-            let text = speechManager.recognizedText.trimmingCharacters(in: .whitespacesAndNewlines)
-            speechManager.recognizedText = ""
-            if !text.isEmpty {
-                messageText = text
-                sendMessage()
-            }
+            // Stop and send
+            stopAndSend()
         } else {
             speechManager.stopSpeaking()
             speechManager.recognizedText = ""
+            messageText = ""
             speechManager.startListening()
             isListening = true
         }
