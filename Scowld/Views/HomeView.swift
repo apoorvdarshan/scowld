@@ -265,6 +265,15 @@ struct AmicaFullView: UIViewRepresentable {
 
         let settingsScript = WKUserScript(
             source: """
+            // Clear ALL old cached config from localStorage
+            try {
+                var keys = Object.keys(localStorage);
+                for (var i = 0; i < keys.length; i++) {
+                    if (keys[i].startsWith('chatvrm_')) {
+                        localStorage.removeItem(keys[i]);
+                    }
+                }
+            } catch(e) {}
             window.__nativeConfig = {
                 chatbot_backend: 'native_ios',
                 tts_backend: '\(ttsBackend)',
