@@ -6,12 +6,64 @@ private let logger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "Am
 
 // MARK: - Home View
 
+// Debug log shared between views
+@Observable
+class DebugLog {
+    static let shared = DebugLog()
+    var messages: [String] = []
+    func add(_ msg: String) {
+        DispatchQueue.main.async {
+            self.messages.append(msg)
+            if self.messages.count > 20 { self.messages.removeFirst() }
+        }
+    }
+}
+
 struct HomeView: View {
     var memoryStore: MemoryStore
+    @State private var showDebug = false
 
     var body: some View {
-        AmicaFullView(memoryStore: memoryStore)
-            .ignoresSafeArea()
+        ZStack {
+            AmicaFullView(memoryStore: memoryStore)
+                .ignoresSafeArea()
+
+            // Debug overlay - tap top-left corner to toggle
+            VStack {
+                HStack {
+                    Button { showDebug.toggle() } label: {
+                        Text("DBG")
+                            .font(.caption2)
+                            .padding(4)
+                            .background(.black.opacity(0.5))
+                            .foregroundStyle(.green)
+                            .cornerRadius(4)
+                    }
+                    Spacer()
+                }
+                .padding(.top, 50)
+                .padding(.leading, 8)
+
+                if showDebug {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(DebugLog.shared.messages, id: \.self) { msg in
+                                Text(msg)
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                        .padding(6)
+                    }
+                    .frame(maxHeight: 200)
+                    .background(.black.opacity(0.85))
+                    .cornerRadius(8)
+                    .padding(.horizontal, 8)
+                }
+
+                Spacer()
+            }
+        }
     }
 }
 
@@ -280,6 +332,11 @@ struct AmicaFullView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             logger.info("[Amica] Page loaded")
+            DebugLog.shared.add("Page loaded")
+            // Log the injected config
+            webView.evaluateJavaScript("JSON.stringify(window.__nativeConfig || 'NOT SET')") { result, _ in
+                DebugLog.shared.add("__nativeConfig: \(result ?? "nil")")
+            }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -323,6 +380,7 @@ struct AmicaFullView: UIViewRepresentable {
                 let level = json["level"] as? String ?? "log"
                 let msg = json["message"] as? String ?? ""
                 logger.info("[Amica-JS] [\(level)] \(msg)")
+                DebugLog.shared.add("[\(level)] \(msg)")
             default:
                 break
             }
