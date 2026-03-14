@@ -24,65 +24,101 @@ struct HomeView: View {
     @State private var visionTimer: Timer?
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                // Background gradient
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.05, green: 0.03, blue: 0.08),
-                        Color(red: 0.08, green: 0.05, blue: 0.12),
-                        Color(red: 0.04, green: 0.02, blue: 0.06),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-
-                // Ambient glow behind character
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [Color.orange.opacity(0.08), .clear],
-                            center: .center,
-                            startRadius: 20,
-                            endRadius: 200
-                        )
+        NavigationStack {
+            GeometryReader { geo in
+                ZStack {
+                    // Background gradient
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.05, green: 0.03, blue: 0.08),
+                            Color(red: 0.08, green: 0.05, blue: 0.12),
+                            Color(red: 0.04, green: 0.02, blue: 0.06),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-                    .frame(width: 400, height: 400)
-                    .offset(y: -geo.size.height * 0.1)
+                    .ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    // MARK: - Glass Header
-                    glassHeader
-                        .padding(.top, 4)
+                    // Ambient glow behind character
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.orange.opacity(0.08), .clear],
+                                center: .center,
+                                startRadius: 20,
+                                endRadius: 200
+                            )
+                        )
+                        .frame(width: 400, height: 400)
+                        .offset(y: -geo.size.height * 0.1)
 
-                    // MARK: - Character
-                    characterArea(height: showChat ? geo.size.height * 0.35 : geo.size.height * 0.55)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showChat)
+                    VStack(spacing: 0) {
+                        // MARK: - Glass Controls (top)
+                        glassControls
+                            .padding(.top, 4)
 
-                    Spacer(minLength: 0)
+                        // MARK: - Character
+                        characterArea(height: showChat ? geo.size.height * 0.35 : geo.size.height * 0.55)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showChat)
 
-                    // MARK: - Chat Overlay
-                    if showChat {
-                        glassChatArea(height: geo.size.height * 0.38)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        Spacer(minLength: 0)
+
+                        // MARK: - Chat Overlay
+                        if showChat {
+                            glassChatArea(height: geo.size.height * 0.38)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
 
-                    // MARK: - Glass Controls
-                    glassControls
-                        .padding(.bottom, 4)
-                }
-
-                // Error toast
-                if let error = errorMessage {
-                    VStack {
-                        Spacer()
-                        glassErrorToast(error)
-                            .padding(.bottom, 100)
+                    // Error toast
+                    if let error = errorMessage {
+                        VStack {
+                            Spacer()
+                            glassErrorToast(error)
+                                .padding(.bottom, 100)
+                        }
+                        .transition(.opacity)
                     }
-                    .transition(.opacity)
                 }
             }
+            .navigationTitle("Scowld")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 6) {
+                        if cameraManager.isActive {
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(.green)
+                                    .frame(width: 6, height: 6)
+                                Text("Live")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.green)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(.ultraThinMaterial, in: Capsule())
+                        }
+
+                        if speechManager.isListening {
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(.red)
+                                    .frame(width: 6, height: 6)
+                                Text("Listening")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.red)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(.ultraThinMaterial, in: Capsule())
+                        }
+                    }
+                }
+            }
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         }
         .onAppear { startSession() }
         .onDisappear { endSession() }
@@ -104,61 +140,6 @@ struct HomeView: View {
                 )
             }
         }
-    }
-
-    // MARK: - Glass Header
-
-    private var glassHeader: some View {
-        HStack {
-            Text("Scowld")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.orange, .yellow],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-
-            Spacer()
-
-            // Camera indicator pill
-            if cameraManager.isActive {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(.green)
-                        .frame(width: 6, height: 6)
-                    Text("Live")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.green)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(.ultraThinMaterial, in: Capsule())
-            }
-
-            // Listening indicator
-            if speechManager.isListening {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(.red)
-                        .frame(width: 6, height: 6)
-                    Text("Listening")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.red)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(.ultraThinMaterial, in: Capsule())
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 12)
     }
 
     // MARK: - Character Area
