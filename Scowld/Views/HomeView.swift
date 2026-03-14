@@ -53,12 +53,8 @@ struct HomeView: View {
                         .offset(y: -geo.size.height * 0.1)
 
                     VStack(spacing: 0) {
-                        // MARK: - Glass Controls (top)
-                        glassControls
-                            .padding(.top, 4)
-
                         // MARK: - Character
-                        characterArea(height: showChat ? geo.size.height * 0.35 : geo.size.height * 0.55)
+                        characterArea(height: showChat ? geo.size.height * 0.4 : geo.size.height * 0.65)
                             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showChat)
 
                         Spacer(minLength: 0)
@@ -85,36 +81,39 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 6) {
-                        if cameraManager.isActive {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(.green)
-                                    .frame(width: 6, height: 6)
-                                Text("Live")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.green)
+                    Menu {
+                        Button {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                showChat.toggle()
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(.ultraThinMaterial, in: Capsule())
+                        } label: {
+                            Label(
+                                showChat ? "Hide Keyboard" : "Show Keyboard",
+                                systemImage: showChat ? "keyboard.chevron.compact.down" : "keyboard"
+                            )
                         }
 
-                        if speechManager.isListening {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(.red)
-                                    .frame(width: 6, height: 6)
-                                Text("Listening")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.red)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(.ultraThinMaterial, in: Capsule())
+                        Button {
+                            toggleListening()
+                        } label: {
+                            Label(
+                                speechManager.isListening ? "Stop Listening" : "Start Listening",
+                                systemImage: speechManager.isListening ? "waveform" : "mic.fill"
+                            )
                         }
+
+                        Button {
+                            toggleCamera()
+                        } label: {
+                            Label(
+                                cameraManager.isActive ? "Disable Camera" : "Enable Camera",
+                                systemImage: cameraManager.isActive ? "eye.fill" : "eye.slash"
+                            )
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -201,73 +200,6 @@ struct HomeView: View {
                 .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
         )
         .padding(.horizontal, 8)
-    }
-
-    // MARK: - Glass Controls
-
-    private var glassControls: some View {
-        HStack(spacing: 16) {
-            // Chat toggle
-            GlassButton(
-                icon: showChat ? "keyboard.chevron.compact.down" : "keyboard",
-                isActive: showChat,
-                activeColor: .blue
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                    showChat.toggle()
-                }
-            }
-
-            // Mic button — larger, primary action
-            Button {
-                toggleListening()
-            } label: {
-                ZStack {
-                    // Outer glow ring
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 72, height: 72)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    speechManager.isListening
-                                        ? Color.red.opacity(0.6)
-                                        : Color.orange.opacity(0.3),
-                                    lineWidth: 1.5
-                                )
-                        )
-
-                    // Inner circle
-                    Circle()
-                        .fill(speechManager.isListening ? Color.red : Color.orange)
-                        .frame(width: 56, height: 56)
-                        .shadow(color: (speechManager.isListening ? Color.red : Color.orange).opacity(0.5), radius: 12)
-
-                    Image(systemName: speechManager.isListening ? "waveform" : "mic.fill")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .symbolEffect(.variableColor.iterative, isActive: speechManager.isListening)
-                }
-            }
-
-            // Camera toggle
-            GlassButton(
-                icon: cameraManager.isActive ? "eye.fill" : "eye.slash",
-                isActive: cameraManager.isActive,
-                activeColor: .green
-            ) {
-                toggleCamera()
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(
-            Capsule()
-                .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
-        )
-        .padding(.horizontal, 40)
     }
 
     // MARK: - Glass Error Toast
@@ -452,30 +384,6 @@ struct HomeView: View {
         } else {
             let url = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
             return OllamaProvider(baseURL: url, model: model)
-        }
-    }
-}
-
-// MARK: - Glass Button Component
-
-struct GlassButton: View {
-    let icon: String
-    var isActive: Bool = false
-    var activeColor: Color = .orange
-
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.title3)
-                .fontWeight(.medium)
-                .foregroundStyle(isActive ? activeColor : .secondary)
-                .frame(width: 44, height: 44)
-                .background(
-                    Circle()
-                        .fill(isActive ? activeColor.opacity(0.15) : .clear)
-                )
         }
     }
 }
