@@ -139,16 +139,15 @@ struct AmicaFullView: UIViewRepresentable {
 
         let settingsScript = WKUserScript(
             source: """
-            (function() {
-                function s(k, v) { localStorage.setItem('chatvrm_' + k, v); }
-                s('chatbot_backend', 'native_ios');
-                s('tts_backend', '\(ttsBackend)');
-                s('stt_backend', '\(sttBackend)');
-                s('vision_backend', '\(visionBackend)');
-                s('elevenlabs_apikey', '\(elevenLabsKey)');
-                s('elevenlabs_voiceid', '\(elevenLabsVoiceId)');
-                s('openai_whisper_apikey', '\(effectiveWhisperKey)');
-            })();
+            window.__nativeConfig = {
+                chatbot_backend: 'native_ios',
+                tts_backend: '\(ttsBackend)',
+                stt_backend: '\(sttBackend)',
+                vision_backend: '\(visionBackend)',
+                elevenlabs_apikey: '\(elevenLabsKey)',
+                elevenlabs_voiceid: '\(elevenLabsVoiceId)',
+                openai_whisper_apikey: '\(effectiveWhisperKey)'
+            };
             """,
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
@@ -292,19 +291,15 @@ struct AmicaFullView: UIViewRepresentable {
             let effectiveWhisperKey = whisperKey.isEmpty ? (KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "") : whisperKey
 
             let js = """
-            (function() {
-                function setConfig(key, value) {
-                    localStorage.setItem('chatvrm_' + key, value);
-                }
-                setConfig('tts_backend', '\(ttsBackend)');
-                setConfig('stt_backend', '\(sttBackend)');
-                setConfig('vision_backend', '\(visionBackend)');
-                setConfig('elevenlabs_apikey', '\(elevenLabsKey)');
-                setConfig('elevenlabs_voiceid', '\(elevenLabsVoiceId)');
-                setConfig('openai_whisper_apikey', '\(effectiveWhisperKey)');
-                setConfig('chatbot_backend', 'native_ios');
-                console.log('Settings pushed from native: tts=\(ttsBackend), stt=\(sttBackend), vision=\(visionBackend)');
-            })();
+            window.__nativeConfig = window.__nativeConfig || {};
+            window.__nativeConfig.chatbot_backend = 'native_ios';
+            window.__nativeConfig.tts_backend = '\(ttsBackend)';
+            window.__nativeConfig.stt_backend = '\(sttBackend)';
+            window.__nativeConfig.vision_backend = '\(visionBackend)';
+            window.__nativeConfig.elevenlabs_apikey = '\(elevenLabsKey)';
+            window.__nativeConfig.elevenlabs_voiceid = '\(elevenLabsVoiceId)';
+            window.__nativeConfig.openai_whisper_apikey = '\(effectiveWhisperKey)';
+            console.log('Native config updated: tts=\(ttsBackend), stt=\(sttBackend)');
             """
             webView.evaluateJavaScript(js) { _, error in
                 if let error {
