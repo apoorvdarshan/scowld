@@ -380,21 +380,20 @@ struct AmicaFullView: UIViewRepresentable {
                 if httpResponse?.statusCode == 200 {
                     let base64 = data.base64EncodedString()
                     await MainActor.run {
-                        let js = "window.__nativeCallbacks && window.__nativeCallbacks['\(callbackId)'] && window.__nativeCallbacks['\(callbackId)'].resolve('\(base64)')"
-                        webView?.evaluateJavaScript(js)
+                        webView?.evaluateJavaScript("window.elTtsResponse('\(callbackId)', '\(base64)')")
                     }
+                    print("[ElevenLabs] Success: \(data.count) bytes")
                 } else {
                     let errMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse?.statusCode ?? 0)"
-                    print("[ElevenLabs] Error: \(errMsg)")
+                    print("[ElevenLabs] Error \(httpResponse?.statusCode ?? 0): \(errMsg)")
                     await MainActor.run {
-                        let js = "window.__nativeCallbacks && window.__nativeCallbacks['\(callbackId)'] && window.__nativeCallbacks['\(callbackId)'].reject('ElevenLabs error: \(httpResponse?.statusCode ?? 0)')"
-                        webView?.evaluateJavaScript(js)
+                        webView?.evaluateJavaScript("window.elTtsError('\(callbackId)', 'HTTP \(httpResponse?.statusCode ?? 0)')")
                     }
                 }
             } catch {
+                print("[ElevenLabs] Network error: \(error.localizedDescription)")
                 await MainActor.run {
-                    let js = "window.__nativeCallbacks && window.__nativeCallbacks['\(callbackId)'] && window.__nativeCallbacks['\(callbackId)'].reject('\(error.localizedDescription)')"
-                    webView?.evaluateJavaScript(js)
+                    webView?.evaluateJavaScript("window.elTtsError('\(callbackId)', 'Network error')")
                 }
             }
         }
