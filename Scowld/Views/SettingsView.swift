@@ -467,8 +467,3 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Notification for Settings Changes
-
-extension Notification.Name {
-    static let amicaSettingsChanged = Notification.Name("amicaSettingsChanged")
-}
