@@ -21,49 +21,52 @@ class DebugLog {
 
 struct HomeView: View {
     var memoryStore: MemoryStore
-    @State private var showDebug = false
+    @State private var messageText = ""
+    @State private var amicaCoordinator: AmicaFullView.Coordinator?
 
     var body: some View {
-        ZStack {
-            AmicaFullView(memoryStore: memoryStore)
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            // Character fills all available space
+            AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                amicaCoordinator = coord
+            })
+            .ignoresSafeArea(edges: [.top, .horizontal])
 
-            // Debug overlay - tap top-left corner to toggle
-            VStack {
-                HStack {
-                    Button { showDebug.toggle() } label: {
-                        Text("DBG")
-                            .font(.caption2)
-                            .padding(4)
-                            .background(.black.opacity(0.5))
-                            .foregroundStyle(.green)
-                            .cornerRadius(4)
-                    }
-                    Spacer()
+            // Native SwiftUI text input bar
+            HStack(spacing: 12) {
+                TextField("Message...", text: $messageText)
+                    .textFieldStyle(.roundedBorder)
+                    .submitLabel(.send)
+                    .onSubmit { sendMessage() }
+
+                Button {
+                    sendMessage()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.orange)
                 }
-                .padding(.top, 50)
-                .padding(.leading, 8)
-
-                if showDebug {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 2) {
-                            ForEach(DebugLog.shared.messages, id: \.self) { msg in
-                                Text(msg)
-                                    .font(.system(size: 9, design: .monospaced))
-                                    .foregroundStyle(.green)
-                            }
-                        }
-                        .padding(6)
-                    }
-                    .frame(maxHeight: 400)
-                    .background(.black.opacity(0.85))
-                    .cornerRadius(8)
-                    .padding(.horizontal, 8)
-                }
-
-                Spacer()
+                .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
+    }
+
+    private func sendMessage() {
+        let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        messageText = ""
+
+        // Send to Amica's chat system via JS
+        let escaped = text
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: " ")
+        amicaCoordinator?.webView?.evaluateJavaScript(
+            "document.querySelector('input')?.setAttribute('value', '\(escaped)'); " +
+            "window.__sendMessageFromNative && window.__sendMessageFromNative('\(escaped)');"
+        )
     }
 }
 
@@ -234,9 +237,12 @@ class AmicaLocalServer {
 
 struct AmicaFullView: UIViewRepresentable {
     var memoryStore: MemoryStore
+    var onCoordinatorReady: ((Coordinator) -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(memoryStore: memoryStore)
+        let coord = Coordinator(memoryStore: memoryStore)
+        DispatchQueue.main.async { onCoordinatorReady?(coord) }
+        return coord
     }
 
     func makeUIView(context: Context) -> WKWebView {
