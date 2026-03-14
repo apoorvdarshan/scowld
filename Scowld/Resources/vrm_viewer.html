@@ -32,7 +32,8 @@ function setStatus(msg) { document.getElementById('status').textContent = msg; }
     "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
         "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/",
-        "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js"
+        "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js",
+        "@pixiv/three-vrm-animation": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-animation@3.3.3/lib/three-vrm-animation.module.min.js"
     }
 }
 </script>
@@ -41,13 +42,14 @@ function setStatus(msg) { document.getElementById('status').textContent = msg; }
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as VRM from '@pixiv/three-vrm';
+import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation';
 
 setStatus('Engine loaded. Waiting for model...');
 
 // ─── Scene ───
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(22, window.innerWidth / window.innerHeight, 0.1, 100);
-const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(22, window.innerWidth / window.innerHeight, 0.1, 100);
+var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -60,138 +62,112 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 var mainLight = new THREE.DirectionalLight(0xffeedd, 1.3);
 mainLight.position.set(1, 2, 3);
 scene.add(mainLight);
-var fillLight = new THREE.DirectionalLight(0xddeeff, 0.5);
-fillLight.position.set(-1, 1, -1);
-scene.add(fillLight);
+scene.add(new THREE.DirectionalLight(0xddeeff, 0.5).translateOnAxis(new THREE.Vector3(-1, 1, -1).normalize(), 3));
 var rimLight = new THREE.DirectionalLight(0xffaa66, 0.4);
 rimLight.position.set(0, 0.5, -2);
 scene.add(rimLight);
 
 // ─── State ───
 var currentVRM = null;
+var mixer = null;
 var clock = new THREE.Clock();
-var t = 0; // global time for animations
+var t = 0;
 
-// Targets (set from Swift)
+// Animation library: name → VRMAnimation
+var animationLib = {};
+var idleAction = null;
+var currentAction = null;
+
+// Targets from Swift
 var targetMouth = 0;
-var targetBlinkL = 0, targetBlinkR = 0;
 var targetLookX = 0, targetLookY = 0;
 var targetHeadYaw = 0, targetHeadPitch = 0;
 var targetBodyBounce = 0;
 var emotionTargets = {};
 
-// Auto-blink state (JS-driven for smooth idle)
+// Auto-blink
 var nextBlinkTime = 2 + Math.random() * 3;
-var blinkPhase = 0; // 0=open, 1=closing, 2=opening
+var blinkPhase = 0;
 var blinkValue = 0;
-var externalBlink = false; // true when Swift controls blink
+var externalBlink = false;
 
 function sendEvent(obj) {
     try { window.webkit.messageHandlers.vrmEvent.postMessage(JSON.stringify(obj)); } catch(e) {}
 }
 
-// ─── Pose helper: find bone by traversing scene ───
-function findBoneByName(scene, name) {
-    var found = null;
-    scene.traverse(function(obj) {
-        if (obj.isBone && obj.name && obj.name.toLowerCase().indexOf(name.toLowerCase()) >= 0) {
-            found = obj;
-        }
+// ─── Animation loader ───
+var animLoader = new GLTFLoader();
+animLoader.register(function(parser) { return new VRMAnimationLoaderPlugin(parser); });
+
+function loadAnimation(name, url) {
+    return new Promise(function(resolve, reject) {
+        animLoader.load(url, function(gltf) {
+            var vrmAnims = gltf.userData.vrmAnimations;
+            if (vrmAnims && vrmAnims.length > 0) {
+                animationLib[name] = vrmAnims[0];
+                console.log('Animation loaded: ' + name);
+                resolve(vrmAnims[0]);
+            } else {
+                console.warn('No VRM animation in: ' + name);
+                reject('No animation data');
+            }
+        }, null, function(err) {
+            console.error('Failed to load animation ' + name + ':', err);
+            reject(err);
+        });
     });
-    return found;
 }
 
-// Store original (rest) quaternions for each bone so we can add relative rotations
-var restQuaternions = {};
-var boneRefs = {};
+function playAnimationClip(name, loop) {
+    if (!currentVRM || !mixer) return;
+    var vrmAnim = animationLib[name];
+    if (!vrmAnim) { console.warn('Animation not loaded: ' + name); return; }
 
-function captureRestPose(vrm) {
-    var humanoid = vrm.humanoid;
-    if (!humanoid) return;
+    var clip = createVRMAnimationClip(vrmAnim, currentVRM);
+    var action = mixer.clipAction(clip);
 
-    var names = [
-        'hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
-        'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
-        'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand'
-    ];
-
-    for (var i = 0; i < names.length; i++) {
-        var n = names[i];
-        var bone = humanoid.getRawBoneNode(n);
-        if (bone) {
-            boneRefs[n] = bone;
-            restQuaternions[n] = bone.quaternion.clone();
-            console.log('Bone: ' + n + ' = ' + bone.name);
-        }
+    if (loop) {
+        action.setLoop(THREE.LoopRepeat);
+    } else {
+        action.setLoop(THREE.LoopOnce);
+        action.clampWhenFinished = true;
     }
+
+    if (currentAction && currentAction !== idleAction) {
+        currentAction.fadeOut(0.5);
+    }
+
+    action.reset().fadeIn(0.5).play();
+    currentAction = action;
+
+    if (!loop) {
+        // When one-shot animation finishes, crossfade back to idle
+        var onFinished = function(e) {
+            if (e.action === action) {
+                mixer.removeEventListener('finished', onFinished);
+                action.fadeOut(0.5);
+                if (idleAction) {
+                    idleAction.reset().fadeIn(0.5).play();
+                    currentAction = idleAction;
+                }
+            }
+        };
+        mixer.addEventListener('finished', onFinished);
+    }
+
+    return action;
 }
 
-function applyIdlePose(time) {
-    // Breathing
-    if (boneRefs.spine) {
-        boneRefs.spine.rotation.x = restQuaternions.spine ? 0 : 0;
-        var breathe = Math.sin(time * 1.8) * 0.012;
-        boneRefs.spine.quaternion.copy(restQuaternions.spine || new THREE.Quaternion());
-        boneRefs.spine.rotateX(breathe);
-    }
-    if (boneRefs.chest) {
-        boneRefs.chest.quaternion.copy(restQuaternions.chest || new THREE.Quaternion());
-        boneRefs.chest.rotateX(Math.sin(time * 1.8) * 0.006);
-    }
-
-    // Arms down from T-pose
-    var armDown = new THREE.Quaternion();
-    var armBendL = new THREE.Quaternion();
-    var armBendR = new THREE.Quaternion();
-
-    // Left arm: rotate around local Z by ~70 degrees to bring down
-    armDown.setFromAxisAngle(new THREE.Vector3(0, 0, 1), 1.15 + Math.sin(time * 0.9) * 0.03);
-    if (boneRefs.leftUpperArm) {
-        boneRefs.leftUpperArm.quaternion.copy(restQuaternions.leftUpperArm || new THREE.Quaternion());
-        boneRefs.leftUpperArm.quaternion.multiply(armDown);
-        // Slight forward
-        var fwd = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.15);
-        boneRefs.leftUpperArm.quaternion.multiply(fwd);
-    }
-
-    // Right arm: opposite Z rotation
-    armDown.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -(1.15 + Math.sin(time * 0.9 + 0.5) * 0.03));
-    if (boneRefs.rightUpperArm) {
-        boneRefs.rightUpperArm.quaternion.copy(restQuaternions.rightUpperArm || new THREE.Quaternion());
-        boneRefs.rightUpperArm.quaternion.multiply(armDown);
-        var fwd2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.15);
-        boneRefs.rightUpperArm.quaternion.multiply(fwd2);
-    }
-
-    // Lower arms: slight bend inward
-    armBendL.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -0.25);
-    if (boneRefs.leftLowerArm) {
-        boneRefs.leftLowerArm.quaternion.copy(restQuaternions.leftLowerArm || new THREE.Quaternion());
-        boneRefs.leftLowerArm.quaternion.multiply(armBendL);
-    }
-    armBendR.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.25);
-    if (boneRefs.rightLowerArm) {
-        boneRefs.rightLowerArm.quaternion.copy(restQuaternions.rightLowerArm || new THREE.Quaternion());
-        boneRefs.rightLowerArm.quaternion.multiply(armBendR);
-    }
-
-    // Subtle body sway
-    if (boneRefs.hips) {
-        boneRefs.hips.quaternion.copy(restQuaternions.hips || new THREE.Quaternion());
-        var sway = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.sin(time * 0.5) * 0.015);
-        boneRefs.hips.quaternion.multiply(sway);
-    }
-}
-
-// ─── Load model ───
+// ─── Load VRM model ───
 window.loadModel = function(url) {
     console.log('loadModel:', url);
     setStatus('Loading character...');
     document.getElementById('loader').style.display = 'block';
 
     if (currentVRM) { scene.remove(currentVRM.scene); currentVRM = null; }
-    boneRefs = {};
-    restQuaternions = {};
+    if (mixer) { mixer.stopAllAction(); mixer = null; }
+    idleAction = null;
+    currentAction = null;
 
     var loader = new GLTFLoader();
     loader.register(function(parser) { return new VRM.VRMLoaderPlugin(parser); });
@@ -204,10 +180,10 @@ window.loadModel = function(url) {
         vrm.scene.rotation.y = Math.PI;
         scene.add(vrm.scene);
 
-        // Capture rest pose quaternions before we modify anything
-        captureRestPose(vrm);
+        // Create animation mixer
+        mixer = new THREE.AnimationMixer(vrm.scene);
 
-        // Camera: frame full body
+        // Camera: full body
         camera.position.set(0, 1.0, 2.8);
         camera.lookAt(0, 0.85, 0);
 
@@ -217,6 +193,9 @@ window.loadModel = function(url) {
             var names = vrm.expressionManager.expressions.map(function(e) { return e.expressionName; });
             console.log('Expressions:', names.join(', '));
         }
+
+        // Load idle animation and start playing
+        loadIdleAnimation();
 
         sendEvent({ type: 'loaded', model: url });
     }, function(progress) {
@@ -229,140 +208,29 @@ window.loadModel = function(url) {
     });
 };
 
-// ─── Gesture system ───
-// Each gesture is a function(time, progress) where progress goes 0→1 over the duration.
-// It modifies bones AFTER the idle pose, blending on top.
-var currentGesture = null;
-var gestureStartTime = 0;
-var gestureDuration = 0;
-var gestureBlend = 0; // 0→1→0 (fade in/out)
+function loadIdleAnimation() {
+    // Find idle_loop.vrma in bundle
+    var basePath = document.baseURI.replace(/\/[^\/]*$/, '');
+    var idleURL = basePath + '/animations/idle_loop.vrma';
+    console.log('Loading idle from:', idleURL);
 
-var gestures = {
-    wave: function(time, p) {
-        // Raise right arm and wave hand
-        if (!boneRefs.rightUpperArm || !boneRefs.rightLowerArm || !boneRefs.rightHand) return;
-        var wave = Math.sin(p * Math.PI * 6) * 0.3; // 3 back-and-forth waves
-        var raise = Math.sin(p * Math.PI); // smooth raise and lower
+    loadAnimation('idle_loop', idleURL).then(function() {
+        idleAction = playAnimationClip('idle_loop', true);
+        currentAction = idleAction;
+        console.log('Idle animation playing');
 
-        // Raise upper arm
-        var upQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -2.2 * raise);
-        boneRefs.rightUpperArm.quaternion.multiply(upQ);
-
-        // Bend lower arm
-        var bendQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 1.2 * raise);
-        boneRefs.rightLowerArm.quaternion.multiply(bendQ);
-
-        // Wave hand
-        if (boneRefs.rightHand) {
-            var waveQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), wave * raise);
-            boneRefs.rightHand.quaternion.copy(restQuaternions.rightHand || new THREE.Quaternion());
-            boneRefs.rightHand.quaternion.multiply(waveQ);
-        }
-    },
-
-    nod: function(time, p) {
-        // Nod head up and down a couple times
-        if (!boneRefs.head) return;
-        var nod = Math.sin(p * Math.PI * 4) * 0.12 * Math.sin(p * Math.PI);
-        boneRefs.head.rotateX(nod);
-    },
-
-    shake: function(time, p) {
-        // Shake head side to side
-        if (!boneRefs.head) return;
-        var shake = Math.sin(p * Math.PI * 5) * 0.15 * Math.sin(p * Math.PI);
-        boneRefs.head.rotateY(shake);
-    },
-
-    think: function(time, p) {
-        // Raise left hand to chin (thinking pose)
-        if (!boneRefs.leftUpperArm || !boneRefs.leftLowerArm) return;
-        var hold = p < 0.2 ? p / 0.2 : (p > 0.8 ? (1 - p) / 0.2 : 1); // ease in/out
-        hold = Math.min(1, Math.max(0, hold));
-
-        var upQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), 1.8 * hold);
-        boneRefs.leftUpperArm.quaternion.multiply(upQ);
-        var fwdQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.5 * hold);
-        boneRefs.leftUpperArm.quaternion.multiply(fwdQ);
-
-        var bendQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -1.8 * hold);
-        boneRefs.leftLowerArm.quaternion.multiply(bendQ);
-
-        // Tilt head slightly
-        if (boneRefs.head) {
-            boneRefs.head.rotateZ(0.08 * hold);
-            boneRefs.head.rotateX(-0.05 * hold);
-        }
-    },
-
-    happy: function(time, p) {
-        // Both arms up in excitement, slight bounce
-        var bounce = Math.sin(p * Math.PI * 6) * 0.02 * Math.sin(p * Math.PI);
-        var raise = Math.sin(p * Math.PI);
-
-        if (boneRefs.leftUpperArm) {
-            var q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), 0.5 * raise);
-            boneRefs.leftUpperArm.quaternion.multiply(q);
-        }
-        if (boneRefs.rightUpperArm) {
-            var q2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.5 * raise);
-            boneRefs.rightUpperArm.quaternion.multiply(q2);
-        }
-        if (boneRefs.leftLowerArm) {
-            var q3 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -0.8 * raise);
-            boneRefs.leftLowerArm.quaternion.multiply(q3);
-        }
-        if (boneRefs.rightLowerArm) {
-            var q4 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.8 * raise);
-            boneRefs.rightLowerArm.quaternion.multiply(q4);
-        }
-
-        if (currentVRM) currentVRM.scene.position.y += bounce;
-    },
-
-    sad: function(time, p) {
-        // Shoulders droop, head down
-        var droop = Math.sin(p * Math.PI);
-        if (boneRefs.spine) {
-            boneRefs.spine.rotateX(0.05 * droop);
-        }
-        if (boneRefs.head) {
-            boneRefs.head.rotateX(0.1 * droop);
-        }
-    },
-
-    bow: function(time, p) {
-        // Polite bow
-        var bow = Math.sin(p * Math.PI);
-        if (boneRefs.spine) { boneRefs.spine.rotateX(0.15 * bow); }
-        if (boneRefs.upperChest) { boneRefs.upperChest.rotateX(0.1 * bow); }
-        if (boneRefs.head) { boneRefs.head.rotateX(0.08 * bow); }
-    }
-};
-
-window.playGesture = function(name, duration) {
-    if (!gestures[name]) { console.log('Unknown gesture: ' + name); return; }
-    currentGesture = name;
-    gestureStartTime = t;
-    gestureDuration = duration || 2.0;
-    console.log('Playing gesture: ' + name);
-};
-
-function applyGesture(time) {
-    if (!currentGesture) return;
-    var elapsed = time - gestureStartTime;
-    var progress = Math.min(1, elapsed / gestureDuration);
-
-    if (progress >= 1) {
-        currentGesture = null;
-        return;
-    }
-
-    var fn = gestures[currentGesture];
-    if (fn) fn(time, progress);
+        // Preload other animations in background
+        var anims = ['greeting', 'dance', 'peaceSign', 'modelPose', 'shoot', 'showFullBody', 'spin', 'squat'];
+        anims.forEach(function(name) {
+            var animURL = basePath + '/animations/' + name + '.vrma';
+            loadAnimation(name, animURL).catch(function() {});
+        });
+    }).catch(function(err) {
+        console.warn('Idle animation not found, using static pose:', err);
+    });
 }
 
-// ─── Controls (called from Swift) ───
+// ─── Controls from Swift ───
 window.setEmotion = function(emotion) {
     emotionTargets = {};
     switch (emotion) {
@@ -373,11 +241,93 @@ window.setEmotion = function(emotion) {
         default: break;
     }
 };
+
 window.setMouthOpenness = function(v) { targetMouth = Math.max(0, Math.min(1, v)); };
-window.setBlink = function(b) { externalBlink = b; if (b) { targetBlinkL = 1; targetBlinkR = 1; } else { targetBlinkL = 0; targetBlinkR = 0; } };
+
+window.setBlink = function(b) {
+    externalBlink = b;
+};
+
 window.setEyeGaze = function(x, y) { targetLookX = x; targetLookY = y; };
-window.setHeadRotation = function(yaw, pitch) { targetHeadYaw = yaw * Math.PI / 180; targetHeadPitch = (pitch || 0) * Math.PI / 180; };
+
+window.setHeadRotation = function(yaw, pitch) {
+    targetHeadYaw = yaw * Math.PI / 180;
+    targetHeadPitch = (pitch || 0) * Math.PI / 180;
+};
+
 window.setBodyBounce = function(v) { targetBodyBounce = v; };
+
+window.playGesture = function(name, duration) {
+    // Map gesture names to animation names
+    var animMap = {
+        'wave': 'greeting',
+        'greeting': 'greeting',
+        'dance': 'dance',
+        'peace': 'peaceSign',
+        'pose': 'modelPose',
+        'shoot': 'shoot',
+        'show': 'showFullBody',
+        'spin': 'spin',
+        'squat': 'squat',
+        'happy': 'dance',
+        'nod': null,
+        'shake': null,
+        'think': null,
+        'sad': null,
+        'bow': null
+    };
+
+    var animName = animMap[name];
+    if (animName && animationLib[animName]) {
+        playAnimationClip(animName, false);
+        console.log('Playing VRMA animation: ' + animName);
+    } else {
+        // Fallback to procedural gesture for ones without VRMA
+        playProceduralGesture(name, duration || 2.0);
+    }
+};
+
+// ─── Procedural gestures (fallback for animations without VRMA files) ───
+var procGesture = null;
+var procStartTime = 0;
+var procDuration = 0;
+
+function playProceduralGesture(name, duration) {
+    procGesture = name;
+    procStartTime = t;
+    procDuration = duration;
+}
+
+function applyProceduralGesture() {
+    if (!procGesture || !currentVRM) return;
+    var elapsed = t - procStartTime;
+    var p = Math.min(1, elapsed / procDuration);
+    if (p >= 1) { procGesture = null; return; }
+
+    var humanoid = currentVRM.humanoid;
+    if (!humanoid) return;
+
+    var head = humanoid.getRawBoneNode('head');
+    if (procGesture === 'nod' && head) {
+        head.rotateX(Math.sin(p * Math.PI * 4) * 0.12 * Math.sin(p * Math.PI));
+    } else if (procGesture === 'shake' && head) {
+        head.rotateY(Math.sin(p * Math.PI * 5) * 0.15 * Math.sin(p * Math.PI));
+    } else if (procGesture === 'think' && head) {
+        var hold = p < 0.2 ? p / 0.2 : (p > 0.8 ? (1 - p) / 0.2 : 1);
+        head.rotateZ(0.08 * Math.min(1, Math.max(0, hold)));
+        head.rotateX(-0.05 * Math.min(1, Math.max(0, hold)));
+    } else if (procGesture === 'sad') {
+        var droop = Math.sin(p * Math.PI);
+        var spine = humanoid.getRawBoneNode('spine');
+        if (spine) spine.rotateX(0.05 * droop);
+        if (head) head.rotateX(0.1 * droop);
+    } else if (procGesture === 'bow') {
+        var bowAmt = Math.sin(p * Math.PI);
+        var spine = humanoid.getRawBoneNode('spine');
+        if (spine) spine.rotateX(0.15 * bowAmt);
+        if (head) head.rotateX(0.08 * bowAmt);
+    }
+}
 
 // ─── Animation loop ───
 function animate() {
@@ -388,39 +338,32 @@ function animate() {
     if (!currentVRM) { renderer.render(scene, camera); return; }
 
     var mgr = currentVRM.expressionManager;
-    var s = 10 * delta; // lerp speed
+    var s = 10 * delta;
 
     // ── Expressions ──
     if (mgr) {
         // Lip sync
         mgr.setValue('aa', THREE.MathUtils.lerp(mgr.getValue('aa') || 0, targetMouth, s));
 
-        // Auto-blink (when Swift isn't controlling it)
+        // Auto-blink
         if (!externalBlink) {
             if (blinkPhase === 0) {
-                if (t >= nextBlinkTime) { blinkPhase = 1; }
+                if (t >= nextBlinkTime) blinkPhase = 1;
             } else if (blinkPhase === 1) {
                 blinkValue = Math.min(1, blinkValue + delta * 15);
-                if (blinkValue >= 1) { blinkPhase = 2; }
+                if (blinkValue >= 1) blinkPhase = 2;
             } else {
                 blinkValue = Math.max(0, blinkValue - delta * 10);
-                if (blinkValue <= 0) {
-                    blinkPhase = 0;
-                    nextBlinkTime = t + 2 + Math.random() * 4;
-                }
+                if (blinkValue <= 0) { blinkPhase = 0; nextBlinkTime = t + 2 + Math.random() * 4; }
             }
             mgr.setValue('blink', blinkValue);
-        } else {
-            mgr.setValue('blink', THREE.MathUtils.lerp(mgr.getValue('blink') || 0, targetBlinkL, s * 2));
         }
 
-        // Emotions — smooth blend
+        // Emotions
         var allEmotions = ['happy', 'sad', 'angry', 'surprised', 'relaxed'];
         for (var i = 0; i < allEmotions.length; i++) {
             var e = allEmotions[i];
-            var target = emotionTargets[e] || 0;
-            var cur = mgr.getValue(e) || 0;
-            mgr.setValue(e, THREE.MathUtils.lerp(cur, target, s * 0.3));
+            mgr.setValue(e, THREE.MathUtils.lerp(mgr.getValue(e) || 0, emotionTargets[e] || 0, s * 0.3));
         }
 
         // Eye gaze
@@ -430,20 +373,21 @@ function animate() {
         mgr.setValue('lookDown', THREE.MathUtils.lerp(mgr.getValue('lookDown') || 0, Math.max(0, -targetLookY), s));
     }
 
-    // ── Head rotation (on normalized bone — vrm.update will apply it) ──
+    // Head micro-movements (on normalized bone, before vrm.update)
     var headNorm = currentVRM.humanoid ? currentVRM.humanoid.getNormalizedBoneNode('head') : null;
     if (headNorm) {
-        headNorm.rotation.y = THREE.MathUtils.lerp(headNorm.rotation.y, targetHeadYaw + Math.sin(t * 0.4) * 0.02, s);
-        headNorm.rotation.x = THREE.MathUtils.lerp(headNorm.rotation.x, targetHeadPitch + Math.sin(t * 0.6) * 0.015, s);
-        headNorm.rotation.z = Math.sin(t * 0.3) * 0.01; // subtle tilt
+        headNorm.rotation.y = THREE.MathUtils.lerp(headNorm.rotation.y, targetHeadYaw + Math.sin(t * 0.4) * 0.015, s * 0.5);
+        headNorm.rotation.x = THREE.MathUtils.lerp(headNorm.rotation.x, targetHeadPitch + Math.sin(t * 0.6) * 0.01, s * 0.5);
     }
 
-    // Let VRM process normalized → raw
+    // Update VRM (processes normalized → raw)
     currentVRM.update(delta);
 
-    // ── AFTER vrm.update: apply arm pose on RAW bones ──
-    applyIdlePose(t);
-    applyGesture(t);
+    // Update animation mixer (applies VRMA keyframes to raw bones)
+    if (mixer) mixer.update(delta);
+
+    // Apply procedural gestures on top
+    applyProceduralGesture();
 
     // Body bounce
     if (targetBodyBounce > 0) {
