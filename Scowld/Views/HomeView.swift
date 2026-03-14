@@ -216,10 +216,6 @@ struct AmicaFullView: UIViewRepresentable {
             }
         }
 
-        // Clear old cache/data on launch
-        let dataStore = WKWebsiteDataStore.default()
-        dataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) { }
-
         context.coordinator.webView = webView
         return webView
     }
@@ -254,8 +250,10 @@ struct AmicaFullView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             print("[Amica] Page loaded")
-            // Settings are already injected via user script at document start
-            // No need to push again here
+            // Double-check: push settings again after page load (user script may not have localStorage access on custom schemes)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.pushSettingsToAmica()
+            }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -308,13 +306,11 @@ struct AmicaFullView: UIViewRepresentable {
                 console.log('Settings pushed from native: tts=\(ttsBackend), stt=\(sttBackend), vision=\(visionBackend)');
             })();
             """
-            webView.evaluateJavaScript(js) { [weak webView] _, error in
+            webView.evaluateJavaScript(js) { _, error in
                 if let error {
                     print("[Amica] Settings push error: \(error.localizedDescription)")
                 } else {
-                    print("[Amica] Settings pushed to Amica, reloading...")
-                    // Reload so Amica picks up new config from localStorage
-                    webView?.reload()
+                    print("[Amica] Settings pushed to Amica")
                 }
             }
         }
