@@ -23,33 +23,46 @@ struct HomeView: View {
     var memoryStore: MemoryStore
     @State private var messageText = ""
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
+    @State private var isListening = false
+    @State private var speechManager = SpeechManager()
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Character fills all available space
+        NavigationStack {
             AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
                 amicaCoordinator = coord
             })
-            .ignoresSafeArea(edges: [.top, .horizontal])
+            .ignoresSafeArea()
+            .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    // Mic button
+                    Button {
+                        toggleListening()
+                    } label: {
+                        Image(systemName: isListening ? "waveform.circle.fill" : "mic.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(isListening ? .red : .orange)
+                            .symbolEffect(.variableColor, isActive: isListening)
+                    }
 
-            // Native SwiftUI text input bar
-            HStack(spacing: 12) {
-                TextField("Message...", text: $messageText)
-                    .textFieldStyle(.roundedBorder)
-                    .submitLabel(.send)
-                    .onSubmit { sendMessage() }
+                    // Text field
+                    TextField("Message...", text: $messageText)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.send)
+                        .onSubmit { sendMessage() }
 
-                Button {
-                    sendMessage()
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.orange)
+                    // Send button
+                    Button {
+                        sendMessage()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.orange)
+                    }
+                    .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .toolbarBackground(.ultraThinMaterial, for: .bottomBar)
+            .navigationBarHidden(true)
         }
     }
 
@@ -58,15 +71,32 @@ struct HomeView: View {
         guard !text.isEmpty else { return }
         messageText = ""
 
-        // Send to Amica's chat system via JS
         let escaped = text
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
             .replacingOccurrences(of: "\n", with: " ")
         amicaCoordinator?.webView?.evaluateJavaScript(
-            "document.querySelector('input')?.setAttribute('value', '\(escaped)'); " +
             "window.__sendMessageFromNative && window.__sendMessageFromNative('\(escaped)');"
         )
+    }
+
+    private func toggleListening() {
+        if isListening {
+            speechManager.stopListening()
+            isListening = false
+            if !speechManager.recognizedText.isEmpty {
+                messageText = speechManager.recognizedText
+                speechManager.recognizedText = ""
+                sendMessage()
+            }
+        } else {
+            speechManager.stopSpeaking()
+            Task {
+                _ = await speechManager.requestPermissions()
+                speechManager.startListening()
+                isListening = true
+            }
+        }
     }
 }
 
