@@ -55,7 +55,7 @@ struct HomeView: View {
                         }
                         .padding(6)
                     }
-                    .frame(maxHeight: 200)
+                    .frame(maxHeight: 400)
                     .background(.black.opacity(0.85))
                     .cornerRadius(8)
                     .padding(.horizontal, 8)
