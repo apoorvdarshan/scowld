@@ -25,30 +25,45 @@ class AmicaSchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
-        // Convert amica://host/path → Bundle/amica/path
+        // Convert amica://host/path → find file in bundle
         var path = url.path
         if path.hasPrefix("/") { path = String(path.dropFirst()) }
         if path.isEmpty { path = "index.html" }
 
-        // Try to find the file in the bundle
-        let amicaBase = Bundle.main.bundleURL.appendingPathComponent("amica")
-        let fileURL = amicaBase.appendingPathComponent(path)
+        // Try multiple base locations (Xcode may place resources differently)
+        let bundleRoot = Bundle.main.bundleURL
+        let basePaths = [
+            bundleRoot.appendingPathComponent("amica"),
+            bundleRoot,
+            bundleRoot.appendingPathComponent("Resources/amica"),
+        ]
 
-        // If path ends with /, try index.html
-        var resolvedURL = fileURL
-        if path.hasSuffix("/") {
-            resolvedURL = fileURL.appendingPathComponent("index.html")
+        var resolvedURL: URL? = nil
+        for base in basePaths {
+            let candidate = base.appendingPathComponent(path)
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                resolvedURL = candidate
+                break
+            }
+            // Try with /index.html for directory paths
+            if path.hasSuffix("/") {
+                let indexCandidate = candidate.appendingPathComponent("index.html")
+                if FileManager.default.fileExists(atPath: indexCandidate.path) {
+                    resolvedURL = indexCandidate
+                    break
+                }
+            }
+            // Try with .html extension
+            let htmlCandidate = base.appendingPathComponent(path + ".html")
+            if FileManager.default.fileExists(atPath: htmlCandidate.path) {
+                resolvedURL = htmlCandidate
+                break
+            }
         }
 
-        guard FileManager.default.fileExists(atPath: resolvedURL.path) else {
-            // Try with .html extension
-            let htmlURL = amicaBase.appendingPathComponent(path + ".html")
-            if FileManager.default.fileExists(atPath: htmlURL.path) {
-                resolvedURL = htmlURL
-            } else {
-                urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
-                return
-            }
+        guard let resolvedURL else {
+            urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
+            return
         }
 
         do {
@@ -119,17 +134,34 @@ struct AmicaFullView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
 
         // Verify amica files exist in bundle, then load via custom scheme
-        let amicaPath = Bundle.main.bundleURL.appendingPathComponent("amica/index.html").path
-        if FileManager.default.fileExists(atPath: amicaPath) {
-            print("[Amica] Found index.html at: \(amicaPath)")
+        let bundleRoot = Bundle.main.bundlePath
+        let possiblePaths = [
+            "\(bundleRoot)/amica/index.html",
+            "\(bundleRoot)/Resources/amica/index.html",
+            "\(bundleRoot)/index.html"
+        ]
+        var foundPath: String? = nil
+        for p in possiblePaths {
+            if FileManager.default.fileExists(atPath: p) {
+                foundPath = p
+                break
+            }
+        }
+
+        if let found = foundPath {
+            print("[Amica] Found index.html at: \(found)")
             webView.load(URLRequest(url: URL(string: "amica://host/index.html")!))
         } else {
-            print("[Amica] ERROR: index.html not found at: \(amicaPath)")
-            // List what's in the bundle for debugging
-            let contents = (try? FileManager.default.contentsOfDirectory(atPath: Bundle.main.bundlePath)) ?? []
-            print("[Amica] Bundle root: \(contents.prefix(20))")
-            if let amicaContents = try? FileManager.default.contentsOfDirectory(atPath: Bundle.main.bundleURL.appendingPathComponent("amica").path) {
-                print("[Amica] amica/: \(amicaContents.prefix(20))")
+            print("[Amica] ERROR: index.html not found in bundle")
+            // Debug: list bundle contents
+            let contents = (try? FileManager.default.contentsOfDirectory(atPath: bundleRoot)) ?? []
+            print("[Amica] Bundle root contents: \(contents.sorted())")
+            // Check for amica folder
+            for dir in ["amica", "Resources", "Resources/amica"] {
+                let dirPath = "\(bundleRoot)/\(dir)"
+                if let items = try? FileManager.default.contentsOfDirectory(atPath: dirPath) {
+                    print("[Amica] \(dir)/: \(items.prefix(15))")
+                }
             }
         }
 
@@ -235,17 +267,20 @@ struct AmicaFullView: UIViewRepresentable {
             let savedModel = defaults.string(forKey: "selectedModel") ?? provider.defaultModel
             let model = provider.availableModels.contains(savedModel) ? savedModel : provider.defaultModel
 
-            if provider.requiresAPIKey {
+            switch provider {
+            case .gemini:
                 guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
-                switch provider {
-                case .gemini: return GeminiProvider(apiKey: apiKey, model: model)
-                case .openai: return OpenAIProvider(apiKey: apiKey, model: model)
-                case .claude: return ClaudeProvider(apiKey: apiKey, model: model)
-                case .ollama: return nil
-                }
+                return GeminiProvider(apiKey: apiKey, model: model)
+            case .openai:
+                guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
+                return OpenAIProvider(apiKey: apiKey, model: model)
+            case .claude:
+                guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
+                return ClaudeProvider(apiKey: apiKey, model: model)
+            case .ollama:
+                let url = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
+                return OllamaProvider(baseURL: url, model: model)
             }
-            let url = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
-            return OllamaProvider(baseURL: url, model: model)
         }
     }
 }
