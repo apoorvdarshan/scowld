@@ -27,42 +27,41 @@ struct HomeView: View {
     @State private var speechManager = SpeechManager()
 
     var body: some View {
-        NavigationStack {
-            AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-                amicaCoordinator = coord
-            })
-            .ignoresSafeArea()
-            .toolbar {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    // Mic button
-                    Button {
-                        toggleListening()
-                    } label: {
-                        Image(systemName: isListening ? "waveform.circle.fill" : "mic.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(isListening ? .red : .orange)
-                            .symbolEffect(.variableColor, isActive: isListening)
-                    }
-
-                    // Text field
-                    TextField("Message...", text: $messageText)
-                        .textFieldStyle(.roundedBorder)
-                        .submitLabel(.send)
-                        .onSubmit { sendMessage() }
-
-                    // Send button
-                    Button {
-                        sendMessage()
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.orange)
-                    }
-                    .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+        AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+            amicaCoordinator = coord
+        })
+        .ignoresSafeArea()
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 10) {
+                // Mic button
+                Button {
+                    toggleListening()
+                } label: {
+                    Image(systemName: isListening ? "waveform.circle.fill" : "mic.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(isListening ? .red : .orange)
+                        .symbolEffect(.variableColor, isActive: isListening)
                 }
+
+                // Text field
+                TextField("Message...", text: $messageText)
+                    .textFieldStyle(.roundedBorder)
+                    .submitLabel(.send)
+                    .onSubmit { sendMessage() }
+
+                // Send button
+                Button {
+                    sendMessage()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(.orange)
+                }
+                .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .toolbarBackground(.ultraThinMaterial, for: .bottomBar)
-            .navigationBarHidden(true)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
         }
     }
 
