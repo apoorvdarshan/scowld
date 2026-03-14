@@ -21,6 +21,7 @@ final class CharacterManager {
     var headTilt: CGFloat = 0        // degrees, up/down
     var isBlinking = false
     var bodyBounce: CGFloat = 0      // For excited/happy bouncing
+    var pendingGesture: String?      // Gesture to play (wave, nod, think, etc.)
 
     // MARK: - Sub-engines
     let emotionEngine = EmotionEngine()
@@ -82,7 +83,7 @@ final class CharacterManager {
 
     // MARK: - Emotion Updates
 
-    /// Process AI response, extract emotion, update character
+    /// Process AI response, extract emotion, update character, detect gestures
     func processAIResponse(_ response: String) -> String {
         let (emotion, cleanText) = emotionEngine.parseResponse(response)
         emotionEngine.setEmotion(emotion)
@@ -95,6 +96,22 @@ final class CharacterManager {
                 try? await Task.sleep(for: .seconds(2))
                 self.bodyBounce = 0
             }
+        }
+
+        // Auto-detect gesture from response content and emotion
+        let lower = cleanText.lowercased()
+        if lower.contains("hello") || lower.contains("hi!") || lower.contains("hey!") || lower.contains("wave") {
+            pendingGesture = "wave"
+        } else if lower.contains("hmm") || lower.contains("let me think") || lower.contains("interesting") {
+            pendingGesture = "think"
+        } else if lower.contains("sorry") || lower.contains("unfortunately") || lower.contains("sad") {
+            pendingGesture = "sad"
+        } else if lower.contains("yes") || lower.contains("absolutely") || lower.contains("of course") {
+            pendingGesture = "nod"
+        } else if lower.contains("no,") || lower.contains("not really") || lower.contains("i don't think") {
+            pendingGesture = "shake"
+        } else if emotion == .happy || emotion == .excited {
+            pendingGesture = "happy"
         }
 
         return cleanText

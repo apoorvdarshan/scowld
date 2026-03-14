@@ -14,6 +14,7 @@ struct VRMCharacterView: View {
     let isBlinking: Bool
     let bodyBounce: CGFloat
     let modelFileName: String
+    @Binding var pendingGesture: String?
 
     var body: some View {
         VRMWebView(
@@ -24,7 +25,8 @@ struct VRMCharacterView: View {
             headRotation: headRotation,
             isBlinking: isBlinking,
             bodyBounce: bodyBounce,
-            modelFileName: modelFileName
+            modelFileName: modelFileName,
+            pendingGesture: $pendingGesture
         )
     }
 }
@@ -40,6 +42,7 @@ struct VRMWebView: UIViewRepresentable {
     let isBlinking: Bool
     let bodyBounce: CGFloat
     let modelFileName: String
+    @Binding var pendingGesture: String?
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -118,6 +121,12 @@ struct VRMWebView: UIViewRepresentable {
         webView.evaluateJavaScript("setEyeGaze(\(pupilOffsetX), \(pupilOffsetY))")
         webView.evaluateJavaScript("setHeadRotation(\(headRotation), 0)")
         webView.evaluateJavaScript("setBodyBounce(\(bodyBounce))")
+
+        // Play pending gesture
+        if let gesture = pendingGesture {
+            webView.evaluateJavaScript("playGesture('\(gesture)', 2.0)")
+            Task { @MainActor in pendingGesture = nil }
+        }
     }
 
     // MARK: - Coordinator
@@ -212,6 +221,7 @@ struct VRMWebView: UIViewRepresentable {
 // MARK: - Preview
 
 #Preview {
+    @Previewable @State var gesture: String? = nil
     ZStack {
         Color.black
         VRMCharacterView(
@@ -222,7 +232,8 @@ struct VRMWebView: UIViewRepresentable {
             headRotation: 0,
             isBlinking: false,
             bodyBounce: 0,
-            modelFileName: "AvatarSample_A"
+            modelFileName: "AvatarSample_A",
+            pendingGesture: $gesture
         )
         .frame(width: 300, height: 400)
     }

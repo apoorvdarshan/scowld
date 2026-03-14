@@ -154,9 +154,13 @@ struct HomeView: View {
                 headRotation: characterManager.headRotation,
                 isBlinking: characterManager.isBlinking,
                 bodyBounce: characterManager.bodyBounce,
-                modelFileName: characterManager.selectedCharacter.fileName
+                modelFileName: characterManager.selectedCharacter.fileName,
+                pendingGesture: Binding(
+                    get: { characterManager.pendingGesture },
+                    set: { characterManager.pendingGesture = $0 }
+                )
             )
-            .frame(height: height * 0.85)
+            .frame(height: height * 0.9)
             .onTapGesture { toggleListening() }
 
             // Emotion pill
