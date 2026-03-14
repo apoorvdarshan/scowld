@@ -118,9 +118,19 @@ struct AmicaFullView: UIViewRepresentable {
         webView.scrollView.bounces = false
         webView.navigationDelegate = context.coordinator
 
-        // Load via custom scheme so absolute paths resolve correctly
-        if let url = URL(string: "amica://host/index.html") {
-            webView.load(URLRequest(url: url))
+        // Verify amica files exist in bundle, then load via custom scheme
+        let amicaPath = Bundle.main.bundleURL.appendingPathComponent("amica/index.html").path
+        if FileManager.default.fileExists(atPath: amicaPath) {
+            print("[Amica] Found index.html at: \(amicaPath)")
+            webView.load(URLRequest(url: URL(string: "amica://host/index.html")!))
+        } else {
+            print("[Amica] ERROR: index.html not found at: \(amicaPath)")
+            // List what's in the bundle for debugging
+            let contents = (try? FileManager.default.contentsOfDirectory(atPath: Bundle.main.bundlePath)) ?? []
+            print("[Amica] Bundle root: \(contents.prefix(20))")
+            if let amicaContents = try? FileManager.default.contentsOfDirectory(atPath: Bundle.main.bundleURL.appendingPathComponent("amica").path) {
+                print("[Amica] amica/: \(amicaContents.prefix(20))")
+            }
         }
 
         context.coordinator.webView = webView
@@ -233,10 +243,9 @@ struct AmicaFullView: UIViewRepresentable {
                 case .claude: return ClaudeProvider(apiKey: apiKey, model: model)
                 case .ollama: return nil
                 }
-            } else {
-                let url = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
-                return OllamaProvider(baseURL: url, model: model)
             }
+            let url = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
+            return OllamaProvider(baseURL: url, model: model)
         }
     }
 }
