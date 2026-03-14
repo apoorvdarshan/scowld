@@ -230,16 +230,35 @@ struct SettingsView: View {
                 // MARK: - STT (Speech-to-Text)
                 Section {
                     Picker("Backend", selection: $sttBackend) {
+                        Text("OpenAI Whisper API").tag("openai_whisper")
                         Text("Amica (Browser Whisper)").tag("whisper_browser")
                         Text("None (use text input)").tag("none")
                     }
                 } header: {
                     Label("Speech-to-Text", systemImage: "mic")
                 } footer: {
-                    if sttBackend == "whisper_browser" {
-                        Text("Uses Whisper in the browser. Tap the mic icon to speak.")
-                    } else {
-                        Text("Voice input disabled. Use text input only.")
+                    switch sttBackend {
+                    case "openai_whisper": Text("High accuracy, cloud-based. Uses your OpenAI API key.")
+                    case "whisper_browser": Text("Runs Whisper locally in the browser. Free, on-device.")
+                    default: Text("Voice input disabled. Use text input only.")
+                    }
+                }
+
+                // MARK: - OpenAI Whisper API Key
+                if sttBackend == "openai_whisper" {
+                    Section {
+                        Text("Uses the same OpenAI API key from your AI Provider settings above, or set a separate one below.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        TextField("OpenAI Whisper API Key (optional)", text: Binding(
+                            get: { UserDefaults.standard.string(forKey: "amica_openai_whisper_apikey") ?? "" },
+                            set: { UserDefaults.standard.set($0, forKey: "amica_openai_whisper_apikey") }
+                        ))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    } header: {
+                        Label("Whisper Settings", systemImage: "mic.badge.xmark")
                     }
                 }
 

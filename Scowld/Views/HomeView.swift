@@ -133,6 +133,9 @@ struct AmicaFullView: UIViewRepresentable {
         let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "21m00Tcm4TlvDq8ikWAM"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+        let whisperApiKey = defaults.string(forKey: "amica_openai_whisper_apikey") ?? ""
+        // Fall back to the main OpenAI key if no separate whisper key
+        let effectiveWhisperKey = whisperApiKey.isEmpty ? (KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "") : whisperApiKey
 
         let settingsScript = WKUserScript(
             source: """
@@ -144,6 +147,7 @@ struct AmicaFullView: UIViewRepresentable {
                 s('vision_backend', '\(visionBackend)');
                 s('elevenlabs_apikey', '\(elevenLabsKey)');
                 s('elevenlabs_voiceid', '\(elevenLabsVoiceId)');
+                s('openai_whisper_apikey', '\(effectiveWhisperKey)');
             })();
             """,
             injectionTime: .atDocumentStart,
@@ -276,6 +280,8 @@ struct AmicaFullView: UIViewRepresentable {
             let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
             let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "21m00Tcm4TlvDq8ikWAM"
             let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+            let whisperKey = defaults.string(forKey: "amica_openai_whisper_apikey") ?? ""
+            let effectiveWhisperKey = whisperKey.isEmpty ? (KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "") : whisperKey
 
             let js = """
             (function() {
@@ -287,6 +293,7 @@ struct AmicaFullView: UIViewRepresentable {
                 setConfig('vision_backend', '\(visionBackend)');
                 setConfig('elevenlabs_apikey', '\(elevenLabsKey)');
                 setConfig('elevenlabs_voiceid', '\(elevenLabsVoiceId)');
+                setConfig('openai_whisper_apikey', '\(effectiveWhisperKey)');
                 setConfig('chatbot_backend', 'native_ios');
                 console.log('Settings pushed from native: tts=\(ttsBackend), stt=\(sttBackend), vision=\(visionBackend)');
             })();
