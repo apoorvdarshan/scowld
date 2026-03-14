@@ -118,6 +118,10 @@ final class SpeechManager: NSObject {
         recognitionTask?.cancel()
         recognitionTask = nil
         isListening = false
+
+        // Reset audio session to playback so WKWebView can play audio
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        try? AVAudioSession.sharedInstance().setActive(true)
     }
 
     // MARK: - Text-to-Speech
