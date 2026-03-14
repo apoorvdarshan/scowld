@@ -200,12 +200,31 @@ struct AmicaFullView: UIViewRepresentable {
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
 
+        private var settingsObserver: Any?
+
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
+            super.init()
+            // Listen for settings changes from Settings tab
+            settingsObserver = NotificationCenter.default.addObserver(
+                forName: .amicaSettingsChanged, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.pushSettingsToAmica()
+            }
+        }
+
+        deinit {
+            if let observer = settingsObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             print("[Amica] Page loaded")
+            // Push current settings to Amica on load
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.pushSettingsToAmica()
+            }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -219,6 +238,41 @@ struct AmicaFullView: UIViewRepresentable {
         // Allow navigation within the amica scheme
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
             return .allow
+        }
+
+        // MARK: Push Settings to Amica
+
+        func pushSettingsToAmica() {
+            guard let webView else { return }
+            let defaults = UserDefaults.standard
+
+            let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
+            let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
+            let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
+            let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "21m00Tcm4TlvDq8ikWAM"
+            let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+
+            let js = """
+            (function() {
+                function setConfig(key, value) {
+                    localStorage.setItem('chatvrm_' + key, value);
+                }
+                setConfig('tts_backend', '\(ttsBackend)');
+                setConfig('stt_backend', '\(sttBackend)');
+                setConfig('vision_backend', '\(visionBackend)');
+                setConfig('elevenlabs_apikey', '\(elevenLabsKey)');
+                setConfig('elevenlabs_voiceid', '\(elevenLabsVoiceId)');
+                setConfig('chatbot_backend', 'native_ios');
+                console.log('Settings pushed from native: tts=\(ttsBackend), stt=\(sttBackend), vision=\(visionBackend)');
+            })();
+            """
+            webView.evaluateJavaScript(js) { _, error in
+                if let error {
+                    print("[Amica] Settings push error: \(error.localizedDescription)")
+                } else {
+                    print("[Amica] Settings pushed to Amica")
+                }
+            }
         }
 
         // MARK: WKScriptMessageHandler

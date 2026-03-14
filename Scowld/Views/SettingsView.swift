@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - Settings View
 
 struct SettingsView: View {
+    // MARK: - LLM Settings
     @State private var selectedProvider: AIProvider = .gemini
     @State private var selectedModel: String = AIProvider.gemini.defaultModel
     @State private var apiKeyInput: String = ""
@@ -10,8 +11,22 @@ struct SettingsView: View {
     @State private var hasAPIKey: Bool = false
     @State private var testResult: String = ""
     @State private var isTesting: Bool = false
-    @State private var speechRate: Float = 0.5
-    @State private var speechPitch: Float = 1.1
+
+    // MARK: - TTS Settings
+    @State private var ttsBackend: String = "native_ios"
+    @State private var elevenLabsAPIKey: String = ""
+    @State private var hasElevenLabsKey: Bool = false
+    @State private var elevenLabsVoiceId: String = "21m00Tcm4TlvDq8ikWAM"
+    @State private var speechRate: Float = 0.95
+    @State private var speechPitch: Float = 1.2
+
+    // MARK: - STT Settings
+    @State private var sttBackend: String = "none"
+
+    // MARK: - Vision Settings
+    @State private var visionBackend: String = "none"
+
+    // MARK: - Character
     @State private var selectedCharacterId: String = "avatar_a"
 
     let characters = CharacterPack.defaultPacks
@@ -20,7 +35,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // MARK: - AI Provider
+                // MARK: - AI Provider (LLM)
                 Section {
                     Picker("Provider", selection: $selectedProvider) {
                         ForEach(AIProvider.allCases, id: \.self) { provider in
@@ -38,10 +53,12 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    Label("AI Provider", systemImage: "cpu")
+                    Label("AI Provider (LLM)", systemImage: "cpu")
+                } footer: {
+                    Text("Powers the AI responses in conversations.")
                 }
 
-                // MARK: - API Key
+                // MARK: - LLM API Key
                 if selectedProvider.requiresAPIKey {
                     Section {
                         if hasAPIKey {
@@ -77,11 +94,11 @@ struct SettingsView: View {
                             }
                         }
 
-                        Text("Stored securely in iOS Keychain only. Never sent anywhere.")
+                        Text("Stored securely in iOS Keychain.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } header: {
-                        Label("API Key", systemImage: "key")
+                        Label("LLM API Key", systemImage: "key")
                     }
                 }
 
@@ -92,10 +109,6 @@ struct SettingsView: View {
                             .textContentType(.URL)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
-
-                        Text("Default: \(OllamaConfig.defaultURL)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     } header: {
                         Label("Ollama", systemImage: "server.rack")
                     }
@@ -132,22 +145,115 @@ struct SettingsView: View {
                     Label("Connection", systemImage: "wifi")
                 }
 
-                // MARK: - Voice Settings
+                // MARK: - TTS (Text-to-Speech)
                 Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Speech Rate: \(String(format: "%.1f", speechRate))")
-                            .font(.subheadline)
-                        Slider(value: $speechRate, in: 0.1...1.0)
-                            .tint(.orange)
+                    Picker("Backend", selection: $ttsBackend) {
+                        Text("ElevenLabs").tag("elevenlabs")
+                        Text("OpenAI TTS").tag("openai_tts")
+                        Text("Native iOS").tag("native_ios")
+                        Text("None").tag("none")
                     }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Pitch: \(String(format: "%.1f", speechPitch))")
-                            .font(.subheadline)
-                        Slider(value: $speechPitch, in: 0.5...2.0)
-                            .tint(.orange)
+
+                    if ttsBackend == "native_ios" {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Speech Rate: \(String(format: "%.1f", speechRate))")
+                                .font(.subheadline)
+                            Slider(value: $speechRate, in: 0.5...1.5)
+                                .tint(.orange)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Pitch: \(String(format: "%.1f", speechPitch))")
+                                .font(.subheadline)
+                            Slider(value: $speechPitch, in: 0.5...2.0)
+                                .tint(.orange)
+                        }
                     }
                 } header: {
-                    Label("Voice", systemImage: "waveform")
+                    Label("Text-to-Speech", systemImage: "speaker.wave.3")
+                } footer: {
+                    switch ttsBackend {
+                    case "elevenlabs": Text("High-quality voices. Free: 10K chars/mo. Starter: $5/mo for 30K chars.")
+                    case "openai_tts": Text("Uses your OpenAI API key. Natural sounding voices.")
+                    case "native_ios": Text("Built-in iOS speech. Free, no API needed. No lip sync.")
+                    default: Text("No voice output.")
+                    }
+                }
+
+                // MARK: - ElevenLabs Settings
+                if ttsBackend == "elevenlabs" {
+                    Section {
+                        if hasElevenLabsKey {
+                            HStack {
+                                Image(systemName: "lock.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.caption)
+                                Text(String(repeating: "\u{2022}", count: 20))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button("Change") {
+                                    hasElevenLabsKey = false
+                                    elevenLabsAPIKey = ""
+                                }
+                                .font(.caption)
+                                .tint(.orange)
+                            }
+                        } else {
+                            SecureField("ElevenLabs API Key", text: $elevenLabsAPIKey)
+                                .textContentType(.password)
+                                .autocorrectionDisabled()
+
+                            if !elevenLabsAPIKey.isEmpty {
+                                Button {
+                                    saveElevenLabsKey()
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "key.fill")
+                                        Text("Save to Keychain")
+                                    }
+                                }
+                                .tint(.orange)
+                            }
+                        }
+
+                        TextField("Voice ID", text: $elevenLabsVoiceId)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+
+                        Text("Get your API key at elevenlabs.io. Default voice: Rachel.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } header: {
+                        Label("ElevenLabs", systemImage: "waveform.circle")
+                    }
+                }
+
+                // MARK: - STT (Speech-to-Text)
+                Section {
+                    Picker("Backend", selection: $sttBackend) {
+                        Text("Amica (Browser Whisper)").tag("whisper_browser")
+                        Text("None (use text input)").tag("none")
+                    }
+                } header: {
+                    Label("Speech-to-Text", systemImage: "mic")
+                } footer: {
+                    if sttBackend == "whisper_browser" {
+                        Text("Uses Whisper in the browser. Tap the mic icon to speak.")
+                    } else {
+                        Text("Voice input disabled. Use text input only.")
+                    }
+                }
+
+                // MARK: - Vision
+                Section {
+                    Picker("Backend", selection: $visionBackend) {
+                        Text("Gemini").tag("chatgpt")
+                        Text("Ollama").tag("ollama")
+                        Text("None").tag("none")
+                    }
+                } header: {
+                    Label("Vision", systemImage: "eye")
+                } footer: {
+                    Text("Enables the character to see via camera. Uses your LLM provider's vision API.")
                 }
 
                 // MARK: - Character
@@ -217,6 +323,9 @@ struct SettingsView: View {
                     Text("Open Source AI Assistant — MIT License")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Text("Character: Amica by Arbius AI (MIT)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 } header: {
                     Label("About", systemImage: "info.circle")
                 }
@@ -247,10 +356,18 @@ struct SettingsView: View {
         selectedModel = defaults.string(forKey: "selectedModel") ?? selectedProvider.defaultModel
         ollamaURL = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
         speechRate = defaults.float(forKey: "speechRate")
-        if speechRate == 0 { speechRate = 0.5 }
+        if speechRate == 0 { speechRate = 0.95 }
         speechPitch = defaults.float(forKey: "speechPitch")
-        if speechPitch == 0 { speechPitch = 1.1 }
+        if speechPitch == 0 { speechPitch = 1.2 }
         selectedCharacterId = defaults.string(forKey: "selectedCharacter") ?? "avatar_a"
+
+        // Amica backend settings
+        ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
+        sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
+        visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
+        elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "21m00Tcm4TlvDq8ikWAM"
+        hasElevenLabsKey = KeychainManager.exists(key: "com.scowld.elevenlabs.apikey")
+
         loadAPIKey()
     }
 
@@ -262,9 +379,18 @@ struct SettingsView: View {
         defaults.set(speechPitch, forKey: "speechPitch")
         defaults.set(selectedCharacterId, forKey: "selectedCharacter")
 
+        // Amica backend settings
+        defaults.set(ttsBackend, forKey: "amica_tts_backend")
+        defaults.set(sttBackend, forKey: "amica_stt_backend")
+        defaults.set(visionBackend, forKey: "amica_vision_backend")
+        defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
+
         if selectedProvider == .ollama {
             KeychainManager.save(key: OllamaConfig.keychainURLKey, value: ollamaURL)
         }
+
+        // Push settings to Amica WebView via notification
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 
     private func loadAPIKey() {
@@ -277,6 +403,15 @@ struct SettingsView: View {
         if success {
             hasAPIKey = true
             apiKeyInput = ""
+        }
+    }
+
+    private func saveElevenLabsKey() {
+        guard !elevenLabsAPIKey.isEmpty else { return }
+        let success = KeychainManager.save(key: "com.scowld.elevenlabs.apikey", value: elevenLabsAPIKey)
+        if success {
+            hasElevenLabsKey = true
+            elevenLabsAPIKey = ""
         }
     }
 
@@ -311,4 +446,10 @@ struct SettingsView: View {
         case .ollama: return OllamaProvider(baseURL: ollamaURL, model: selectedModel)
         }
     }
+}
+
+// MARK: - Notification for Settings Changes
+
+extension Notification.Name {
+    static let amicaSettingsChanged = Notification.Name("amicaSettingsChanged")
 }
