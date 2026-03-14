@@ -374,9 +374,11 @@ struct HomeView: View {
     private func buildCurrentProvider() -> (any LLMProvider)? {
         let defaults = UserDefaults.standard
         let providerStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
-        let model = defaults.string(forKey: "selectedModel") ?? "gemini-2.0-flash"
-
         guard let provider = AIProvider(rawValue: providerStr) else { return nil }
+
+        // Use saved model if still valid, otherwise fall back to provider default
+        let savedModel = defaults.string(forKey: "selectedModel") ?? provider.defaultModel
+        let model = provider.availableModels.contains(savedModel) ? savedModel : provider.defaultModel
 
         if provider.requiresAPIKey {
             guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }

@@ -19,17 +19,17 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
 
     var availableModels: [String] {
         switch self {
-        case .gemini: ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-flash"]
-        case .openai: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-nano"]
-        case .claude: ["claude-haiku-4-5-20251001", "claude-sonnet-4-6"]
+        case .gemini: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash-001"]
+        case .openai: ["gpt-4.1-nano", "gpt-4.1-mini", "gpt-4o-mini", "gpt-4o"]
+        case .claude: ["claude-haiku-4-5-20251001", "claude-sonnet-4-6-20250514"]
         case .ollama: ["llama3.2", "mistral", "gemma2", "phi3"]
         }
     }
 
     var defaultModel: String {
         switch self {
-        case .gemini: "gemini-2.0-flash"
-        case .openai: "gpt-4o-mini"
+        case .gemini: "gemini-2.5-flash"
+        case .openai: "gpt-4.1-nano"
         case .claude: "claude-haiku-4-5-20251001"
         case .ollama: "llama3.2"
         }
