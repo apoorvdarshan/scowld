@@ -33,9 +33,9 @@ class AmicaSchemeHandler: NSObject, WKURLSchemeHandler {
         // Try multiple base locations (Xcode may place resources differently)
         let bundleRoot = Bundle.main.bundleURL
         let basePaths = [
+            bundleRoot.appendingPathComponent("amica.bundle"),
             bundleRoot,
             bundleRoot.appendingPathComponent("amica"),
-            bundleRoot.appendingPathComponent("Resources/amica"),
         ]
 
         var resolvedURL: URL? = nil
@@ -158,9 +158,9 @@ struct AmicaFullView: UIViewRepresentable {
         // Verify amica files exist in bundle, then load via custom scheme
         let bundleRoot = Bundle.main.bundlePath
         let possiblePaths = [
+            "\(bundleRoot)/amica.bundle/index.html",
             "\(bundleRoot)/index.html",
             "\(bundleRoot)/amica/index.html",
-            "\(bundleRoot)/Resources/amica/index.html"
         ]
         var foundPath: String? = nil
         for p in possiblePaths {
