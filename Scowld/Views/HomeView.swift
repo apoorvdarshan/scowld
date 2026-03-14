@@ -250,10 +250,8 @@ struct AmicaFullView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             print("[Amica] Page loaded")
-            // Push current settings to Amica on load
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.pushSettingsToAmica()
-            }
+            // Settings are already injected via user script at document start
+            // No need to push again here
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -267,6 +265,14 @@ struct AmicaFullView: UIViewRepresentable {
         // Allow navigation within the amica scheme
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
             return .allow
+        }
+
+        // Auto-grant microphone/camera permissions so it doesn't keep asking
+        func webView(_ webView: WKWebView,
+                     requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                     initiatedByFrame frame: WKFrameInfo,
+                     type: WKMediaCaptureType) async -> WKPermissionDecision {
+            return .grant
         }
 
         // MARK: Push Settings to Amica
