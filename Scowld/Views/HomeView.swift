@@ -126,6 +126,31 @@ struct AmicaFullView: UIViewRepresentable {
         let contentController = config.userContentController
         contentController.add(context.coordinator, name: "nativeAI")
 
+        // Inject settings into localStorage BEFORE page loads
+        let defaults = UserDefaults.standard
+        let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
+        let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
+        let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
+        let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "21m00Tcm4TlvDq8ikWAM"
+        let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+
+        let settingsScript = WKUserScript(
+            source: """
+            (function() {
+                function s(k, v) { localStorage.setItem('chatvrm_' + k, v); }
+                s('chatbot_backend', 'native_ios');
+                s('tts_backend', '\(ttsBackend)');
+                s('stt_backend', '\(sttBackend)');
+                s('vision_backend', '\(visionBackend)');
+                s('elevenlabs_apikey', '\(elevenLabsKey)');
+                s('elevenlabs_voiceid', '\(elevenLabsVoiceId)');
+            })();
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        contentController.addUserScript(settingsScript)
+
         // Forward JS console to Swift
         let consoleScript = WKUserScript(
             source: """
@@ -266,11 +291,13 @@ struct AmicaFullView: UIViewRepresentable {
                 console.log('Settings pushed from native: tts=\(ttsBackend), stt=\(sttBackend), vision=\(visionBackend)');
             })();
             """
-            webView.evaluateJavaScript(js) { _, error in
+            webView.evaluateJavaScript(js) { [weak webView] _, error in
                 if let error {
                     print("[Amica] Settings push error: \(error.localizedDescription)")
                 } else {
-                    print("[Amica] Settings pushed to Amica")
+                    print("[Amica] Settings pushed to Amica, reloading...")
+                    // Reload so Amica picks up new config from localStorage
+                    webView?.reload()
                 }
             }
         }
