@@ -1,10 +1,10 @@
 import SwiftUI
 import WebKit
 
-// MARK: - VRM Character View
+// MARK: - Amica Character View
 
-/// Renders a VRM 3D character using WKWebView + three-vrm.
-/// Controlled via JavaScript bridge for emotions, lip sync, eye tracking, and head rotation.
+/// Embeds Amica's web-based VRM renderer in a WKWebView.
+/// Bridges native Swift AI (LLM, TTS, STT) into Amica's character system.
 struct VRMCharacterView: View {
     let emotion: Emotion
     let mouthOpenness: CGFloat
@@ -17,31 +17,19 @@ struct VRMCharacterView: View {
     @Binding var pendingGesture: String?
 
     var body: some View {
-        VRMWebView(
+        AmicaWebView(
             emotion: emotion,
             mouthOpenness: mouthOpenness,
-            pupilOffsetX: pupilOffsetX,
-            pupilOffsetY: pupilOffsetY,
-            headRotation: headRotation,
-            isBlinking: isBlinking,
-            bodyBounce: bodyBounce,
-            modelFileName: modelFileName,
             pendingGesture: $pendingGesture
         )
     }
 }
 
-// MARK: - WKWebView Wrapper
+// MARK: - Amica WebView
 
-struct VRMWebView: UIViewRepresentable {
+struct AmicaWebView: UIViewRepresentable {
     let emotion: Emotion
     let mouthOpenness: CGFloat
-    let pupilOffsetX: CGFloat
-    let pupilOffsetY: CGFloat
-    let headRotation: CGFloat
-    let isBlinking: Bool
-    let bodyBounce: CGFloat
-    let modelFileName: String
     @Binding var pendingGesture: String?
 
     func makeCoordinator() -> Coordinator {
@@ -51,37 +39,11 @@ struct VRMWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
-        // Allow file access for loading VRM models
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        config.mediaTypesRequiringUserActionForPlayback = []
 
         let contentController = config.userContentController
-
-        // Forward console.log to Swift for debugging
-        let consoleScript = WKUserScript(
-            source: """
-            (function() {
-                var origLog = console.log;
-                var origError = console.error;
-                var origWarn = console.warn;
-                function send(level, args) {
-                    try {
-                        window.webkit.messageHandlers.vrmEvent.postMessage(
-                            JSON.stringify({ type: 'console', level: level, message: Array.from(args).map(String).join(' ') })
-                        );
-                    } catch(e) {}
-                }
-                console.log = function() { send('log', arguments); origLog.apply(console, arguments); };
-                console.error = function() { send('error', arguments); origError.apply(console, arguments); };
-                console.warn = function() { send('warn', arguments); origWarn.apply(console, arguments); };
-                window.onerror = function(msg, url, line, col, err) {
-                    send('error', ['JS Error: ' + msg + ' at ' + url + ':' + line]);
-                };
-            })();
-            """,
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: true
-        )
-        contentController.addUserScript(consoleScript)
+        contentController.add(context.coordinator, name: "nativeAI")
         contentController.add(context.coordinator, name: "vrmEvent")
 
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -92,39 +54,33 @@ struct VRMWebView: UIViewRepresentable {
         webView.scrollView.bounces = false
         webView.navigationDelegate = context.coordinator
 
-        // Load HTML with access to the entire bundle for VRM files
-        if let htmlURL = Bundle.main.url(forResource: "vrm_viewer", withExtension: "html") {
-            webView.loadFileURL(htmlURL, allowingReadAccessTo: Bundle.main.bundleURL)
+        // Load Amica's index.html
+        if let amicaDir = Bundle.main.url(forResource: "amica", withExtension: nil),
+           let indexURL = Bundle.main.url(forResource: "amica/index", withExtension: "html") {
+            webView.loadFileURL(indexURL, allowingReadAccessTo: amicaDir)
         } else {
-            print("[VRM] ERROR: vrm_viewer.html not found in bundle")
+            print("[Amica] ERROR: amica/index.html not found in bundle")
         }
 
         context.coordinator.webView = webView
-        context.coordinator.pendingModel = modelFileName
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        let coordinator = context.coordinator
+        guard context.coordinator.isReady else { return }
 
-        // Load model if changed
-        if coordinator.currentModel != modelFileName {
-            coordinator.loadModel(modelFileName)
-        }
-
-        // Only send updates after the viewer is ready and model is loaded
-        guard coordinator.isReady, coordinator.isModelLoaded else { return }
-
-        webView.evaluateJavaScript("setEmotion('\(emotion.rawValue)')")
-        webView.evaluateJavaScript("setMouthOpenness(\(mouthOpenness))")
-        webView.evaluateJavaScript("setBlink(\(isBlinking ? "true" : "false"))")
-        webView.evaluateJavaScript("setEyeGaze(\(pupilOffsetX), \(pupilOffsetY))")
-        webView.evaluateJavaScript("setHeadRotation(\(headRotation), 0)")
-        webView.evaluateJavaScript("setBodyBounce(\(bodyBounce))")
-
-        // Play pending gesture
+        // Send gesture if pending
         if let gesture = pendingGesture {
-            webView.evaluateJavaScript("playGesture('\(gesture)', 2.0)")
+            let animMap = [
+                "wave": "greeting", "greeting": "greeting",
+                "dance": "dance", "happy": "dance",
+                "peace": "peaceSign", "pose": "modelPose",
+                "spin": "spin", "squat": "squat"
+            ]
+            if let animName = animMap[gesture] {
+                let js = "window.__amicaPlayAnimation && window.__amicaPlayAnimation('\(animName)')"
+                webView.evaluateJavaScript(js)
+            }
             Task { @MainActor in pendingGesture = nil }
         }
     }
@@ -134,22 +90,23 @@ struct VRMWebView: UIViewRepresentable {
     class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         weak var webView: WKWebView?
         var isReady = false
-        var isModelLoaded = false
-        var currentModel: String?
-        var pendingModel: String?
+
+        /// Called when Amica's native AI bridge sends a chat request
+        var onChatRequest: ((_ callbackId: String, _ messages: [[String: String]]) -> Void)?
 
         // MARK: WKNavigationDelegate
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            print("[VRM] HTML page loaded successfully")
+            print("[Amica] Page loaded")
+            isReady = true
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("[VRM] Navigation failed: \(error.localizedDescription)")
+            print("[Amica] Navigation failed: \(error.localizedDescription)")
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            print("[VRM] Provisional navigation failed: \(error.localizedDescription)")
+            print("[Amica] Provisional navigation failed: \(error.localizedDescription)")
         }
 
         // MARK: WKScriptMessageHandler
@@ -161,59 +118,30 @@ struct VRMWebView: UIViewRepresentable {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let type = json["type"] as? String else { return }
 
-            Task { @MainActor in
-                switch type {
-                case "ready":
-                    print("[VRM] Viewer ready")
-                    self.isReady = true
-                    if let pending = self.pendingModel {
-                        self.loadModel(pending)
-                        self.pendingModel = nil
-                    }
-                case "loaded":
-                    let model = json["model"] as? String ?? "unknown"
-                    print("[VRM] Model loaded: \(model)")
-                    self.isModelLoaded = true
-                case "error":
-                    let msg = json["message"] as? String ?? "Unknown error"
-                    print("[VRM] Error: \(msg)")
-                case "console":
-                    let level = json["level"] as? String ?? "log"
-                    let msg = json["message"] as? String ?? ""
-                    print("[VRM-JS] [\(level)] \(msg)")
-                default:
-                    break
-                }
+            switch type {
+            case "chat":
+                // LLM request from Amica → forward to native AI
+                guard let callbackId = json["callbackId"] as? String,
+                      let messages = json["messages"] as? [[String: String]] else { return }
+                print("[Amica] Chat request: \(callbackId)")
+                onChatRequest?(callbackId, messages)
+            default:
+                print("[Amica] Message: \(type)")
             }
         }
 
-        func loadModel(_ fileName: String) {
-            guard isReady, let webView else {
-                pendingModel = fileName
-                return
-            }
-            currentModel = fileName
-            isModelLoaded = false
+        /// Send LLM response back to Amica
+        func deliverResponse(callbackId: String, response: String) {
+            let escaped = response
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: "\\n")
+            webView?.evaluateJavaScript("window.nativeAIResponse('\(callbackId)', '\(escaped)')")
+        }
 
-            if let modelURL = Bundle.main.url(forResource: fileName, withExtension: "vrm") {
-                let urlString = modelURL.absoluteString
-                print("[VRM] Loading model: \(urlString)")
-                webView.evaluateJavaScript("loadModel('\(urlString)')") { _, error in
-                    if let error {
-                        print("[VRM] JS eval error: \(error.localizedDescription)")
-                    }
-                }
-            } else {
-                print("[VRM] ERROR: \(fileName).vrm not found in bundle")
-                // List what IS in the bundle for debugging
-                if let resourcePath = Bundle.main.resourcePath {
-                    let files = (try? FileManager.default.contentsOfDirectory(atPath: resourcePath)) ?? []
-                    let vrmFiles = files.filter { $0.hasSuffix(".vrm") }
-                    print("[VRM] VRM files in bundle: \(vrmFiles)")
-                    let htmlFiles = files.filter { $0.hasSuffix(".html") }
-                    print("[VRM] HTML files in bundle: \(htmlFiles)")
-                }
-            }
+        func deliverError(callbackId: String, error: String) {
+            let escaped = error.replacingOccurrences(of: "'", with: "\\'")
+            webView?.evaluateJavaScript("window.nativeAIError('\(callbackId)', '\(escaped)')")
         }
     }
 }
@@ -235,6 +163,5 @@ struct VRMWebView: UIViewRepresentable {
             modelFileName: "AvatarSample_A",
             pendingGesture: $gesture
         )
-        .frame(width: 300, height: 400)
     }
 }
