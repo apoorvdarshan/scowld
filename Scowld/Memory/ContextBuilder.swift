@@ -2,37 +2,20 @@ import Foundation
 
 // MARK: - Context Builder
 
-/// Builds the system prompt by combining personality, memories, and vision context.
-/// Injects the most relevant memories into every AI request.
+/// Builds the system prompt by injecting the active memory slot's conversation history.
 struct ContextBuilder {
     let memoryStore: MemoryStore
-    var userName: String? {
-        // Try to find user's name from memories
-        let facts = memoryStore.fetchMemories(category: .facts)
-        return facts.first(where: { $0.content.lowercased().contains("name is") })?.content
-            .components(separatedBy: "name is")
-            .last?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .components(separatedBy: .whitespaces)
-            .first
-    }
 
-    /// Build the complete system prompt with memories and vision context
+    /// Build the complete system prompt with conversation history from the active slot
     func buildSystemPrompt(visionDescription: String? = nil) -> String {
-        let relevantMemories = memoryStore.fetchRelevantMemories(limit: 5)
-        let memoryStrings = relevantMemories.map { "[\($0.category.displayName)] \($0.content)" }
+        let conversationContext = memoryStore.buildContextFromActiveSlot(limit: 20)
+        let characterName = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
 
         return SystemPromptTemplate.build(
-            userName: userName,
-            memories: memoryStrings,
-            visionDescription: visionDescription
+            userName: nil,
+            memories: conversationContext,
+            visionDescription: visionDescription,
+            characterName: characterName
         )
-    }
-
-    /// Build a condensed context summary for memory extraction
-    func buildSessionSummary(messages: [ChatMessage]) -> String {
-        let userMessages = messages.filter { $0.role == .user }
-        let topics = userMessages.map { $0.content }.joined(separator: "; ")
-        return "Topics discussed: \(topics)"
     }
 }

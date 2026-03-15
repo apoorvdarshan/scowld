@@ -2,140 +2,132 @@ import SwiftUI
 
 // MARK: - Memory View
 
-/// Browse, search, and manage persistent memories with glass-styled cards.
+/// Browse and manage memory slots — each slot is a saved conversation context.
 struct MemoryView: View {
     var memoryStore: MemoryStore
-    @State private var selectedCategory: MemoryCategory? = nil
-    @State private var searchText = ""
-
-    private var filteredMemories: [MemoryItem] {
-        var items = memoryStore.memories
-        if let category = selectedCategory {
-            items = items.filter { $0.category == category }
-        }
-        if !searchText.isEmpty {
-            items = items.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
-        }
-        return items
-    }
+    @State private var showNewSlotAlert = false
+    @State private var newSlotName = ""
+    @State private var renameSlotId: UUID?
+    @State private var renameText = ""
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Category filter chips
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    glassCategoryChip(title: "All", icon: "tray.full", category: nil)
-                    ForEach(MemoryCategory.allCases, id: \.self) { category in
-                        glassCategoryChip(title: category.displayName, icon: category.icon, category: category)
-                    }
+        List {
+            // MARK: - Memory Slots
+            Section {
+                ForEach(memoryStore.slots) { slot in
+                    slotRow(slot)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-            }
-
-            // Memory list
-            if filteredMemories.isEmpty {
-                ContentUnavailableView(
-                    "No Memories Yet",
-                    systemImage: "brain.head.profile.fill",
-                    description: Text("Scowld will remember things about you as you chat.")
-                )
-            } else {
-                List {
-                    ForEach(filteredMemories) { memory in
-                        memoryCard(memory)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
-                    .onDelete { indexSet in
-                        for index in indexSet {
-                            memoryStore.deleteMemory(filteredMemories[index])
+                .onDelete { indexSet in
+                    for index in indexSet {
+                        let slot = memoryStore.slots[index]
+                        if memoryStore.slots.count > 1 {
+                            memoryStore.deleteSlot(id: slot.id)
                         }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+            } header: {
+                Label("Save Slots", systemImage: "tray.2")
+            } footer: {
+                Text("Select a memory to continue that conversation. The character remembers everything in the active slot.")
+            }
+
+            // MARK: - Actions
+            Section {
+                Button {
+                    newSlotName = "Memory \(memoryStore.slots.count + 1)"
+                    showNewSlotAlert = true
+                } label: {
+                    Label("New Memory", systemImage: "plus.circle")
+                        .foregroundStyle(.amicaBlue)
+                }
             }
         }
-        .searchable(text: $searchText, prompt: "Search memories...")
         .navigationTitle("Memories")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Memory Card
-
-    @ViewBuilder
-    private func memoryCard(_ memory: MemoryItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: memory.category.icon)
-                    .foregroundStyle(.amicaBlue)
-                    .font(.caption)
-                Text(memory.category.displayName)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.amicaBlue)
-                Spacer()
-                Text(memory.date, style: .relative)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+        .alert("New Memory", isPresented: $showNewSlotAlert) {
+            TextField("Name", text: $newSlotName)
+            Button("Create") {
+                let slot = memoryStore.createSlot(name: newSlotName)
+                memoryStore.setActiveSlot(id: slot.id)
             }
-
-            Text(memory.content)
-                .font(.body)
-
-            HStack {
-                // Confidence bar
-                HStack(spacing: 4) {
-                    Image(systemName: "chart.bar.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text("\(Int(memory.confidence * 100))%")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Create a new conversation memory.")
         }
-        .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(.white.opacity(0.06), lineWidth: 0.5)
-        )
+        .alert("Rename", isPresented: Binding(
+            get: { renameSlotId != nil },
+            set: { if !$0 { renameSlotId = nil } }
+        )) {
+            TextField("Name", text: $renameText)
+            Button("Save") {
+                if let id = renameSlotId {
+                    memoryStore.renameSlot(id: id, name: renameText)
+                }
+                renameSlotId = nil
+            }
+            Button("Cancel", role: .cancel) { renameSlotId = nil }
+        }
     }
 
-    // MARK: - Glass Category Chip
+    // MARK: - Slot Row
 
     @ViewBuilder
-    private func glassCategoryChip(title: String, icon: String, category: MemoryCategory?) -> some View {
-        let isSelected = selectedCategory == category
+    private func slotRow(_ slot: MemorySlot) -> some View {
+        let isActive = memoryStore.activeSlotId == slot.id
 
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedCategory = category
-            }
+            memoryStore.setActiveSlot(id: slot.id)
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.caption2)
-                Text(title)
-                    .font(.caption)
-                    .fontWeight(isSelected ? .semibold : .regular)
+            HStack(spacing: 12) {
+                Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isActive ? .amicaBlue : .secondary)
+                    .font(.title3)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(slot.name)
+                        .font(.body)
+                        .fontWeight(isActive ? .semibold : .regular)
+                        .foregroundStyle(.primary)
+
+                    HStack(spacing: 8) {
+                        Text("\(slot.messageCount) messages")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Text(slot.lastUsedDate, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                if isActive {
+                    Text("Active")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.amicaBlue)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(.amicaBlue.opacity(0.15), in: Capsule())
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(
-                isSelected
-                    ? AnyShapeStyle(Color.amicaBlue)
-                    : AnyShapeStyle(.ultraThinMaterial),
-                in: Capsule()
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(.white.opacity(isSelected ? 0 : 0.08), lineWidth: 0.5)
-            )
-            .foregroundStyle(isSelected ? .white : .primary)
+        }
+        .swipeActions(edge: .trailing) {
+            if memoryStore.slots.count > 1 {
+                Button(role: .destructive) {
+                    memoryStore.deleteSlot(id: slot.id)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+            Button {
+                renameText = slot.name
+                renameSlotId = slot.id
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
+            .tint(.amicaBlue)
         }
     }
 }

@@ -2,13 +2,15 @@ import CoreData
 
 // MARK: - Memory Store
 
-/// CoreData-backed persistent storage for memories, sessions, and messages.
-/// All data is stored locally — NEVER synced to any cloud service.
+/// CoreData-backed storage for memory slots and messages.
+/// Each memory slot is a named save file — the character remembers
+/// the full conversation history within that slot.
 @Observable
 final class MemoryStore {
     let container: NSPersistentContainer
-    var memories: [MemoryItem] = []
-    var totalMemoryCount: Int = 0
+    var slots: [MemorySlot] = []
+    var activeSlotId: UUID?
+    var totalMemoryCount: Int { slots.count }
 
     init(inMemory: Bool = false) {
         container = NSPersistentContainer(name: "Scowld")
@@ -21,112 +23,119 @@ final class MemoryStore {
             }
         }
         container.viewContext.automaticallyMergesChangesFromParent = true
-        loadMemories()
+        loadSlots()
+
+        // Restore active slot from UserDefaults
+        if let idStr = UserDefaults.standard.string(forKey: "activeMemorySlotId"),
+           let id = UUID(uuidString: idStr),
+           slots.contains(where: { $0.id == id }) {
+            activeSlotId = id
+        }
+
+        // Create default slot if none exist
+        if slots.isEmpty {
+            let slot = createSlot(name: "Memory 1")
+            activeSlotId = slot.id
+        }
     }
 
-    // MARK: - Memory CRUD
+    // MARK: - Slot CRUD
 
-    func saveMemory(content: String, category: MemoryCategory, confidence: Double = 0.8) {
+    @discardableResult
+    func createSlot(name: String) -> MemorySlot {
         let context = container.viewContext
-        let entity = MemoryEntity(context: context)
-        entity.id = UUID()
-        entity.content = content
-        entity.category = category.rawValue
-        entity.confidence = confidence
-        entity.date = Date()
-        entity.lastAccessed = Date()
-
+        let entity = MemorySlotEntity(context: context)
+        let id = UUID()
+        entity.id = id
+        entity.name = name
+        entity.createdDate = Date()
+        entity.lastUsedDate = Date()
         save(context)
-        loadMemories()
+        loadSlots()
+        return MemorySlot(id: id, name: name, createdDate: Date(), lastUsedDate: Date(), messageCount: 0)
     }
 
-    func deleteMemory(_ memory: MemoryItem) {
+    func renameSlot(id: UUID, name: String) {
         let context = container.viewContext
-        let request: NSFetchRequest<MemoryEntity> = MemoryEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", memory.id as CVarArg)
+        let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
 
         if let results = try? context.fetch(request), let entity = results.first {
-            context.delete(entity)
+            entity.name = name
             save(context)
-            loadMemories()
+            loadSlots()
+        }
+    }
+
+    func deleteSlot(id: UUID) {
+        let context = container.viewContext
+
+        // Delete all messages in this slot
+        let msgRequest: NSFetchRequest<NSFetchRequestResult> = MessageEntity.fetchRequest()
+        msgRequest.predicate = NSPredicate(format: "sessionId == %@", id as CVarArg)
+        let msgDelete = NSBatchDeleteRequest(fetchRequest: msgRequest)
+        try? context.execute(msgDelete)
+
+        // Delete the slot
+        let slotRequest: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        slotRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        if let results = try? context.fetch(slotRequest), let entity = results.first {
+            context.delete(entity)
+        }
+
+        save(context)
+        loadSlots()
+
+        // If deleted active slot, switch to first available
+        if activeSlotId == id {
+            activeSlotId = slots.first?.id
+            saveActiveSlotId()
+        }
+    }
+
+    func setActiveSlot(id: UUID) {
+        activeSlotId = id
+        saveActiveSlotId()
+
+        // Update lastUsedDate
+        let context = container.viewContext
+        let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        if let results = try? context.fetch(request), let entity = results.first {
+            entity.lastUsedDate = Date()
+            save(context)
         }
     }
 
     func clearAllMemories() {
         let context = container.viewContext
-        let request: NSFetchRequest<NSFetchRequestResult> = MemoryEntity.fetchRequest()
-        let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
 
-        do {
-            try context.execute(deleteRequest)
-            save(context)
-            loadMemories()
-        } catch {
-            print("Failed to clear memories: \(error)")
-        }
-    }
+        let msgRequest: NSFetchRequest<NSFetchRequestResult> = MessageEntity.fetchRequest()
+        let msgDelete = NSBatchDeleteRequest(fetchRequest: msgRequest)
+        try? context.execute(msgDelete)
 
-    /// Fetch the most relevant memories for context injection
-    func fetchRelevantMemories(limit: Int = 5) -> [MemoryItem] {
-        let context = container.viewContext
-        let request: NSFetchRequest<MemoryEntity> = MemoryEntity.fetchRequest()
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "lastAccessed", ascending: false),
-            NSSortDescriptor(key: "confidence", ascending: false),
-        ]
-        request.fetchLimit = limit
+        let slotRequest: NSFetchRequest<NSFetchRequestResult> = MemorySlotEntity.fetchRequest()
+        let slotDelete = NSBatchDeleteRequest(fetchRequest: slotRequest)
+        try? context.execute(slotDelete)
 
-        guard let results = try? context.fetch(request) else { return [] }
+        // Also clear old MemoryEntity data
+        let memRequest: NSFetchRequest<NSFetchRequestResult> = MemoryEntity.fetchRequest()
+        let memDelete = NSBatchDeleteRequest(fetchRequest: memRequest)
+        try? context.execute(memDelete)
 
-        // Update lastAccessed for fetched memories
-        for entity in results {
-            entity.lastAccessed = Date()
-        }
         save(context)
+        loadSlots()
 
-        return results.compactMap { MemoryItem(entity: $0) }
+        // Create fresh default slot
+        let slot = createSlot(name: "Memory 1")
+        activeSlotId = slot.id
+        saveActiveSlotId()
     }
 
-    /// Fetch memories filtered by category
-    func fetchMemories(category: MemoryCategory) -> [MemoryItem] {
-        let context = container.viewContext
-        let request: NSFetchRequest<MemoryEntity> = MemoryEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "category == %@", category.rawValue)
-        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+    // MARK: - Messages
 
-        guard let results = try? context.fetch(request) else { return [] }
-        return results.compactMap { MemoryItem(entity: $0) }
-    }
-
-    // MARK: - Session Management
-
-    func createSession() -> UUID {
-        let context = container.viewContext
-        let session = SessionEntity(context: context)
-        let id = UUID()
-        session.id = id
-        session.date = Date()
-        session.duration = 0
-        session.summary = ""
-        save(context)
-        return id
-    }
-
-    func updateSession(id: UUID, summary: String, duration: Double) {
-        let context = container.viewContext
-        let request: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-
-        if let results = try? context.fetch(request), let session = results.first {
-            session.summary = summary
-            session.duration = duration
-            save(context)
-        }
-    }
-
-    // MARK: - Message Storage
-
-    func saveMessage(role: MessageRole, content: String, emotion: Emotion?, sessionId: UUID) {
+    func saveMessage(role: MessageRole, content: String, emotion: Emotion? = nil) {
+        guard let slotId = activeSlotId else { return }
         let context = container.viewContext
         let message = MessageEntity(context: context)
         message.id = UUID()
@@ -134,14 +143,17 @@ final class MemoryStore {
         message.content = content
         message.emotion = emotion?.rawValue ?? ""
         message.timestamp = Date()
-        message.sessionId = sessionId
+        message.sessionId = slotId
         save(context)
+        loadSlots() // refresh message counts
     }
 
-    func fetchMessages(sessionId: UUID) -> [ChatMessage] {
+    func fetchMessages(slotId: UUID? = nil) -> [ChatMessage] {
+        let id = slotId ?? activeSlotId
+        guard let id else { return [] }
         let context = container.viewContext
         let request: NSFetchRequest<MessageEntity> = MessageEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "sessionId == %@", sessionId as CVarArg)
+        request.predicate = NSPredicate(format: "sessionId == %@", id as CVarArg)
         request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: true)]
 
         guard let results = try? context.fetch(request) else { return [] }
@@ -152,11 +164,27 @@ final class MemoryStore {
                   let role = MessageRole(rawValue: roleStr),
                   let content = entity.content
             else { return nil }
-
             let emotion = Emotion(rawValue: entity.emotion ?? "")
             return ChatMessage(id: id, role: role, content: content, emotion: emotion, timestamp: entity.timestamp ?? Date())
         }
     }
+
+    /// Build context string from active slot's chat history for system prompt injection
+    func buildContextFromActiveSlot(limit: Int = 20) -> [String] {
+        let messages = fetchMessages()
+        let recent = messages.suffix(limit)
+        return recent.map { "[\($0.role.rawValue)] \($0.content)" }
+    }
+
+    // MARK: - Legacy compatibility
+
+    var memories: [MemoryItem] { [] }
+
+    func deleteMemory(_ memory: MemoryItem) {}
+
+    func fetchRelevantMemories(limit: Int = 5) -> [MemoryItem] { [] }
+
+    func fetchMemories(category: MemoryCategory) -> [MemoryItem] { [] }
 
     // MARK: - Private
 
@@ -169,19 +197,46 @@ final class MemoryStore {
         }
     }
 
-    private func loadMemories() {
+    private func loadSlots() {
         let context = container.viewContext
-        let request: NSFetchRequest<MemoryEntity> = MemoryEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "lastUsedDate", ascending: false)]
 
-        if let results = try? context.fetch(request) {
-            memories = results.compactMap { MemoryItem(entity: $0) }
-            totalMemoryCount = memories.count
+        guard let results = try? context.fetch(request) else { return }
+
+        slots = results.compactMap { entity in
+            guard let id = entity.id, let name = entity.name else { return nil }
+            // Count messages for this slot
+            let msgRequest: NSFetchRequest<MessageEntity> = MessageEntity.fetchRequest()
+            msgRequest.predicate = NSPredicate(format: "sessionId == %@", id as CVarArg)
+            let count = (try? context.count(for: msgRequest)) ?? 0
+
+            return MemorySlot(
+                id: id,
+                name: name,
+                createdDate: entity.createdDate ?? Date(),
+                lastUsedDate: entity.lastUsedDate ?? Date(),
+                messageCount: count
+            )
         }
+    }
+
+    private func saveActiveSlotId() {
+        UserDefaults.standard.set(activeSlotId?.uuidString, forKey: "activeMemorySlotId")
     }
 }
 
-// MARK: - Memory Item (View Model)
+// MARK: - Memory Slot (View Model)
+
+struct MemorySlot: Identifiable, Sendable {
+    let id: UUID
+    let name: String
+    let createdDate: Date
+    let lastUsedDate: Date
+    let messageCount: Int
+}
+
+// MARK: - Legacy MemoryItem (kept for compilation)
 
 struct MemoryItem: Identifiable, Sendable {
     let id: UUID
