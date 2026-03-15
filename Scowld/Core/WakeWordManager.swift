@@ -47,6 +47,7 @@ final class WakeWordManager: NSObject {
     private var commandListeningStartTime: Date = .now
     private var isRestarting = false
     private var silenceWorkItem: DispatchWorkItem?
+    private var lastNormalizedText: String = ""
 
     private static let silenceTimeout: TimeInterval = 1.5
     private static let maxRecognitionDuration: TimeInterval = 55.0
@@ -75,6 +76,7 @@ final class WakeWordManager: NSObject {
     func startCommandListening() {
         stopRecognitionInternal()
         commandText = ""
+        lastNormalizedText = ""
         debugTranscript = "Listening..."
         state = .commandListening
         lastTranscriptTime = .now
@@ -176,6 +178,9 @@ final class WakeWordManager: NSObject {
                     } else if result?.isFinal == true {
                         if mode == .wakeWord {
                             self.scheduleRestart(mode: mode)
+                        } else if mode == .command && !self.commandText.isEmpty {
+                            logger.info("[WakeWord] Recognition finalized, sending command")
+                            self.finishCommand()
                         }
                     }
                 }
@@ -307,9 +312,12 @@ final class WakeWordManager: NSObject {
         let cleanTranscript = stripWakeWord(from: transcript)
         debugTranscript = cleanTranscript.isEmpty ? "..." : cleanTranscript
         logger.info("[WakeWord] Command transcript: '\(cleanTranscript)'")
-        // Only reschedule auto-send if text actually changed
-        if cleanTranscript != commandText {
-            commandText = cleanTranscript
+        commandText = cleanTranscript
+        // Only reschedule auto-send if the actual words changed (ignore case/punctuation)
+        let normalized = cleanTranscript.lowercased().filter { $0.isLetter || $0.isWhitespace }
+        let previousNormalized = lastNormalizedText
+        if normalized != previousNormalized {
+            lastNormalizedText = normalized
             scheduleSilenceCheck()
         }
     }
