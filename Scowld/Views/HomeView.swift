@@ -72,20 +72,6 @@ struct HomeView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button {
-                            cameraOn.toggle()
-                            amicaCoordinator?.webView?.evaluateJavaScript(
-                                "window.__toggleWebcam && window.__toggleWebcam(\(cameraOn));"
-                            )
-                        } label: {
-                            Label(
-                                cameraOn ? "Disable Camera" : "Enable Camera",
-                                systemImage: cameraOn ? "video.fill" : "video.slash"
-                            )
-                        }
-
-                        Divider()
-
                         Button { showMemories = true } label: {
                             Label("Memories", systemImage: "brain.head.profile.fill")
                         }
@@ -104,6 +90,13 @@ struct HomeView: View {
                     } label: {
                         Image(systemName: handsFreeIconName)
                             .foregroundStyle(handsFreeIconColor)
+                    }
+
+                    Button {
+                        toggleCamera()
+                    } label: {
+                        Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
+                            .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
                     }
 
                     messageField
@@ -206,6 +199,13 @@ struct HomeView: View {
             let generator = UIImpactFeedbackGenerator(style: .medium)
             generator.impactOccurred()
         }
+    }
+
+    private func toggleCamera() {
+        cameraOn.toggle()
+        amicaCoordinator?.webView?.evaluateJavaScript(
+            "window.__toggleWebcam && window.__toggleWebcam(\(cameraOn));"
+        )
     }
 
     private func stopAndSend() {
@@ -703,7 +703,7 @@ struct AmicaFullView: UIViewRepresentable {
         )
         contentController.addUserScript(consoleScript)
 
-        // Default webcam to front camera
+        // Force front camera only
         let cameraScript = WKUserScript(
             source: """
             (function() {
@@ -711,9 +711,9 @@ struct AmicaFullView: UIViewRepresentable {
                 navigator.mediaDevices.getUserMedia = function(constraints) {
                     if (constraints && constraints.video) {
                         if (typeof constraints.video === 'boolean') {
-                            constraints.video = { facingMode: 'user' };
-                        } else if (typeof constraints.video === 'object' && !constraints.video.facingMode) {
-                            constraints.video.facingMode = 'user';
+                            constraints.video = { facingMode: { exact: 'user' } };
+                        } else if (typeof constraints.video === 'object') {
+                            constraints.video.facingMode = { exact: 'user' };
                         }
                     }
                     return origGetUserMedia(constraints);
@@ -915,68 +915,20 @@ struct AmicaFullView: UIViewRepresentable {
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
-            // Enable webcam by default, hide preview, show eye icon to reopen
+            // Enable front camera by default, no preview
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 webView.evaluateJavaScript("""
                     (function enableCam() {
                         if (window.__toggleWebcam) {
                             window.__toggleWebcam(true);
-                            (function setupPreview() {
+                            // Hide preview and all buttons completely
+                            (function hideAll() {
                                 var v = document.querySelector('video');
                                 if (v && v.parentElement) {
-                                    var container = v.parentElement;
-                                    // Functions to show/hide preview
-                                    window.__showCamPreview = function() {
-                                        container.style.cssText = '';
-                                        v.style.cssText = '';
-                                        if (window.__eyeBtn) window.__eyeBtn.style.display = 'none';
-                                    };
-                                    window.__hideCamPreview = function() {
-                                        container.style.cssText = 'position:fixed!important;left:-9999px!important;opacity:0!important;pointer-events:none!important;';
-                                        v.style.cssText = 'width:1px!important;height:1px!important;';
-                                        if (window.__eyeBtn) window.__eyeBtn.style.display = 'flex';
-                                    };
-                                    // Remove all original buttons
-                                    var buttons = container.querySelectorAll('button');
-                                    buttons.forEach(function(btn) { btn.remove(); });
-                                    // Make container positioned for overlay buttons
-                                    container.style.position = 'relative';
-                                    var btnStyle = 'position:absolute;z-index:10;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,0.6);border:1.5px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:0;cursor:pointer;';
-                                    // X button — top right
-                                    var closeBtn = document.createElement('button');
-                                    closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-                                    closeBtn.style.cssText = btnStyle + 'top:6px;right:6px;';
-                                    closeBtn.onclick = function(e) { e.stopPropagation(); window.__hideCamPreview(); };
-                                    container.appendChild(closeBtn);
-                                    // Rotate button — bottom right
-                                    var rotateBtn = document.createElement('button');
-                                    rotateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
-                                    rotateBtn.style.cssText = btnStyle + 'bottom:6px;right:6px;';
-                                    rotateBtn.onclick = function(e) {
-                                        e.stopPropagation();
-                                        // Toggle between front/back camera
-                                        var video = container.querySelector('video');
-                                        if (video && video.srcObject) {
-                                            var track = video.srcObject.getVideoTracks()[0];
-                                            var facing = track.getSettings().facingMode;
-                                            var newFacing = (facing === 'user') ? 'environment' : 'user';
-                                            navigator.mediaDevices.getUserMedia({video:{facingMode:newFacing}}).then(function(stream) {
-                                                video.srcObject = stream;
-                                            });
-                                        }
-                                    };
-                                    container.appendChild(rotateBtn);
-                                    // Create eye icon button
-                                    var eye = document.createElement('button');
-                                    eye.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-                                    eye.style.cssText = 'position:fixed;bottom:100px;right:16px;z-index:9999;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,0.6);border:1.5px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);';
-                                    eye.onclick = function() { window.__showCamPreview(); };
-                                    document.body.appendChild(eye);
-                                    window.__eyeBtn = eye;
-                                    // Hide preview by default
-                                    window.__hideCamPreview();
+                                    v.parentElement.style.cssText = 'position:fixed!important;left:-9999px!important;opacity:0!important;pointer-events:none!important;';
+                                    v.style.cssText = 'width:1px!important;height:1px!important;';
                                 } else {
-                                    setTimeout(setupPreview, 500);
+                                    setTimeout(hideAll, 500);
                                 }
                             })();
                         } else {
