@@ -147,6 +147,15 @@ struct HomeView: View {
                 logger.info("[WakeWord] Command sent: \(text)")
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
+            guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
+            logger.info("[HomeView] TTS done — starting command listening")
+            // Small delay to let audio fully stop before opening mic
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
+                wakeWordManager.startCommandListening()
+            }
+        }
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
@@ -198,8 +207,8 @@ struct HomeView: View {
         // Ensure audio session is in playback mode so TTS plays through speaker
         if wakeWordManager.isEnabled {
             wakeWordManager.pauseForTTS()
-            // After TTS, go straight to command listening (continue conversation)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            // Command listening resumes when tts_done fires; fallback after 15s
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
                 guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
                 wakeWordManager.startCommandListening()
             }
@@ -742,6 +751,41 @@ struct AmicaFullView: UIViewRepresentable {
                         }
                     });
                 }, 1000);
+
+                // Track active audio sources to detect when TTS finishes
+                window.__activeAudioCount = 0;
+                function notifyTTSDone() {
+                    window.__activeAudioCount--;
+                    if (window.__activeAudioCount <= 0) {
+                        window.__activeAudioCount = 0;
+                        try {
+                            window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'tts_done'}));
+                        } catch(e) {}
+                    }
+                }
+                // Hook Audio elements
+                var _origAudioPlay = HTMLAudioElement.prototype.play;
+                HTMLAudioElement.prototype.play = function() {
+                    var self = this;
+                    window.__activeAudioCount++;
+                    self.addEventListener('ended', notifyTTSDone, {once: true});
+                    self.addEventListener('error', notifyTTSDone, {once: true});
+                    return _origAudioPlay.apply(self, arguments);
+                };
+                // Hook AudioContext.decodeAudioData + createBufferSource
+                if (_OrigAC) {
+                    var _origCreateBS = _OrigAC.prototype.createBufferSource;
+                    _OrigAC.prototype.createBufferSource = function() {
+                        var src = _origCreateBS.apply(this, arguments);
+                        var _origStart = src.start.bind(src);
+                        src.start = function() {
+                            window.__activeAudioCount++;
+                            src.addEventListener('ended', notifyTTSDone, {once: true});
+                            return _origStart.apply(null, arguments);
+                        };
+                        return src;
+                    };
+                }
             })();
             """,
             injectionTime: .atDocumentStart,
@@ -897,6 +941,9 @@ struct AmicaFullView: UIViewRepresentable {
                 if let text = json["text"] as? String {
                     speechManager.speak(text)
                 }
+            case "tts_done":
+                logger.info("[Amica] TTS playback finished")
+                NotificationCenter.default.post(name: .ttsDone, object: nil)
             case "console":
                 let level = json["level"] as? String ?? "log"
                 let msg = json["message"] as? String ?? ""
@@ -1075,4 +1122,5 @@ struct AmicaFullView: UIViewRepresentable {
 
 extension Notification.Name {
     static let amicaSettingsChanged = Notification.Name("amicaSettingsChanged")
+    static let ttsDone = Notification.Name("ttsDone")
 }
