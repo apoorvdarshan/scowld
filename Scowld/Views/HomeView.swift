@@ -25,7 +25,7 @@ struct HomeView: View {
     var memoryStore: MemoryStore
     @State private var messageText = ""
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
-    @State private var cameraEnabled = false
+    @State private var cameraPreviewVisible = false
     @State private var showSettings = false
     @State private var showMemories = false
     @State private var voiceManager = VoiceManager()
@@ -73,14 +73,20 @@ struct HomeView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button {
-                            cameraEnabled.toggle()
-                            amicaCoordinator?.webView?.evaluateJavaScript(
-                                "window.__toggleWebcam && window.__toggleWebcam(\(cameraEnabled));"
-                            )
+                            cameraPreviewVisible.toggle()
+                            let displayVal = cameraPreviewVisible ? "block" : "none"
+                            amicaCoordinator?.webView?.evaluateJavaScript("""
+                                (function() {
+                                    var video = document.querySelector('video');
+                                    if (video && video.parentElement) {
+                                        video.parentElement.style.display = '\(displayVal)';
+                                    }
+                                })();
+                            """)
                         } label: {
                             Label(
-                                cameraEnabled ? "Disable Camera" : "Enable Camera",
-                                systemImage: cameraEnabled ? "eye.fill" : "eye.slash"
+                                cameraPreviewVisible ? "Hide Camera" : "Show Camera",
+                                systemImage: cameraPreviewVisible ? "eye.fill" : "eye.slash"
                             )
                         }
 
@@ -914,6 +920,21 @@ struct AmicaFullView: UIViewRepresentable {
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
+            // Enable webcam by default but hide the preview
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                webView.evaluateJavaScript("window.__toggleWebcam && window.__toggleWebcam(true);")
+                // Hide video preview after webcam starts
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    webView.evaluateJavaScript("""
+                        (function() {
+                            var video = document.querySelector('video');
+                            if (video && video.parentElement) {
+                                video.parentElement.style.display = 'none';
+                            }
+                        })();
+                    """)
+                }
+            }
             // Style webcam overlay buttons to be more visible
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 webView.evaluateJavaScript("""
