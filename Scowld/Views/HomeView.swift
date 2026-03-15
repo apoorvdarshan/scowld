@@ -177,12 +177,8 @@ struct HomeView: View {
     }
 
     private var handsFreeIconColor: Color {
-        if !wakeWordManager.isEnabled { return .amicaBlue }
-        switch wakeWordManager.state {
-        case .commandListening: return .green
-        case .wakeListening: return .orange
-        case .idle: return .amicaBlue
-        }
+        if !wakeWordManager.isEnabled { return .secondary }
+        return .amicaBlue
     }
 
     private func toggleHandsFree() {
