@@ -4,8 +4,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var showSaved = false
     @State private var hasChanges = false
+    @State private var showAPIKey = false
+    @State private var showElevenLabsKey = false
 
     // MARK: - LLM Settings
     @State private var selectedProvider: AIProvider = .gemini
@@ -66,10 +67,22 @@ struct SettingsView: View {
                 // MARK: - LLM API Key
                 if selectedProvider.requiresAPIKey {
                     Section {
-                        SecureField("API Key", text: $apiKeyInput)
-                            .textContentType(.password)
-                            .autocorrectionDisabled()
-                            .onChange(of: apiKeyInput) { hasChanges = true }
+                        HStack {
+                            if showAPIKey {
+                                TextField("API Key", text: $apiKeyInput)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                            } else {
+                                SecureField("API Key", text: $apiKeyInput)
+                                    .textContentType(.password)
+                                    .autocorrectionDisabled()
+                            }
+                            Button { showAPIKey.toggle() } label: {
+                                Image(systemName: showAPIKey ? "eye.slash" : "eye")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .onChange(of: apiKeyInput) { hasChanges = true }
 
                         Text("Stored securely in iOS Keychain.")
                             .font(.caption)
@@ -159,10 +172,22 @@ struct SettingsView: View {
                 // MARK: - ElevenLabs Settings
                 if ttsBackend == "elevenlabs" {
                     Section {
-                        SecureField("API Key", text: $elevenLabsAPIKey)
-                            .textContentType(.password)
-                            .autocorrectionDisabled()
-                            .onChange(of: elevenLabsAPIKey) { hasChanges = true }
+                        HStack {
+                            if showElevenLabsKey {
+                                TextField("API Key", text: $elevenLabsAPIKey)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                            } else {
+                                SecureField("API Key", text: $elevenLabsAPIKey)
+                                    .textContentType(.password)
+                                    .autocorrectionDisabled()
+                            }
+                            Button { showElevenLabsKey.toggle() } label: {
+                                Image(systemName: showElevenLabsKey ? "eye.slash" : "eye")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .onChange(of: elevenLabsAPIKey) { hasChanges = true }
 
                         TextField("Voice ID", text: $elevenLabsVoiceId)
                             .autocorrectionDisabled()
@@ -310,6 +335,7 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         saveSettings()
+                        dismiss()
                     } label: {
                         Text("Save")
                             .fontWeight(.semibold)
@@ -374,11 +400,15 @@ struct SettingsView: View {
         defaults.set(visionBackend, forKey: "amica_vision_backend")
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
 
-        // Save ALL API keys to Keychain
-        if !apiKeyInput.isEmpty {
+        // Save or clear API keys in Keychain
+        if apiKeyInput.isEmpty {
+            KeychainManager.delete(key: selectedProvider.keychainKey)
+        } else {
             KeychainManager.save(key: selectedProvider.keychainKey, value: apiKeyInput)
         }
-        if !elevenLabsAPIKey.isEmpty {
+        if elevenLabsAPIKey.isEmpty {
+            KeychainManager.delete(key: "com.scowld.elevenlabs.apikey")
+        } else {
             KeychainManager.save(key: "com.scowld.elevenlabs.apikey", value: elevenLabsAPIKey)
         }
         if selectedProvider == .ollama {
