@@ -401,7 +401,7 @@ class AmicaLocalServer {
             urlRequest.httpBody = body
         }
 
-        logger.info("[Proxy] ElevenLabs \(method) \(fullPath) bodyLen=\(body?.count ?? 0)")
+        logger.info("[Proxy] ElevenLabs \(method) \(fullPath) bodyLen=\(body?.count ?? 0) keyLen=\(apiKey.count) keyPrefix=\(String(apiKey.prefix(4)))")
         if let body, let bodyStr = String(data: body, encoding: .utf8) {
             logger.info("[Proxy] ElevenLabs body: \(bodyStr.prefix(200))")
         }
@@ -549,33 +549,6 @@ struct AmicaFullView: UIViewRepresentable {
                 elevenlabs_model: 'eleven_flash_v2_5',
                 openai_tts_apikey: '\(openaiKey)'
             };
-            // Intercept fetch to proxy ElevenLabs & OpenAI TTS through local server (bypasses CORS)
-            (function() {
-                var _origFetch = window.fetch;
-                window.fetch = function(url, opts) {
-                    if (typeof url === 'string') {
-                        if (url.indexOf('api.elevenlabs.io/v1/') !== -1) {
-                            var elPath = url.split('api.elevenlabs.io/v1')[1];
-                            console.log('[Proxy] Redirecting ElevenLabs: ' + elPath);
-                            return _origFetch('/api/elevenlabs' + elPath, {
-                                method: opts && opts.method || 'GET',
-                                body: opts && opts.body,
-                                headers: { 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' }
-                            });
-                        }
-                        if (url.indexOf('api.openai.com/v1/audio/') !== -1) {
-                            var oaiPath = url.split('api.openai.com/v1')[1];
-                            console.log('[Proxy] Redirecting OpenAI TTS: ' + oaiPath);
-                            return _origFetch('/api/openai-tts' + oaiPath, {
-                                method: opts && opts.method || 'GET',
-                                body: opts && opts.body,
-                                headers: { 'Content-Type': 'application/json' }
-                            });
-                        }
-                    }
-                    return _origFetch.apply(this, arguments);
-                };
-            })();
             // Force full screen coverage
             var meta = document.createElement('meta');
             meta.name = 'viewport';
