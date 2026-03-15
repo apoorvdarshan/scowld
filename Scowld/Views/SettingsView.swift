@@ -298,9 +298,15 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         saveSettings()
+                        dismiss()
                     } label: {
                         Text("Save")
                             .fontWeight(.semibold)
