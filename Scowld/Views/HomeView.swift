@@ -257,11 +257,33 @@ class AmicaLocalServer {
         let parts = firstLine.split(separator: " ")
         guard parts.count >= 2 else { return }
 
+        let method = String(parts[0])
         var path = String(parts[1])
         if path == "/" { path = "/index.html" }
 
         // URL decode
         path = path.removingPercentEncoding ?? path
+
+        // MARK: - ElevenLabs TTS Proxy
+        // Intercept /api/elevenlabs/* and proxy to api.elevenlabs.io (bypasses CORS)
+        if path.hasPrefix("/api/elevenlabs/") {
+            let elPath = String(path.dropFirst("/api/elevenlabs".count))
+            handleElevenLabsProxy(client: client, method: method, elPath: elPath, request: request)
+            return
+        }
+
+        // MARK: - OpenAI TTS Proxy
+        if path.hasPrefix("/api/openai-tts/") {
+            let oaiPath = String(path.dropFirst("/api/openai-tts".count))
+            handleOpenAITTSProxy(client: client, method: method, oaiPath: oaiPath, request: request)
+            return
+        }
+
+        // MARK: - CORS Preflight
+        if method == "OPTIONS" {
+            sendCORSPreflight(client: client)
+            return
+        }
 
         // Remove query string
         if let qIndex = path.firstIndex(of: "?") {
@@ -308,6 +330,114 @@ class AmicaLocalServer {
         data.withUnsafeBytes { ptr in
             _ = write(client, ptr.baseAddress!, data.count)
         }
+    }
+
+    private func sendCORSPreflight(client: Int32) {
+        var header = "HTTP/1.1 204 No Content\r\n"
+        header += "Access-Control-Allow-Origin: *\r\n"
+        header += "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+        header += "Access-Control-Allow-Headers: Content-Type, xi-api-key, Authorization, Accept\r\n"
+        header += "Access-Control-Max-Age: 86400\r\n"
+        header += "Connection: close\r\n"
+        header += "\r\n"
+        let headerData = Data(header.utf8)
+        headerData.withUnsafeBytes { ptr in
+            _ = write(client, ptr.baseAddress!, headerData.count)
+        }
+    }
+
+    private func extractBody(from request: String) -> Data? {
+        guard let range = request.range(of: "\r\n\r\n") else { return nil }
+        let bodyStr = String(request[range.upperBound...])
+        return bodyStr.isEmpty ? nil : bodyStr.data(using: .utf8)
+    }
+
+    private func handleElevenLabsProxy(client: Int32, method: String, elPath: String, request: String) {
+        let apiKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+        guard !apiKey.isEmpty else {
+            sendResponse(client: client, data: Data("{\"error\":\"No ElevenLabs API key\"}".utf8), mimeType: "application/json", statusCode: 401)
+            return
+        }
+
+        // Build query string from original path
+        let fullPath = elPath.hasPrefix("/") ? elPath : "/\(elPath)"
+        let urlStr = "https://api.elevenlabs.io/v1\(fullPath)"
+        guard let url = URL(string: urlStr) else {
+            sendResponse(client: client, data: Data("Bad URL".utf8), mimeType: "text/plain", statusCode: 400)
+            return
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = method
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+
+        if method == "POST", let body = extractBody(from: request) {
+            urlRequest.httpBody = body
+        }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        var responseData = Data()
+        var responseCode = 500
+        var responseMime = "application/octet-stream"
+
+        let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
+            if let httpResp = response as? HTTPURLResponse {
+                responseCode = httpResp.statusCode
+                responseMime = httpResp.value(forHTTPHeaderField: "Content-Type") ?? "audio/mpeg"
+            }
+            if let data { responseData = data }
+            semaphore.signal()
+        }
+        task.resume()
+        semaphore.wait()
+
+        logger.info("[Proxy] ElevenLabs \(method) \(fullPath) -> \(responseCode) (\(responseData.count) bytes)")
+        sendResponse(client: client, data: responseData, mimeType: responseMime, statusCode: responseCode)
+    }
+
+    private func handleOpenAITTSProxy(client: Int32, method: String, oaiPath: String, request: String) {
+        let apiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
+        guard !apiKey.isEmpty else {
+            sendResponse(client: client, data: Data("{\"error\":\"No OpenAI API key\"}".utf8), mimeType: "application/json", statusCode: 401)
+            return
+        }
+
+        let fullPath = oaiPath.hasPrefix("/") ? oaiPath : "/\(oaiPath)"
+        let urlStr = "https://api.openai.com/v1\(fullPath)"
+        guard let url = URL(string: urlStr) else {
+            sendResponse(client: client, data: Data("Bad URL".utf8), mimeType: "text/plain", statusCode: 400)
+            return
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = method
+        urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if method == "POST", let body = extractBody(from: request) {
+            urlRequest.httpBody = body
+        }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        var responseData = Data()
+        var responseCode = 500
+        var responseMime = "application/octet-stream"
+
+        let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
+            if let httpResp = response as? HTTPURLResponse {
+                responseCode = httpResp.statusCode
+                responseMime = httpResp.value(forHTTPHeaderField: "Content-Type") ?? "audio/mpeg"
+            }
+            if let data { responseData = data }
+            semaphore.signal()
+        }
+        task.resume()
+        semaphore.wait()
+
+        logger.info("[Proxy] OpenAI TTS \(method) \(fullPath) -> \(responseCode) (\(responseData.count) bytes)")
+        sendResponse(client: client, data: responseData, mimeType: responseMime, statusCode: responseCode)
     }
 
     static func mimeType(for ext: String) -> String {
@@ -387,6 +517,33 @@ struct AmicaFullView: UIViewRepresentable {
                 elevenlabs_model: 'eleven_flash_v2_5',
                 openai_tts_apikey: '\(openaiKey)'
             };
+            // Intercept fetch to proxy ElevenLabs & OpenAI TTS through local server (bypasses CORS)
+            (function() {
+                var _origFetch = window.fetch;
+                window.fetch = function(url, opts) {
+                    if (typeof url === 'string') {
+                        if (url.indexOf('api.elevenlabs.io/v1/') !== -1) {
+                            var elPath = url.split('api.elevenlabs.io/v1')[1];
+                            console.log('[Proxy] Redirecting ElevenLabs: ' + elPath);
+                            return _origFetch('/api/elevenlabs' + elPath, {
+                                method: opts && opts.method || 'GET',
+                                body: opts && opts.body,
+                                headers: { 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' }
+                            });
+                        }
+                        if (url.indexOf('api.openai.com/v1/audio/') !== -1) {
+                            var oaiPath = url.split('api.openai.com/v1')[1];
+                            console.log('[Proxy] Redirecting OpenAI TTS: ' + oaiPath);
+                            return _origFetch('/api/openai-tts' + oaiPath, {
+                                method: opts && opts.method || 'GET',
+                                body: opts && opts.body,
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        }
+                    }
+                    return _origFetch.apply(this, arguments);
+                };
+            })();
             // Force full screen coverage
             var meta = document.createElement('meta');
             meta.name = 'viewport';
