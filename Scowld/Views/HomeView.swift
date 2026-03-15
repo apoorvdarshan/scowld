@@ -149,11 +149,11 @@ struct HomeView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
             guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
-            logger.info("[HomeView] TTS done — resuming wake word listening")
-            // Small delay to let audio fully stop before opening mic
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            logger.info("[HomeView] TTS done — resuming command listening after delay")
+            // 2s delay to let audio fully stop so mic doesn't pick up residual TTS
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
-                wakeWordManager.startWakeWordListening()
+                wakeWordManager.startCommandListening()
             }
         }
         .onChange(of: scenePhase) {
@@ -207,10 +207,10 @@ struct HomeView: View {
         // Ensure audio session is in playback mode so TTS plays through speaker
         if wakeWordManager.isEnabled {
             wakeWordManager.pauseForTTS()
-            // Wake word listening resumes when tts_done fires; fallback after 15s
+            // Command listening resumes when tts_done fires; fallback after 15s
             DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
                 guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
-                wakeWordManager.startWakeWordListening()
+                wakeWordManager.startCommandListening()
             }
         } else {
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
