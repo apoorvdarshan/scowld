@@ -310,23 +310,12 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         saveSettings()
-                        withAnimation { showSaved = true }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            withAnimation { showSaved = false }
-                            dismiss()
-                        }
                     } label: {
-                        if showSaved {
-                            Label("Saved!", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .fontWeight(.semibold)
-                        } else {
-                            Text("Save")
-                                .fontWeight(.semibold)
-                                .foregroundStyle(hasChanges ? .orange : .secondary)
-                        }
+                        Text("Save")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(hasChanges ? .orange : .secondary)
                     }
-                    .disabled(!hasChanges && !showSaved)
+                    .disabled(!hasChanges)
                 }
             }
         }
