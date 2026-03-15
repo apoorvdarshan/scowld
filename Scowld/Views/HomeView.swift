@@ -41,7 +41,6 @@ struct HomeView: View {
                 .ignoresSafeArea()
                 .navigationTitle("Scowld")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbarBackgroundVisibility(.visible, for: .bottomBar)
                 .toolbar {
                     ToolbarItemGroup(placement: .bottomBar) {
                         Button {
