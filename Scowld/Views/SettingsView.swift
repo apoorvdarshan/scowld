@@ -25,9 +25,6 @@ struct SettingsView: View {
     // MARK: - STT Settings
     @State private var sttBackend: String = "native_ios"
 
-    // MARK: - Avatar Settings
-    @State private var selectedAvatar: String = "/vrm/AvatarSample_A.vrm"
-
     // Vision is handled automatically by the selected LLM provider
 
     var memoryStore: MemoryStore
@@ -237,19 +234,6 @@ struct SettingsView: View {
 
 
 
-                // MARK: - Avatar
-                Section {
-                    Picker("Character", selection: $selectedAvatar) {
-                        Text("Amica (Blue Hair)").tag("/vrm/AvatarSample_A.vrm")
-                        Text("Amica Alt").tag("/vrm/AvatarSample_C.vrm")
-                    }
-                    .onChange(of: selectedAvatar) { hasChanges = true }
-                } header: {
-                    Label("Avatar", systemImage: "person.crop.circle")
-                } footer: {
-                    Text("3D character model. Add custom .vrm files to the app bundle for more options.")
-                }
-
                 // MARK: - Memory Management
                 Section {
                     HStack {
@@ -338,7 +322,6 @@ struct SettingsView: View {
         // Amica backend settings
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
-        selectedAvatar = defaults.string(forKey: "amica_vrm_url") ?? "/vrm/AvatarSample_A.vrm"
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
 
         // Load existing keys into fields
@@ -366,7 +349,6 @@ struct SettingsView: View {
         // Amica backend settings
         defaults.set(ttsBackend, forKey: "amica_tts_backend")
         defaults.set(sttBackend, forKey: "amica_stt_backend")
-        defaults.set(selectedAvatar, forKey: "amica_vrm_url")
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
 
         // Save or clear API keys in Keychain

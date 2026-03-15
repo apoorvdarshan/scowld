@@ -538,7 +538,6 @@ struct AmicaFullView: UIViewRepresentable {
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
         let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
-        let vrmUrl = defaults.string(forKey: "amica_vrm_url") ?? "/vrm/AvatarSample_A.vrm"
 
         let settingsScript = WKUserScript(
             source: """
@@ -559,8 +558,7 @@ struct AmicaFullView: UIViewRepresentable {
                 elevenlabs_apikey: '\(elevenLabsKey)',
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                 elevenlabs_model: 'eleven_flash_v2_5',
-                openai_tts_apikey: '\(openaiKey)',
-                vrm_url: '\(vrmUrl)'
+                openai_tts_apikey: '\(openaiKey)'
             };
             // Force full screen coverage
             var meta = document.createElement('meta');
@@ -710,7 +708,6 @@ struct AmicaFullView: UIViewRepresentable {
             let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
             let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
             let visionBackend = visionEnabled ? "native_ios" : "none"
-            let vrmUrl = defaults.string(forKey: "amica_vrm_url") ?? "/vrm/AvatarSample_A.vrm"
 
             let js = """
                 window.__nativeConfig = {
@@ -721,8 +718,7 @@ struct AmicaFullView: UIViewRepresentable {
                     elevenlabs_apikey: '\(elevenLabsKey)',
                     elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                     elevenlabs_model: 'eleven_flash_v2_5',
-                    openai_tts_apikey: '\(openaiKey)',
-                    vrm_url: '\(vrmUrl)'
+                    openai_tts_apikey: '\(openaiKey)'
                 };
             """
             webView?.evaluateJavaScript(js)
