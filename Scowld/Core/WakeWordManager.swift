@@ -84,7 +84,7 @@ final class VoiceManager: NSObject {
         isTTSPlaying = false
 
         logger.info("[Voice] TTS done, resuming listening after delay")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             guard let self, self.isEnabled, self.state == .waitingForTTS else { return }
             self.startListening()
         }
