@@ -32,18 +32,22 @@ struct HomeView: View {
     @State private var showMemories = false
 
     var body: some View {
-        NavigationStack {
+        ZStack {
+            // Full screen character
             AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
                 amicaCoordinator = coord
             })
             .ignoresSafeArea()
-            .navigationTitle("Scowld")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                // Top right menu
-                ToolbarItem(placement: .topBarTrailing) {
+
+            // Floating UI overlay
+            VStack {
+                // Top bar
+                HStack {
+                    Text("Scowld")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Spacer()
                     Menu {
-                        // Camera toggle
                         Button {
                             cameraEnabled.toggle()
                             amicaCoordinator?.webView?.evaluateJavaScript(
@@ -58,60 +62,60 @@ struct HomeView: View {
 
                         Divider()
 
-                        // Memories
-                        Button {
-                            showMemories = true
-                        } label: {
+                        Button { showMemories = true } label: {
                             Label("Memories", systemImage: "brain.head.profile.fill")
                         }
-
-                        // Settings
-                        Button {
-                            showSettings = true
-                        } label: {
+                        Button { showSettings = true } label: {
                             Label("Settings", systemImage: "gearshape")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.title3)
+                        Image(systemName: "ellipsis.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.white.opacity(0.8))
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
 
-                // Bottom bar — message input
-                ToolbarItemGroup(placement: .bottomBar) {
-                    // Mic button
+                Spacer()
+
+                // Bottom input bar
+                HStack(spacing: 10) {
                     Button {
                         toggleListening()
                     } label: {
-                        Image(systemName: isListening ? "stop.fill" : "mic.fill")
-                            .foregroundStyle(isListening ? .red : .orange)
+                        Image(systemName: isListening ? "stop.circle.fill" : "mic.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(isListening ? .red : .white.opacity(0.9))
                     }
 
-                    // Text field
-                    TextField(isListening ? "Listening..." : "Message...", text: $messageText)
+                    TextField("Message...", text: $messageText)
                         .textFieldStyle(.roundedBorder)
                         .submitLabel(.send)
                         .onSubmit { stopAndSend() }
 
-                    // Send button
                     Button {
                         stopAndSend()
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
                             .foregroundStyle(.orange)
                     }
                     .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .padding(.horizontal, 8)
+                .padding(.bottom, 4)
             }
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbarBackground(.hidden, for: .bottomBar)
-            .sheet(isPresented: $showSettings) {
-                SettingsView(memoryStore: memoryStore)
-            }
-            .sheet(isPresented: $showMemories) {
-                NavigationStack {
-                    MemoryView(memoryStore: memoryStore)
-                }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(memoryStore: memoryStore)
+        }
+        .sheet(isPresented: $showMemories) {
+            NavigationStack {
+                MemoryView(memoryStore: memoryStore)
             }
         }
         .onAppear {
