@@ -69,12 +69,12 @@ struct MemoryView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: memory.category.icon)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.amicaBlue)
                     .font(.caption)
                 Text(memory.category.displayName)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.amicaBlue)
                 Spacer()
                 Text(memory.date, style: .relative)
                     .font(.caption2)
@@ -127,7 +127,7 @@ struct MemoryView: View {
             .padding(.vertical, 7)
             .background(
                 isSelected
-                    ? AnyShapeStyle(Color.orange)
+                    ? AnyShapeStyle(Color.amicaBlue)
                     : AnyShapeStyle(.ultraThinMaterial),
                 in: Capsule()
             )

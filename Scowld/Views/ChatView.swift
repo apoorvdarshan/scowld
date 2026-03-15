@@ -66,7 +66,7 @@ struct ChatView: View {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 32))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(inputText.isEmpty ? .gray : .orange)
+                        .foregroundStyle(inputText.isEmpty ? .gray : .amicaBlue)
                 }
                 .disabled(inputText.isEmpty || isGenerating)
             }
@@ -111,7 +111,7 @@ struct MessageBubble: View {
             RoundedRectangle(cornerRadius: 18)
                 .fill(
                     LinearGradient(
-                        colors: [.orange, .orange.opacity(0.8)],
+                        colors: [.amicaBlue, .amicaBlue.opacity(0.8)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -136,7 +136,7 @@ struct TypingIndicator: View {
         HStack(spacing: 5) {
             ForEach(0..<3) { index in
                 Circle()
-                    .fill(Color.orange.opacity(0.6))
+                    .fill(Color.amicaBlue.opacity(0.6))
                     .frame(width: 7, height: 7)
                     .offset(y: sin(phase + Double(index) * 0.8) * 4)
             }

@@ -112,13 +112,13 @@ struct SettingsView: View {
                             Text("Speech Rate: \(String(format: "%.1f", speechRate))")
                                 .font(.subheadline)
                             Slider(value: $speechRate, in: 0.5...1.5)
-                                .tint(.orange)
+                                .tint(.amicaBlue)
                         }
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Pitch: \(String(format: "%.1f", speechPitch))")
                                 .font(.subheadline)
                             Slider(value: $speechPitch, in: 0.5...2.0)
-                                .tint(.orange)
+                                .tint(.amicaBlue)
                         }
                     }
                 } header: {
@@ -240,11 +240,11 @@ struct SettingsView: View {
                         Text("Stored Memories")
                         Spacer()
                         Text("\(memoryStore.totalMemoryCount)")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.amicaBlue)
                             .fontWeight(.semibold)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 3)
-                            .background(.orange.opacity(0.15), in: Capsule())
+                            .background(.amicaBlue.opacity(0.15), in: Capsule())
                     }
 
                     NavigationLink {
@@ -296,7 +296,7 @@ struct SettingsView: View {
                     } label: {
                         Text("Save")
                             .fontWeight(.semibold)
-                            .foregroundStyle(hasChanges ? .orange : .secondary)
+                            .foregroundStyle(hasChanges ? .amicaBlue : .secondary)
                     }
                     .disabled(!hasChanges)
                 }

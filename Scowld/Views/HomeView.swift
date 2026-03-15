@@ -73,7 +73,7 @@ struct HomeView: View {
                         toggleListening()
                     } label: {
                         Image(systemName: isListening ? "stop.fill" : "mic.fill")
-                            .foregroundStyle(isListening ? .red : .orange)
+                            .foregroundStyle(isListening ? .red : .amicaBlue)
                     }
 
                     TextField("Message...", text: $messageText)
@@ -85,7 +85,7 @@ struct HomeView: View {
                         stopAndSend()
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.amicaBlue)
                     }
                     .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
