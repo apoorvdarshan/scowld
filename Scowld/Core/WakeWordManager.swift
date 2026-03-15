@@ -39,8 +39,6 @@ final class VoiceManager: NSObject {
     private var silenceWorkItem: DispatchWorkItem?
     private var lastNormalizedText: String = ""
     private var commandText: String = ""
-    /// Monitors mic amplitude during TTS to detect user speaking (interrupt)
-    private var interruptMonitorTimer: Timer?
     private var isTTSPlaying = false
 
     private static let silenceTimeout: TimeInterval = 1.5
@@ -60,7 +58,7 @@ final class VoiceManager: NSObject {
         lastNormalizedText = ""
         transcriptText = ""
         isTTSPlaying = false
-        stopInterruptMonitor()
+
         state = .listening
         startRecognition()
         logger.info("[Voice] Started listening")
@@ -79,14 +77,12 @@ final class VoiceManager: NSObject {
         try? AVAudioSession.sharedInstance().setActive(true)
         try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
         logger.info("[Voice] Paused for TTS")
-        // Start monitoring mic for user interrupt
-        startInterruptMonitor()
     }
 
     func onTTSDone() {
         guard isEnabled, state == .waitingForTTS else { return }
         isTTSPlaying = false
-        stopInterruptMonitor()
+
         logger.info("[Voice] TTS done, resuming listening after delay")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             guard let self, self.isEnabled, self.state == .waitingForTTS else { return }
@@ -96,7 +92,6 @@ final class VoiceManager: NSObject {
 
     func stop() {
         stopRecognitionInternal()
-        stopInterruptMonitor()
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
         restartTimer?.invalidate()
@@ -108,77 +103,6 @@ final class VoiceManager: NSObject {
         logger.info("[Voice] Stopped")
     }
 
-    /// Called when user interrupts TTS by speaking
-    func interruptTTS() {
-        guard state == .waitingForTTS, isTTSPlaying else { return }
-        isTTSPlaying = false
-        stopInterruptMonitor()
-        logger.info("[Voice] User interrupted TTS")
-        // Notify to stop TTS
-        NotificationCenter.default.post(name: .voiceInterrupt, object: nil)
-        // Start listening
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            guard let self, self.isEnabled else { return }
-            self.startListening()
-        }
-    }
-
-    // MARK: - Interrupt Monitor (amplitude-based)
-
-    private func startInterruptMonitor() {
-        stopInterruptMonitor()
-        // Use a lightweight audio tap to monitor input amplitude during TTS
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .mixWithOthers])
-            try audioSession.setActive(true)
-
-            let inputNode = audioEngine.inputNode
-            let format = inputNode.outputFormat(forBus: 0)
-            var consecutiveLoudFrames = 0
-
-            inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
-                // Calculate RMS amplitude
-                let channelData = buffer.floatChannelData?[0]
-                let frameLength = Int(buffer.frameLength)
-                guard let data = channelData, frameLength > 0 else { return }
-
-                var sum: Float = 0
-                for i in 0..<frameLength {
-                    sum += data[i] * data[i]
-                }
-                let rms = sqrt(sum / Float(frameLength))
-
-                // If amplitude is high enough, user might be speaking
-                if rms > 0.05 {
-                    consecutiveLoudFrames += 1
-                } else {
-                    consecutiveLoudFrames = 0
-                }
-
-                // Need sustained loud input (~0.5s worth) to trigger interrupt
-                // 4096 samples at 44100Hz ≈ 0.09s per buffer, so ~5 buffers ≈ 0.5s
-                if consecutiveLoudFrames >= 5 {
-                    consecutiveLoudFrames = 0
-                    Task { @MainActor in
-                        self?.interruptTTS()
-                    }
-                }
-            }
-
-            audioEngine.prepare()
-            try audioEngine.start()
-        } catch {
-            logger.error("[Voice] Failed to start interrupt monitor: \(error.localizedDescription)")
-        }
-    }
-
-    private func stopInterruptMonitor() {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
-    }
 
     // MARK: - Recognition
 

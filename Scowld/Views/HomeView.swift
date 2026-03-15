@@ -33,23 +33,10 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
-                AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-                    amicaCoordinator = coord
-                })
-                .ignoresSafeArea()
-
-                // Debug overlay for wake word
-                if voiceManager.isEnabled && !voiceManager.transcriptText.isEmpty {
-                    Text(voiceManager.transcriptText)
-                        .font(.caption2)
-                        .padding(6)
-                        .background(.black.opacity(0.7))
-                        .foregroundStyle(.green)
-                        .cornerRadius(6)
-                        .padding(.top, 50)
-                }
-            }
+            AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                amicaCoordinator = coord
+            })
+            .ignoresSafeArea()
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -140,9 +127,6 @@ struct HomeView: View {
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
             voiceManager.onTTSDone()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .voiceInterrupt)) { _ in
-            stopTTS()
-        }
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
@@ -160,21 +144,11 @@ struct HomeView: View {
     }
 
     private var handsFreeIconName: String {
-        if !voiceManager.isEnabled { return "mic.slash" }
-        switch voiceManager.state {
-        case .listening: return "waveform"
-        case .waitingForTTS: return "speaker.wave.2.fill"
-        case .idle: return "mic.fill"
-        }
+        voiceManager.isEnabled ? "waveform" : "waveform.slash"
     }
 
     private var handsFreeIconColor: Color {
-        if !voiceManager.isEnabled { return .secondary }
-        switch voiceManager.state {
-        case .listening: return .green
-        case .waitingForTTS: return .orange
-        case .idle: return .amicaBlue
-        }
+        voiceManager.isEnabled ? .amicaBlue : .secondary
     }
 
     private func toggleHandsFree() {
