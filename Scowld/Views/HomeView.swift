@@ -33,10 +33,25 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-                amicaCoordinator = coord
-            })
-            .ignoresSafeArea()
+            ZStack(alignment: .bottom) {
+                AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                    amicaCoordinator = coord
+                })
+                .ignoresSafeArea()
+
+                // Live caption of what user is saying
+                if voiceManager.state == .listening && !voiceManager.transcriptText.isEmpty {
+                    Text(voiceManager.transcriptText)
+                        .font(.subheadline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.black.opacity(0.6))
+                        .cornerRadius(16)
+                        .padding(.bottom, 70)
+                        .allowsHitTesting(false)
+                }
+            }
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
