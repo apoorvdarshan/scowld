@@ -41,8 +41,9 @@ struct HomeView: View {
                 .ignoresSafeArea()
                 .navigationTitle("Scowld")
                 .navigationBarTitleDisplayMode(.inline)
-                .safeAreaInset(edge: .bottom) {
-                    HStack(spacing: 10) {
+                .toolbarBackgroundVisibility(.visible, for: .bottomBar)
+                .toolbar {
+                    ToolbarItemGroup(placement: .bottomBar) {
                         Button {
                             toggleListening()
                         } label: {
@@ -63,9 +64,6 @@ struct HomeView: View {
                         }
                         .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.bar)
                 }
             }
             .tabItem {
