@@ -3,6 +3,9 @@ import SwiftUI
 // MARK: - Settings View
 
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var showSaved = false
+
     // MARK: - LLM Settings
     @State private var selectedProvider: AIProvider = .gemini
     @State private var selectedModel: String = AIProvider.gemini.defaultModel
@@ -352,12 +355,34 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
-                        saveSettings()
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
                     }
-                    .fontWeight(.semibold)
-                    .tint(.orange)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        saveSettings()
+                        withAnimation {
+                            showSaved = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            withAnimation {
+                                showSaved = false
+                            }
+                            dismiss()
+                        }
+                    } label: {
+                        if showSaved {
+                            Label("Saved!", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .fontWeight(.semibold)
+                        } else {
+                            Text("Save")
+                                .fontWeight(.semibold)
+                                .tint(.orange)
+                        }
+                    }
                 }
             }
         }
