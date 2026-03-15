@@ -580,6 +580,66 @@ struct AmicaFullView: UIViewRepresentable {
         )
         contentController.addUserScript(consoleScript)
 
+        // Resume AudioContext for TTS audio playback
+        let audioResumeScript = WKUserScript(
+            source: """
+            (function() {
+                // Resume all AudioContexts periodically and on interaction
+                function resumeAll() {
+                    try {
+                        var ctxs = [window._audioContext, window.audioContext];
+                        // Find AudioContexts in Amica's React state
+                        document.querySelectorAll('*').forEach(function() {});
+                        if (typeof AudioContext !== 'undefined') {
+                            var origAC = AudioContext;
+                            window._allAudioContexts = window._allAudioContexts || [];
+                            window.AudioContext = function(opts) {
+                                var ctx = new origAC(opts);
+                                window._allAudioContexts.push(ctx);
+                                return ctx;
+                            };
+                            window.AudioContext.prototype = origAC.prototype;
+                        }
+                        (window._allAudioContexts || []).forEach(function(ctx) {
+                            if (ctx && ctx.state === 'suspended') {
+                                ctx.resume().then(function() {
+                                    console.log('[Audio] Resumed AudioContext, state: ' + ctx.state);
+                                });
+                            }
+                        });
+                    } catch(e) {}
+                }
+                // Track all created AudioContexts
+                var _OrigAC = window.AudioContext || window.webkitAudioContext;
+                window._allAudioContexts = [];
+                window.AudioContext = function(opts) {
+                    var ctx = new _OrigAC(opts);
+                    window._allAudioContexts.push(ctx);
+                    console.log('[Audio] New AudioContext created, state: ' + ctx.state);
+                    return ctx;
+                };
+                if (_OrigAC) {
+                    Object.keys(_OrigAC).forEach(function(k) { window.AudioContext[k] = _OrigAC[k]; });
+                    window.AudioContext.prototype = _OrigAC.prototype;
+                }
+                window.webkitAudioContext = window.AudioContext;
+
+                document.addEventListener('touchstart', resumeAll, {once: false});
+                document.addEventListener('click', resumeAll, {once: false});
+                setInterval(function() {
+                    (window._allAudioContexts || []).forEach(function(ctx) {
+                        if (ctx && ctx.state === 'suspended') {
+                            ctx.resume();
+                        }
+                    });
+                }, 1000);
+            })();
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        contentController.addUserScript(audioResumeScript)
+
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .black
