@@ -25,6 +25,9 @@ struct SettingsView: View {
     // MARK: - STT Settings
     @State private var sttBackend: String = "native_ios"
 
+    // MARK: - Character Settings
+    @State private var characterName: String = "Scowlly"
+
     // Vision is handled automatically by the selected LLM provider
 
     var memoryStore: MemoryStore
@@ -234,6 +237,17 @@ struct SettingsView: View {
 
 
 
+                // MARK: - Character
+                Section {
+                    TextField("Name", text: $characterName)
+                        .autocorrectionDisabled()
+                        .onChange(of: characterName) { hasChanges = true }
+                } header: {
+                    Label("Character", systemImage: "person.fill")
+                } footer: {
+                    Text("Give your AI companion a name.")
+                }
+
                 // MARK: - Memory Management
                 Section {
                     HStack {
@@ -274,7 +288,7 @@ struct SettingsView: View {
                     Text("Open Source AI Assistant — MIT License")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("Character: Amica by Arbius AI (MIT)")
+                    Text("Character model: Arbius AI (MIT)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } header: {
@@ -322,6 +336,7 @@ struct SettingsView: View {
         // Amica backend settings
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
+        characterName = defaults.string(forKey: "character_name") ?? "Scowlly"
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
 
         // Load existing keys into fields
@@ -350,6 +365,7 @@ struct SettingsView: View {
         defaults.set(ttsBackend, forKey: "amica_tts_backend")
         defaults.set(sttBackend, forKey: "amica_stt_backend")
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
+        defaults.set(characterName, forKey: "character_name")
 
         // Save or clear API keys in Keychain
         if apiKeyInput.isEmpty {
