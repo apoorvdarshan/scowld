@@ -936,19 +936,36 @@ struct AmicaFullView: UIViewRepresentable {
                                         v.style.cssText = 'width:1px!important;height:1px!important;';
                                         if (window.__eyeBtn) window.__eyeBtn.style.display = 'flex';
                                     };
-                                    // Replace X button with one that only hides preview
+                                    // Remove all original buttons
                                     var buttons = container.querySelectorAll('button');
-                                    if (buttons.length > 0) {
-                                        var oldBtn = buttons[0];
-                                        var newBtn = document.createElement('button');
-                                        newBtn.innerHTML = oldBtn.innerHTML;
-                                        newBtn.style.cssText = oldBtn.style.cssText || 'background:rgba(0,0,0,0.6);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.3);color:white;';
-                                        newBtn.onclick = function(e) {
-                                            e.stopPropagation();
-                                            window.__hideCamPreview();
-                                        };
-                                        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-                                    }
+                                    buttons.forEach(function(btn) { btn.remove(); });
+                                    // Make container positioned for overlay buttons
+                                    container.style.position = 'relative';
+                                    var btnStyle = 'position:absolute;z-index:10;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,0.6);border:1.5px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:0;cursor:pointer;';
+                                    // X button — top right
+                                    var closeBtn = document.createElement('button');
+                                    closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+                                    closeBtn.style.cssText = btnStyle + 'top:6px;right:6px;';
+                                    closeBtn.onclick = function(e) { e.stopPropagation(); window.__hideCamPreview(); };
+                                    container.appendChild(closeBtn);
+                                    // Rotate button — bottom right
+                                    var rotateBtn = document.createElement('button');
+                                    rotateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+                                    rotateBtn.style.cssText = btnStyle + 'bottom:6px;right:6px;';
+                                    rotateBtn.onclick = function(e) {
+                                        e.stopPropagation();
+                                        // Toggle between front/back camera
+                                        var video = container.querySelector('video');
+                                        if (video && video.srcObject) {
+                                            var track = video.srcObject.getVideoTracks()[0];
+                                            var facing = track.getSettings().facingMode;
+                                            var newFacing = (facing === 'user') ? 'environment' : 'user';
+                                            navigator.mediaDevices.getUserMedia({video:{facingMode:newFacing}}).then(function(stream) {
+                                                video.srcObject = stream;
+                                            });
+                                        }
+                                    };
+                                    container.appendChild(rotateBtn);
                                     // Create eye icon button
                                     var eye = document.createElement('button');
                                     eye.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
