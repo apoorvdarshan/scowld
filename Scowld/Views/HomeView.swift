@@ -33,12 +33,10 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-                    amicaCoordinator = coord
-                })
-                .ignoresSafeArea()
-            }
+            AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                amicaCoordinator = coord
+            })
+            .ignoresSafeArea()
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -105,8 +103,8 @@ struct HomeView: View {
                     .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-            .toolbarBackground(.ultraThinMaterial, for: .bottomBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .bottomBar)
             .sheet(isPresented: $showSettings) {
                 SettingsView(memoryStore: memoryStore)
             }
