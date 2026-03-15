@@ -711,13 +711,20 @@ struct AmicaFullView: UIViewRepresentable {
 
                 // Track active audio sources to detect when TTS finishes
                 window.__activeAudioCount = 0;
+                var _ttsDoneTimer = null;
                 function notifyTTSDone() {
                     window.__activeAudioCount--;
                     if (window.__activeAudioCount <= 0) {
                         window.__activeAudioCount = 0;
-                        try {
-                            window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'tts_done'}));
-                        } catch(e) {}
+                        // Debounce: wait 3s to make sure no new audio chunks start
+                        if (_ttsDoneTimer) clearTimeout(_ttsDoneTimer);
+                        _ttsDoneTimer = setTimeout(function() {
+                            if (window.__activeAudioCount <= 0) {
+                                try {
+                                    window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'tts_done'}));
+                                } catch(e) {}
+                            }
+                        }, 3000);
                     }
                 }
                 // Hook Audio elements
