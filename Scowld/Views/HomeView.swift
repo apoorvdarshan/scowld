@@ -402,6 +402,11 @@ struct AmicaFullView: UIViewRepresentable {
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                 elevenlabs_model: 'eleven_flash_v2_5'
             };
+            // Force full screen coverage
+            var meta = document.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover';
+            document.head?.appendChild(meta);
             """,
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
@@ -429,9 +434,12 @@ struct AmicaFullView: UIViewRepresentable {
         contentController.addUserScript(consoleScript)
 
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.isOpaque = true
+        webView.isOpaque = false
+        webView.backgroundColor = .black
+        webView.underPageBackgroundColor = .black
         webView.scrollView.bounces = false
         webView.scrollView.isScrollEnabled = true
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
 
         // Load from local HTTP server (not custom scheme — so fetch() works with CORS)
@@ -460,11 +468,15 @@ struct AmicaFullView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             logger.info("[Amica] Page loaded")
-            DebugLog.shared.add("Page loaded")
-            // Log the injected config
-            webView.evaluateJavaScript("JSON.stringify(window.__nativeConfig || 'NOT SET')") { result, _ in
-                DebugLog.shared.add("__nativeConfig: \(result ?? "nil")")
-            }
+            // Force full-screen coverage via CSS
+            webView.evaluateJavaScript("""
+                var s = document.createElement('style');
+                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; }';
+                document.head.appendChild(s);
+                // Update viewport meta
+                var vm = document.querySelector('meta[name=viewport]');
+                if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
+            """)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
