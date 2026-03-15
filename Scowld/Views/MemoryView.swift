@@ -81,55 +81,45 @@ struct MemoryView: View {
     private func slotRow(_ slot: MemorySlot) -> some View {
         let isActive = memoryStore.activeSlotId == slot.id
 
-        HStack(spacing: 12) {
-            Button {
-                memoryStore.setActiveSlot(id: slot.id)
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(isActive ? .amicaBlue : .secondary)
-                        .font(.title3)
+        Button {
+            viewingSlot = slot
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isActive ? .amicaBlue : .secondary)
+                    .font(.title3)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(slot.name)
-                            .font(.body)
-                            .fontWeight(isActive ? .semibold : .regular)
-                            .foregroundStyle(.primary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(slot.name)
+                        .font(.body)
+                        .fontWeight(isActive ? .semibold : .regular)
+                        .foregroundStyle(.primary)
 
-                        HStack(spacing: 8) {
-                            if !slot.memoryLog.isEmpty {
-                                Image(systemName: "brain.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(.amicaBlue)
-                            }
-
-                            Text(slot.lastUsedDate, style: .relative)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        if !slot.memoryLog.isEmpty {
+                            Image(systemName: "brain.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.amicaBlue)
                         }
+
+                        Text(slot.lastUsedDate, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
-            }
 
-            Spacer()
+                Spacer()
 
-            if isActive {
-                Text("Active")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.amicaBlue)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(.amicaBlue.opacity(0.15), in: Capsule())
+                if isActive {
+                    Text("Active")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.amicaBlue)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(.amicaBlue.opacity(0.15), in: Capsule())
+                }
             }
-
-            Button {
-                viewingSlot = slot
-            } label: {
-                Image(systemName: "info.circle")
-                    .foregroundStyle(.amicaBlue)
-            }
-            .buttonStyle(.plain)
         }
         .swipeActions(edge: .trailing) {
             if memoryStore.slots.count > 1 {
@@ -146,6 +136,16 @@ struct MemoryView: View {
                 Label("Rename", systemImage: "pencil")
             }
             .tint(.amicaBlue)
+        }
+        .swipeActions(edge: .leading) {
+            if !isActive {
+                Button {
+                    memoryStore.setActiveSlot(id: slot.id)
+                } label: {
+                    Label("Activate", systemImage: "checkmark.circle")
+                }
+                .tint(.amicaBlue)
+            }
         }
     }
 }
@@ -181,6 +181,18 @@ struct MemoryLogView: View {
                     } footer: {
                         Text("This is what the AI knows about you from this conversation. Edit or remove anything you want.")
                     }
+
+                    if memoryStore.activeSlotId != slot.id {
+                        Section {
+                            Button {
+                                memoryStore.setActiveSlot(id: slot.id)
+                                dismiss()
+                            } label: {
+                                Label("Use This Memory", systemImage: "checkmark.circle")
+                                    .foregroundStyle(.amicaBlue)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -188,7 +200,7 @@ struct MemoryLogView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("Done") { dismiss() }
+                Button("Cancel") { dismiss() }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
