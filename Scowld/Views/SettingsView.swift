@@ -271,6 +271,7 @@ struct SettingsView: View {
                         memoryStore.clearAllMemories()
                     } label: {
                         Label("Clear All Memories", systemImage: "trash")
+                            .foregroundStyle(.red)
                     }
                 } header: {
                     Label("Memory", systemImage: "brain")
