@@ -134,7 +134,6 @@ struct HomeView: View {
         .onChange(of: wakeWordManager.wakeWordTriggered) {
             if wakeWordManager.wakeWordTriggered {
                 wakeWordManager.wakeWordTriggered = false
-                stopTTS()
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
                 logger.info("[WakeWord] Wake word detected — listening for command")
@@ -199,9 +198,10 @@ struct HomeView: View {
         // Ensure audio session is in playback mode so TTS plays through speaker
         if wakeWordManager.isEnabled {
             wakeWordManager.pauseForTTS()
-            // Resume wake listening after giving TTS time to play
+            // After TTS, go straight to command listening (continue conversation)
             DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-                wakeWordManager.resumeWakeListening()
+                guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
+                wakeWordManager.startCommandListening()
             }
         } else {
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
