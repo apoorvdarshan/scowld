@@ -95,16 +95,15 @@ struct MemoryView: View {
                         .fontWeight(isActive ? .semibold : .regular)
                         .foregroundStyle(.primary)
 
-                    HStack(spacing: 8) {
-                        if !slot.memoryLog.isEmpty {
+                    if !slot.memoryLog.isEmpty {
+                        HStack(spacing: 4) {
                             Image(systemName: "brain.fill")
                                 .font(.caption2)
                                 .foregroundStyle(.amicaBlue)
+                            Text("Has memories")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-
-                        Text(slot.lastUsedDate, style: .relative)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
 
