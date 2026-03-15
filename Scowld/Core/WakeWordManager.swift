@@ -46,6 +46,7 @@ final class WakeWordManager: NSObject {
     private var lastTranscriptTime: Date = .now
     private var commandListeningStartTime: Date = .now
     private var isRestarting = false
+    private var silenceWorkItem: DispatchWorkItem?
 
     private static let silenceTimeout: TimeInterval = 1.5
     private static let maxRecognitionDuration: TimeInterval = 55.0
@@ -83,7 +84,13 @@ final class WakeWordManager: NSObject {
             try? await Task.sleep(for: .milliseconds(300))
             guard self.state == .commandListening else { return }
             self.startRecognition(mode: .command)
-            self.startSilenceTimer()
+            // If nothing said after 8s, go back to wake listening
+            try? await Task.sleep(for: .seconds(8))
+            if self.state == .commandListening && self.commandText.isEmpty {
+                logger.info("[WakeWord] No speech detected, returning to wake listening")
+                self.stopRecognitionInternal()
+                self.startWakeWordListening()
+            }
         }
     }
 
@@ -109,8 +116,8 @@ final class WakeWordManager: NSObject {
 
     func stop() {
         stopRecognitionInternal()
-        silenceTimer?.invalidate()
-        silenceTimer = nil
+        silenceWorkItem?.cancel()
+        silenceWorkItem = nil
         restartTimer?.invalidate()
         restartTimer = nil
         state = .idle
@@ -299,12 +306,26 @@ final class WakeWordManager: NSObject {
     private func handleCommandTranscript(_ transcript: String) {
         let cleanTranscript = stripWakeWord(from: transcript)
         debugTranscript = cleanTranscript.isEmpty ? "..." : cleanTranscript
-        logger.info("[WakeWord] Command transcript: \(cleanTranscript)")
-        // Only reset silence timer if the text actually changed
+        logger.info("[WakeWord] Command transcript: '\(cleanTranscript)'")
+        // Only reschedule auto-send if text actually changed
         if cleanTranscript != commandText {
             commandText = cleanTranscript
-            lastTranscriptTime = .now
+            scheduleSilenceCheck()
         }
+    }
+
+    private func scheduleSilenceCheck() {
+        // Cancel previous pending send
+        silenceWorkItem?.cancel()
+        // Schedule new one — fires 1.5s after last text change
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                guard let self, self.state == .commandListening, !self.commandText.isEmpty else { return }
+                self.finishCommand()
+            }
+        }
+        silenceWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.silenceTimeout, execute: workItem)
     }
 
     private func stripWakeWord(from transcript: String) -> String {
@@ -322,40 +343,10 @@ final class WakeWordManager: NSObject {
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - Silence Timer
-
-    private func startSilenceTimer() {
-        silenceTimer?.invalidate()
-        commandListeningStartTime = .now
-        silenceTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.state == .commandListening else { return }
-                let elapsed = Date.now.timeIntervalSince(self.lastTranscriptTime)
-                if elapsed >= Self.silenceTimeout && !self.commandText.isEmpty {
-                    self.finishCommand()
-                } else if self.commandText.isEmpty {
-                    // If nothing heard after 8 seconds, go back to wake listening
-                    let totalElapsed = Date.now.timeIntervalSince(self.commandListeningStartTime)
-                    if totalElapsed > 8.0 {
-                        logger.info("[WakeWord] No speech detected, returning to wake listening")
-                        self.silenceTimer?.invalidate()
-                        self.silenceTimer = nil
-                        self.stopRecognitionInternal()
-                        self.startWakeWordListening()
-                    }
-                }
-            }
-        }
-    }
-
-    private func resetSilenceTimer() {
-        lastTranscriptTime = .now
-    }
-
     private func finishCommand() {
         let text = commandText.trimmingCharacters(in: .whitespacesAndNewlines)
-        silenceTimer?.invalidate()
-        silenceTimer = nil
+        silenceWorkItem?.cancel()
+        silenceWorkItem = nil
         stopRecognitionInternal()
 
         guard !text.isEmpty else {
