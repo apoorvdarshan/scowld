@@ -2,18 +2,21 @@ import Foundation
 
 // MARK: - Context Builder
 
-/// Builds the system prompt by injecting the active memory slot's conversation history.
+/// Builds the system prompt by injecting the active memory slot's log.
 struct ContextBuilder {
     let memoryStore: MemoryStore
 
-    /// Build the complete system prompt with conversation history from the active slot
+    /// Build the complete system prompt with memory log from the active slot
     func buildSystemPrompt(visionDescription: String? = nil) -> String {
-        let conversationContext = memoryStore.buildContextFromActiveSlot(limit: 20)
+        let memoryLog = memoryStore.getActiveMemoryLog()
         let characterName = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
+
+        // Split memory log into lines for the prompt
+        let memories = memoryLog.isEmpty ? [] : memoryLog.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
 
         return SystemPromptTemplate.build(
             userName: nil,
-            memories: conversationContext,
+            memories: memories,
             visionDescription: visionDescription,
             characterName: characterName
         )

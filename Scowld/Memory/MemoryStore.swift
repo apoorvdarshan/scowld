@@ -52,7 +52,7 @@ final class MemoryStore {
         entity.lastUsedDate = Date()
         save(context)
         loadSlots()
-        return MemorySlot(id: id, name: name, createdDate: Date(), lastUsedDate: Date(), messageCount: 0)
+        return MemorySlot(id: id, name: name, createdDate: Date(), lastUsedDate: Date(), messageCount: 0, memoryLog: "")
     }
 
     func renameSlot(id: UUID, name: String) {
@@ -176,6 +176,32 @@ final class MemoryStore {
         return recent.map { "[\($0.role.rawValue)] \($0.content)" }
     }
 
+    // MARK: - Memory Log
+
+    /// Get the memory log for the active slot
+    func getActiveMemoryLog() -> String {
+        guard let slotId = activeSlotId else { return "" }
+        let context = container.viewContext
+        let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", slotId as CVarArg)
+        guard let results = try? context.fetch(request), let entity = results.first else { return "" }
+        return entity.memoryLog ?? ""
+    }
+
+    /// Update the memory log for the active slot
+    func updateMemoryLog(_ log: String) {
+        guard let slotId = activeSlotId else { return }
+        let context = container.viewContext
+        let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", slotId as CVarArg)
+        if let results = try? context.fetch(request), let entity = results.first {
+            entity.memoryLog = log
+            entity.lastUsedDate = Date()
+            save(context)
+            loadSlots()
+        }
+    }
+
     // MARK: - Legacy compatibility
 
     var memories: [MemoryItem] { [] }
@@ -216,7 +242,8 @@ final class MemoryStore {
                 name: name,
                 createdDate: entity.createdDate ?? Date(),
                 lastUsedDate: entity.lastUsedDate ?? Date(),
-                messageCount: count
+                messageCount: count,
+                memoryLog: entity.memoryLog ?? ""
             )
         }
     }
@@ -234,6 +261,7 @@ struct MemorySlot: Identifiable, Sendable {
     let createdDate: Date
     let lastUsedDate: Date
     let messageCount: Int
+    let memoryLog: String
 }
 
 // MARK: - Legacy MemoryItem (kept for compilation)

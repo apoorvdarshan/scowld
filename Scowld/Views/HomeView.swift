@@ -681,6 +681,7 @@ struct AmicaFullView: UIViewRepresentable {
         weak var webView: WKWebView?
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
+        let memoryExtractor = MemoryExtractor()
 
         private var settingsObserver: NSObjectProtocol?
 
@@ -832,6 +833,10 @@ struct AmicaFullView: UIViewRepresentable {
             let currentProvider = AIProvider(rawValue: providerStr)
             let supportsVision = currentProvider?.supportsVision ?? false
 
+            // Build system prompt with memory log and character name
+            let contextBuilder = ContextBuilder(memoryStore: memoryStore)
+            let systemPrompt = contextBuilder.buildSystemPrompt()
+
             do {
                 let response: String
                 if supportsVision,
@@ -842,13 +847,26 @@ struct AmicaFullView: UIViewRepresentable {
                     // Vision request — send image with the message
                     logger.info("[Amica] Vision request with image: \(imgData.count) bytes")
                     response = try await provider.generateWithVision(
-                        messages: chatMessages, systemPrompt: "", image: image
+                        messages: chatMessages, systemPrompt: systemPrompt, image: image
                     )
                 } else {
-                    response = try await provider.generate(messages: chatMessages, systemPrompt: "")
+                    response = try await provider.generate(messages: chatMessages, systemPrompt: systemPrompt)
                 }
                 await MainActor.run {
                     deliverResponse(callbackId: callbackId, response: response)
+                }
+
+                // Update memory log in background
+                let lastUserMsg = chatMessages.last(where: { $0.role == .user })?.content ?? ""
+                let currentLog = memoryStore.getActiveMemoryLog()
+                Task.detached { [memoryExtractor, memoryStore] in
+                    await memoryExtractor.updateMemoryLog(
+                        userMessage: lastUserMsg,
+                        aiResponse: response,
+                        currentLog: currentLog,
+                        using: provider,
+                        store: memoryStore
+                    )
                 }
             } catch {
                 await MainActor.run {
