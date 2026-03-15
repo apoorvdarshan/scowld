@@ -28,27 +28,25 @@ struct HomeView: View {
     @State private var isListening = false
     @State private var speechManager = SpeechManager()
     @State private var cameraEnabled = false
-    @State private var showSettings = false
-    @State private var showMemories = false
+
+    @State private var selectedTab = 0
 
     var body: some View {
-        NavigationStack {
-            AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-                amicaCoordinator = coord
-            })
-            .ignoresSafeArea()
-            .navigationTitle("Scowld")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .bottomBar)
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 0) {
-                    // Input row
-                    HStack(spacing: 10) {
+        TabView(selection: $selectedTab) {
+            // MARK: - Amica Tab
+            NavigationStack {
+                AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                    amicaCoordinator = coord
+                })
+                .ignoresSafeArea()
+                .navigationTitle("Scowld")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItemGroup(placement: .bottomBar) {
                         Button {
                             toggleListening()
                         } label: {
                             Image(systemName: isListening ? "stop.fill" : "mic.fill")
-                                .font(.title3)
                                 .foregroundStyle(isListening ? .red : .amicaBlue)
                         }
 
@@ -61,67 +59,34 @@ struct HomeView: View {
                             stopAndSend()
                         } label: {
                             Image(systemName: "arrow.up.circle.fill")
-                                .font(.title3)
                                 .foregroundStyle(.amicaBlue)
                         }
                         .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-
-                    Divider().opacity(0.3)
-
-                    // Navigation bar
-                    HStack {
-                        Spacer()
-                        Button {
-                            cameraEnabled.toggle()
-                            amicaCoordinator?.webView?.evaluateJavaScript(
-                                "window.__toggleWebcam && window.__toggleWebcam(\(cameraEnabled));"
-                            )
-                        } label: {
-                            VStack(spacing: 3) {
-                                Image(systemName: cameraEnabled ? "eye.fill" : "eye.slash")
-                                    .font(.system(size: 20))
-                                Text("Camera")
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(cameraEnabled ? .amicaBlue : .secondary)
-                        }
-                        Spacer()
-                        Button { showMemories = true } label: {
-                            VStack(spacing: 3) {
-                                Image(systemName: "brain.head.profile.fill")
-                                    .font(.system(size: 20))
-                                Text("Memories")
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button { showSettings = true } label: {
-                            VStack(spacing: 3) {
-                                Image(systemName: "gearshape")
-                                    .font(.system(size: 20))
-                                Text("Settings")
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
                 }
-                .background(.ultraThinMaterial)
             }
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView(memoryStore: memoryStore)
-        }
-        .sheet(isPresented: $showMemories) {
+            .tabItem {
+                Label("Scowld", systemImage: "person.fill")
+            }
+            .tag(0)
+
+            // MARK: - Memories Tab
             NavigationStack {
                 MemoryView(memoryStore: memoryStore)
             }
+            .tabItem {
+                Label("Memories", systemImage: "brain.head.profile.fill")
+            }
+            .tag(1)
+
+            // MARK: - Settings Tab
+            NavigationStack {
+                SettingsView(memoryStore: memoryStore)
+            }
+            .tabItem {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .tag(2)
         }
         .onAppear {
             try? AVAudioSession.sharedInstance().setCategory(
