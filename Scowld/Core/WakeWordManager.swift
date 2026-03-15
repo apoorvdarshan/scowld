@@ -44,6 +44,7 @@ final class WakeWordManager: NSObject {
     private var silenceTimer: Timer?
     private var restartTimer: Timer?
     private var lastTranscriptTime: Date = .now
+    private var commandListeningStartTime: Date = .now
     private var isRestarting = false
 
     private static let silenceTimeout: TimeInterval = 1.5
@@ -73,11 +74,17 @@ final class WakeWordManager: NSObject {
     func startCommandListening() {
         stopRecognitionInternal()
         commandText = ""
+        debugTranscript = "Listening..."
         state = .commandListening
         lastTranscriptTime = .now
-        startRecognition(mode: .command)
-        startSilenceTimer()
         logger.info("[WakeWord] Entered COMMAND_LISTENING")
+        // Small delay so the audio engine fully resets before restarting
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard self.state == .commandListening else { return }
+            self.startRecognition(mode: .command)
+            self.startSilenceTimer()
+        }
     }
 
     func stop() {
@@ -270,10 +277,10 @@ final class WakeWordManager: NSObject {
     }
 
     private func handleCommandTranscript(_ transcript: String) {
-        // Check for wake word interrupt (user says wake word again to cancel/restart)
-        // Only check if there's already substantial text and wake word appears at the end
         let cleanTranscript = stripWakeWord(from: transcript)
         commandText = cleanTranscript
+        debugTranscript = cleanTranscript.isEmpty ? "..." : cleanTranscript
+        logger.info("[WakeWord] Command transcript: \(cleanTranscript)")
         lastTranscriptTime = .now
         resetSilenceTimer()
     }
@@ -291,12 +298,23 @@ final class WakeWordManager: NSObject {
 
     private func startSilenceTimer() {
         silenceTimer?.invalidate()
+        commandListeningStartTime = .now
         silenceTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.state == .commandListening else { return }
                 let elapsed = Date.now.timeIntervalSince(self.lastTranscriptTime)
                 if elapsed >= Self.silenceTimeout && !self.commandText.isEmpty {
                     self.finishCommand()
+                } else if self.commandText.isEmpty {
+                    // If nothing heard after 8 seconds, go back to wake listening
+                    let totalElapsed = Date.now.timeIntervalSince(self.commandListeningStartTime)
+                    if totalElapsed > 8.0 {
+                        logger.info("[WakeWord] No speech detected, returning to wake listening")
+                        self.silenceTimer?.invalidate()
+                        self.silenceTimer = nil
+                        self.stopRecognitionInternal()
+                        self.startWakeWordListening()
+                    }
                 }
             }
         }
