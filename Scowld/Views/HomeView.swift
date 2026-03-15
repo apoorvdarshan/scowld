@@ -52,7 +52,7 @@ struct HomeView: View {
                         }
 
                         TextField("Message...", text: $messageText)
-                            .textFieldStyle(.plain)
+                            .textFieldStyle(.roundedBorder)
                             .submitLabel(.send)
                             .onSubmit { stopAndSend() }
 
