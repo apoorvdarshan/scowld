@@ -29,6 +29,7 @@ struct HomeView: View {
     @State private var showSettings = false
     @State private var showMemories = false
     @State private var voiceManager = VoiceManager()
+    @State private var aiResponseText = ""
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -39,18 +40,32 @@ struct HomeView: View {
                 })
                 .ignoresSafeArea()
 
-                // Live caption of what user is saying
-                if voiceManager.state == .listening && !voiceManager.transcriptText.isEmpty {
-                    Text(voiceManager.transcriptText)
-                        .font(.subheadline)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.black.opacity(0.6))
-                        .cornerRadius(16)
-                        .padding(.bottom, 70)
-                        .allowsHitTesting(false)
+                // Live captions
+                VStack(spacing: 6) {
+                    if !aiResponseText.isEmpty {
+                        Text(aiResponseText)
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.black.opacity(0.5))
+                            .cornerRadius(16)
+                    }
+                    if voiceManager.state == .listening && !voiceManager.transcriptText.isEmpty {
+                        Text(voiceManager.transcriptText)
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.amicaBlue.opacity(0.6))
+                            .cornerRadius(16)
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 70)
+                .allowsHitTesting(false)
             }
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
@@ -134,13 +149,24 @@ struct HomeView: View {
         .onChange(of: voiceManager.readyCommand) {
             if let text = voiceManager.readyCommand {
                 voiceManager.readyCommand = nil
+                aiResponseText = ""
                 messageText = text
                 sendMessage()
-                logger.info("[WakeWord] Command sent: \(text)")
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
             voiceManager.onTTSDone()
+            // Clear AI caption after TTS ends
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                if voiceManager.state == .listening {
+                    aiResponseText = ""
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .aiResponseReady)) { notification in
+            if let text = notification.object as? String {
+                aiResponseText = text
+            }
         }
         .onChange(of: scenePhase) {
             switch scenePhase {
@@ -1056,6 +1082,7 @@ struct AmicaFullView: UIViewRepresentable {
                 .replacingOccurrences(of: "\n", with: "\\n")
                 .replacingOccurrences(of: "\r", with: "")
             webView?.evaluateJavaScript("window.nativeAIResponse && window.nativeAIResponse('\(callbackId)', '\(escaped)')")
+            NotificationCenter.default.post(name: .aiResponseReady, object: response)
         }
 
         private func deliverError(callbackId: String, error: String) {
@@ -1102,4 +1129,5 @@ struct AmicaFullView: UIViewRepresentable {
 extension Notification.Name {
     static let amicaSettingsChanged = Notification.Name("amicaSettingsChanged")
     static let ttsDone = Notification.Name("ttsDone")
+    static let aiResponseReady = Notification.Name("aiResponseReady")
 }
