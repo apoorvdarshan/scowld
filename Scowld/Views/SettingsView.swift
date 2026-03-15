@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var hasChanges = false
+    @State private var showClearConfirmation = false
     @State private var showAPIKey = false
     @State private var showElevenLabsKey = false
 
@@ -282,10 +283,18 @@ struct SettingsView: View {
                     }
 
                     Button(role: .destructive) {
-                        memoryStore.clearAllMemories()
+                        showClearConfirmation = true
                     } label: {
                         Label("Clear All Memories", systemImage: "trash")
                             .foregroundStyle(.red)
+                    }
+                    .alert("Clear All Memories?", isPresented: $showClearConfirmation) {
+                        Button("Cancel", role: .cancel) {}
+                        Button("Clear All", role: .destructive) {
+                            memoryStore.clearAllMemories()
+                        }
+                    } message: {
+                        Text("This will permanently delete all stored memories. This cannot be undone.")
                     }
                 } header: {
                     Label("Memory", systemImage: "brain")
