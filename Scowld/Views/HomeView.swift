@@ -841,6 +841,7 @@ struct AmicaFullView: UIViewRepresentable {
         webView.scrollView.isScrollEnabled = true
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
 
         // Load from local HTTP server (not custom scheme — so fetch() works with CORS)
         if port > 0 {
@@ -857,7 +858,7 @@ struct AmicaFullView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         weak var webView: WKWebView?
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
