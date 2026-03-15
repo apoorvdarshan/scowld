@@ -473,10 +473,25 @@ struct AmicaFullView: UIViewRepresentable {
                 var s = document.createElement('style');
                 s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; }';
                 document.head.appendChild(s);
-                // Update viewport meta
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
+            // Zoom out camera after a delay (viewer needs time to initialize)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                webView.evaluateJavaScript("""
+                    if (window.__viewer?.camera) {
+                        window.__viewer.camera.position.z += 0.5;
+                    }
+                    // Try Amica's resetCamera with offset
+                    try {
+                        var cam = document.querySelector('canvas')?.__three_camera;
+                        if (!cam) {
+                            // Find camera in Three.js scene
+                            var scenes = Object.values(window).filter(v => v && v.isScene);
+                        }
+                    } catch(e) {}
+                """)
+            }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

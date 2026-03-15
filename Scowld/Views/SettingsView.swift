@@ -355,7 +355,7 @@ struct SettingsView: View {
         visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
 
-        // Load existing keys into fields (show dots if set)
+        // Load existing keys into fields
         if let existingKey = KeychainManager.load(key: selectedProvider.keychainKey) {
             apiKeyInput = existingKey
         }
@@ -363,8 +363,12 @@ struct SettingsView: View {
             elevenLabsAPIKey = existingELKey
         }
 
-        hasChanges = false
         loadAPIKey()
+
+        // Reset hasChanges AFTER fields are populated (onChange fires during load)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            hasChanges = false
+        }
     }
 
     private func saveSettings() {
