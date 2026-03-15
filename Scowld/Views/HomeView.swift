@@ -887,11 +887,28 @@ struct AmicaFullView: UIViewRepresentable {
             // Force full-screen coverage via CSS
             webView.evaluateJavaScript("""
                 var s = document.createElement('style');
-                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; }';
+                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; } video + div button, video ~ button, [class*="webcam"] button, [class*="camera"] button, video + button { display: none !important; }';
                 document.head.appendChild(s);
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
+            // Hide webcam overlay buttons (close & rotate)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                webView.evaluateJavaScript("""
+                    (function hideWebcamButtons() {
+                        var video = document.querySelector('video');
+                        if (video) {
+                            var parent = video.parentElement;
+                            if (parent) {
+                                var buttons = parent.querySelectorAll('button');
+                                buttons.forEach(function(btn) { btn.style.display = 'none'; });
+                            }
+                        }
+                        // Keep checking as webcam may load later
+                        setTimeout(hideWebcamButtons, 2000);
+                    })();
+                """)
+            }
             // Zoom out camera after a delay (viewer needs time to initialize)
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 webView.evaluateJavaScript("""
