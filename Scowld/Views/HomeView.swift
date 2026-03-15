@@ -74,18 +74,9 @@ struct HomeView: View {
                     Menu {
                         Button {
                             cameraOn.toggle()
-                            if cameraOn {
-                                // Enable camera and show preview
-                                amicaCoordinator?.webView?.evaluateJavaScript("""
-                                    window.__toggleWebcam && window.__toggleWebcam(true);
-                                    setTimeout(function() { window.__setCamPreview && window.__setCamPreview(true); }, 500);
-                                """)
-                            } else {
-                                // Disable camera entirely
-                                amicaCoordinator?.webView?.evaluateJavaScript(
-                                    "window.__toggleWebcam && window.__toggleWebcam(false);"
-                                )
-                            }
+                            amicaCoordinator?.webView?.evaluateJavaScript(
+                                "window.__toggleWebcam && window.__toggleWebcam(\(cameraOn));"
+                            )
                         } label: {
                             Label(
                                 cameraOn ? "Disable Camera" : "Enable Camera",
@@ -924,48 +915,24 @@ struct AmicaFullView: UIViewRepresentable {
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
-            // Enable webcam by default, preview hidden. X button = hide preview only.
+            // Enable webcam by default, then click X to hide preview (shows eye icon)
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 webView.evaluateJavaScript("""
                     (function enableCam() {
                         if (window.__toggleWebcam) {
                             window.__toggleWebcam(true);
-                            // Wait for video to appear, then hide preview + override X button
-                            (function setupPreview() {
+                            // Wait for preview to appear, then click X to hide it
+                            (function clickClose() {
                                 var v = document.querySelector('video');
                                 if (v && v.parentElement) {
-                                    var container = v.parentElement;
-                                    // Hide preview by default
-                                    window.__setCamPreview = function(show) {
-                                        if (show) {
-                                            container.style.cssText = '';
-                                            v.style.cssText = '';
-                                        } else {
-                                            container.style.cssText = 'position:fixed !important; left:-9999px !important; opacity:0 !important; pointer-events:none !important;';
-                                            v.style.cssText = 'width:1px !important; height:1px !important;';
-                                        }
-                                    };
-                                    window.__setCamPreview(false);
-                                    // Override X button to hide preview instead of disabling camera
-                                    var buttons = container.querySelectorAll('button');
-                                    buttons.forEach(function(btn) {
-                                        // Style buttons
-                                        btn.style.cssText = 'background: rgba(0,0,0,0.65) !important; border-radius: 50% !important; width: 32px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; border: 1.5px solid rgba(255,255,255,0.4) !important; backdrop-filter: blur(6px) !important; padding: 0 !important;';
-                                        btn.querySelectorAll('svg').forEach(function(svg) {
-                                            svg.style.cssText = 'width: 22px !important; height: 22px !important; color: white !important; fill: white !important; stroke: white !important;';
-                                        });
-                                    });
-                                    // Find the close (X) button and override its click
+                                    var buttons = v.parentElement.querySelectorAll('button');
                                     if (buttons.length > 0) {
-                                        var closeBtn = buttons[0];
-                                        closeBtn.addEventListener('click', function(e) {
-                                            e.stopPropagation();
-                                            e.preventDefault();
-                                            window.__setCamPreview(false);
-                                        }, true);
+                                        buttons[0].click();
+                                    } else {
+                                        setTimeout(clickClose, 500);
                                     }
                                 } else {
-                                    setTimeout(setupPreview, 500);
+                                    setTimeout(clickClose, 500);
                                 }
                             })();
                         } else {
