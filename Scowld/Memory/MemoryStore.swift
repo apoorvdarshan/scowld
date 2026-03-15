@@ -181,6 +181,11 @@ final class MemoryStore {
     /// Get the memory log for the active slot
     func getActiveMemoryLog() -> String {
         guard let slotId = activeSlotId else { return "" }
+        return getMemoryLog(slotId: slotId)
+    }
+
+    /// Get the memory log for a specific slot
+    func getMemoryLog(slotId: UUID) -> String {
         let context = container.viewContext
         let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", slotId as CVarArg)
@@ -191,6 +196,11 @@ final class MemoryStore {
     /// Update the memory log for the active slot
     func updateMemoryLog(_ log: String) {
         guard let slotId = activeSlotId else { return }
+        updateMemoryLog(log, slotId: slotId)
+    }
+
+    /// Update the memory log for a specific slot
+    func updateMemoryLog(_ log: String, slotId: UUID) {
         let context = container.viewContext
         let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", slotId as CVarArg)
@@ -255,7 +265,7 @@ final class MemoryStore {
 
 // MARK: - Memory Slot (View Model)
 
-struct MemorySlot: Identifiable, Sendable {
+struct MemorySlot: Identifiable, Hashable, Sendable {
     let id: UUID
     let name: String
     let createdDate: Date

@@ -9,6 +9,7 @@ struct MemoryView: View {
     @State private var newSlotName = ""
     @State private var renameSlotId: UUID?
     @State private var renameText = ""
+    @State private var viewingSlot: MemorySlot?
 
     var body: some View {
         List {
@@ -28,7 +29,7 @@ struct MemoryView: View {
             } header: {
                 Label("Save Slots", systemImage: "tray.2")
             } footer: {
-                Text("Select a memory to continue that conversation. The character remembers everything in the active slot.")
+                Text("Tap to activate. Tap the info button to view/edit what the character remembers.")
             }
 
             // MARK: - Actions
@@ -67,6 +68,11 @@ struct MemoryView: View {
             }
             Button("Cancel", role: .cancel) { renameSlotId = nil }
         }
+        .sheet(item: $viewingSlot) { slot in
+            NavigationStack {
+                MemoryLogView(memoryStore: memoryStore, slot: slot)
+            }
+        }
     }
 
     // MARK: - Slot Row
@@ -75,43 +81,55 @@ struct MemoryView: View {
     private func slotRow(_ slot: MemorySlot) -> some View {
         let isActive = memoryStore.activeSlotId == slot.id
 
-        Button {
-            memoryStore.setActiveSlot(id: slot.id)
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isActive ? .amicaBlue : .secondary)
-                    .font(.title3)
+        HStack(spacing: 12) {
+            Button {
+                memoryStore.setActiveSlot(id: slot.id)
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(isActive ? .amicaBlue : .secondary)
+                        .font(.title3)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(slot.name)
-                        .font(.body)
-                        .fontWeight(isActive ? .semibold : .regular)
-                        .foregroundStyle(.primary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(slot.name)
+                            .font(.body)
+                            .fontWeight(isActive ? .semibold : .regular)
+                            .foregroundStyle(.primary)
 
-                    HStack(spacing: 8) {
-                        Text("\(slot.messageCount) messages")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            if !slot.memoryLog.isEmpty {
+                                Image(systemName: "brain.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.amicaBlue)
+                            }
 
-                        Text(slot.lastUsedDate, style: .relative)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            Text(slot.lastUsedDate, style: .relative)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-
-                Spacer()
-
-                if isActive {
-                    Text("Active")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.amicaBlue)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.amicaBlue.opacity(0.15), in: Capsule())
-                }
             }
+
+            Spacer()
+
+            if isActive {
+                Text("Active")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.amicaBlue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.amicaBlue.opacity(0.15), in: Capsule())
+            }
+
+            Button {
+                viewingSlot = slot
+            } label: {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.amicaBlue)
+            }
+            .buttonStyle(.plain)
         }
         .swipeActions(edge: .trailing) {
             if memoryStore.slots.count > 1 {
@@ -128,6 +146,64 @@ struct MemoryView: View {
                 Label("Rename", systemImage: "pencil")
             }
             .tint(.amicaBlue)
+        }
+    }
+}
+
+// MARK: - Memory Log View
+
+/// View and edit what the character remembers in a specific slot.
+struct MemoryLogView: View {
+    var memoryStore: MemoryStore
+    let slot: MemorySlot
+    @State private var editedLog: String = ""
+    @State private var hasChanges = false
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if editedLog.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                ContentUnavailableView(
+                    "No Memories Yet",
+                    systemImage: "brain.head.profile.fill",
+                    description: Text("Chat with the character and memories will be saved here automatically.")
+                )
+            } else {
+                List {
+                    Section {
+                        TextEditor(text: $editedLog)
+                            .frame(minHeight: 300)
+                            .font(.body)
+                            .scrollContentBackground(.hidden)
+                            .onChange(of: editedLog) { hasChanges = true }
+                    } header: {
+                        Label("What \(slot.name) remembers", systemImage: "brain.fill")
+                    } footer: {
+                        Text("This is what the AI knows about you from this conversation. Edit or remove anything you want.")
+                    }
+                }
+            }
+        }
+        .navigationTitle(slot.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Done") { dismiss() }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Save") {
+                    memoryStore.updateMemoryLog(editedLog, slotId: slot.id)
+                    hasChanges = false
+                    dismiss()
+                }
+                .fontWeight(.semibold)
+                .foregroundStyle(hasChanges ? .amicaBlue : .secondary)
+                .disabled(!hasChanges)
+            }
+        }
+        .onAppear {
+            // Load fresh from CoreData
+            editedLog = memoryStore.getMemoryLog(slotId: slot.id)
         }
     }
 }
