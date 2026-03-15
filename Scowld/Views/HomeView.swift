@@ -25,7 +25,7 @@ struct HomeView: View {
     var memoryStore: MemoryStore
     @State private var messageText = ""
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
-    @State private var cameraPreviewVisible = false
+    @State private var cameraOn = true
     @State private var showSettings = false
     @State private var showMemories = false
     @State private var voiceManager = VoiceManager()
@@ -73,26 +73,23 @@ struct HomeView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button {
-                            cameraPreviewVisible.toggle()
-                            amicaCoordinator?.webView?.evaluateJavaScript("""
-                                (function() {
-                                    var v = document.querySelector('video');
-                                    if (v && v.parentElement) {
-                                        var show = \(cameraPreviewVisible);
-                                        if (show) {
-                                            v.parentElement.style.cssText = '';
-                                            v.style.cssText = '';
-                                        } else {
-                                            v.parentElement.style.cssText = 'position:fixed !important; left:-9999px !important; opacity:0 !important; pointer-events:none !important;';
-                                            v.style.cssText = 'width:1px !important; height:1px !important;';
-                                        }
-                                    }
-                                })();
-                            """)
+                            cameraOn.toggle()
+                            if cameraOn {
+                                // Enable camera and show preview
+                                amicaCoordinator?.webView?.evaluateJavaScript("""
+                                    window.__toggleWebcam && window.__toggleWebcam(true);
+                                    setTimeout(function() { window.__setCamPreview && window.__setCamPreview(true); }, 500);
+                                """)
+                            } else {
+                                // Disable camera entirely
+                                amicaCoordinator?.webView?.evaluateJavaScript(
+                                    "window.__toggleWebcam && window.__toggleWebcam(false);"
+                                )
+                            }
                         } label: {
                             Label(
-                                cameraPreviewVisible ? "Hide Camera" : "Show Camera",
-                                systemImage: cameraPreviewVisible ? "eye.fill" : "eye.slash"
+                                cameraOn ? "Disable Camera" : "Enable Camera",
+                                systemImage: cameraOn ? "video.fill" : "video.slash"
                             )
                         }
 
@@ -927,52 +924,53 @@ struct AmicaFullView: UIViewRepresentable {
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
-            // Enable webcam by default with preview hidden
+            // Enable webcam by default, preview hidden. X button = hide preview only.
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 webView.evaluateJavaScript("""
                     (function enableCam() {
                         if (window.__toggleWebcam) {
                             window.__toggleWebcam(true);
-                            // Hide the preview container but keep video element active
-                            (function hidePreview() {
+                            // Wait for video to appear, then hide preview + override X button
+                            (function setupPreview() {
                                 var v = document.querySelector('video');
                                 if (v && v.parentElement) {
                                     var container = v.parentElement;
-                                    container.style.cssText = 'position:fixed !important; left:-9999px !important; opacity:0 !important; pointer-events:none !important;';
-                                    v.style.cssText = 'width:1px !important; height:1px !important;';
+                                    // Hide preview by default
+                                    window.__setCamPreview = function(show) {
+                                        if (show) {
+                                            container.style.cssText = '';
+                                            v.style.cssText = '';
+                                        } else {
+                                            container.style.cssText = 'position:fixed !important; left:-9999px !important; opacity:0 !important; pointer-events:none !important;';
+                                            v.style.cssText = 'width:1px !important; height:1px !important;';
+                                        }
+                                    };
+                                    window.__setCamPreview(false);
+                                    // Override X button to hide preview instead of disabling camera
+                                    var buttons = container.querySelectorAll('button');
+                                    buttons.forEach(function(btn) {
+                                        // Style buttons
+                                        btn.style.cssText = 'background: rgba(0,0,0,0.65) !important; border-radius: 50% !important; width: 32px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; border: 1.5px solid rgba(255,255,255,0.4) !important; backdrop-filter: blur(6px) !important; padding: 0 !important;';
+                                        btn.querySelectorAll('svg').forEach(function(svg) {
+                                            svg.style.cssText = 'width: 22px !important; height: 22px !important; color: white !important; fill: white !important; stroke: white !important;';
+                                        });
+                                    });
+                                    // Find the close (X) button and override its click
+                                    if (buttons.length > 0) {
+                                        var closeBtn = buttons[0];
+                                        closeBtn.addEventListener('click', function(e) {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            window.__setCamPreview(false);
+                                        }, true);
+                                    }
                                 } else {
-                                    setTimeout(hidePreview, 500);
+                                    setTimeout(setupPreview, 500);
                                 }
                             })();
                         } else {
                             setTimeout(enableCam, 1000);
                         }
-                    })();
-                """)
-            }
-            // Style webcam overlay buttons to be more visible
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                webView.evaluateJavaScript("""
-                    (function styleWebcamButtons() {
-                        var video = document.querySelector('video');
-                        if (video) {
-                            var parent = video.parentElement;
-                            if (parent) {
-                                var buttons = parent.querySelectorAll('button');
-                                buttons.forEach(function(btn) {
-                                    btn.style.cssText = 'background: rgba(0,0,0,0.65) !important; border-radius: 50% !important; width: 32px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; border: 1.5px solid rgba(255,255,255,0.4) !important; backdrop-filter: blur(6px) !important; padding: 0 !important;';
-                                    var svgs = btn.querySelectorAll('svg');
-                                    svgs.forEach(function(svg) {
-                                        svg.style.cssText = 'width: 22px !important; height: 22px !important; color: white !important; fill: white !important; stroke: white !important;';
-                                    });
-                                    // Also scale any inner icon/span
-                                    btn.querySelectorAll('span, img, i').forEach(function(el) {
-                                        el.style.cssText = 'font-size: 20px !important; color: white !important;';
-                                    });
-                                });
-                            }
-                        }
-                        setTimeout(styleWebcamButtons, 2000);
                     })();
                 """)
             }
