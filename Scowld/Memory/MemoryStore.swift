@@ -110,18 +110,23 @@ final class MemoryStore {
     func clearAllMemories() {
         let context = container.viewContext
 
-        let msgRequest: NSFetchRequest<NSFetchRequestResult> = MessageEntity.fetchRequest()
-        let msgDelete = NSBatchDeleteRequest(fetchRequest: msgRequest)
-        try? context.execute(msgDelete)
+        // Delete all messages
+        let msgFetch: NSFetchRequest<MessageEntity> = MessageEntity.fetchRequest()
+        if let messages = try? context.fetch(msgFetch) {
+            for msg in messages { context.delete(msg) }
+        }
 
-        let slotRequest: NSFetchRequest<NSFetchRequestResult> = MemorySlotEntity.fetchRequest()
-        let slotDelete = NSBatchDeleteRequest(fetchRequest: slotRequest)
-        try? context.execute(slotDelete)
+        // Delete all slots
+        let slotFetch: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        if let slots = try? context.fetch(slotFetch) {
+            for slot in slots { context.delete(slot) }
+        }
 
-        // Also clear old MemoryEntity data
-        let memRequest: NSFetchRequest<NSFetchRequestResult> = MemoryEntity.fetchRequest()
-        let memDelete = NSBatchDeleteRequest(fetchRequest: memRequest)
-        try? context.execute(memDelete)
+        // Delete all old memory entities
+        let memFetch: NSFetchRequest<MemoryEntity> = MemoryEntity.fetchRequest()
+        if let mems = try? context.fetch(memFetch) {
+            for mem in mems { context.delete(mem) }
+        }
 
         save(context)
         loadSlots()
