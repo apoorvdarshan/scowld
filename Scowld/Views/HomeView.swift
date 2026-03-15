@@ -787,6 +787,11 @@ struct AmicaFullView: UIViewRepresentable {
                       let messages = json["messages"] as? [[String: String]] else { return }
                 let imageData = json["imageData"] as? String
                 Task { await handleChatRequest(callbackId: callbackId, messages: messages, imageData: imageData) }
+            case "tts_elevenlabs":
+                guard let callbackId = json["callbackId"] as? String,
+                      let voiceId = json["voiceId"] as? String,
+                      let bodyStr = json["body"] as? String else { return }
+                Task { await handleElevenLabsTTS(callbackId: callbackId, voiceId: voiceId, body: bodyStr) }
             case "speak":
                 if let text = json["text"] as? String {
                     speechManager.speak(text)
@@ -844,6 +849,57 @@ struct AmicaFullView: UIViewRepresentable {
             } catch {
                 await MainActor.run {
                     deliverError(callbackId: callbackId, error: error.localizedDescription)
+                }
+            }
+        }
+
+        // MARK: - Native ElevenLabs TTS
+
+        private func handleElevenLabsTTS(callbackId: String, voiceId: String, body: String) async {
+            let apiKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+            guard !apiKey.isEmpty else {
+                await MainActor.run {
+                    let escaped = "No ElevenLabs API key".replacingOccurrences(of: "'", with: "\\'")
+                    webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
+                }
+                return
+            }
+
+            let urlStr = "https://api.elevenlabs.io/v1/text-to-speech/\(voiceId)?output_format=mp3_44100_128"
+            guard let url = URL(string: urlStr) else { return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+            request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
+            request.httpBody = body.data(using: .utf8)
+
+            logger.info("[TTS] ElevenLabs request: voice=\(voiceId) bodyLen=\(body.count)")
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse else { return }
+
+                if httpResponse.statusCode == 200 {
+                    let base64 = data.base64EncodedString()
+                    logger.info("[TTS] ElevenLabs success: \(data.count) bytes")
+                    await MainActor.run {
+                        webView?.evaluateJavaScript("window['__ttsCallback_\(callbackId)'] && window['__ttsCallback_\(callbackId)']('\(base64)')")
+                    }
+                } else {
+                    let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    logger.error("[TTS] ElevenLabs error \(httpResponse.statusCode): \(errorBody)")
+                    await MainActor.run {
+                        let escaped = "ElevenLabs API Error (\(httpResponse.statusCode))".replacingOccurrences(of: "'", with: "\\'")
+                        webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
+                    }
+                }
+            } catch {
+                logger.error("[TTS] ElevenLabs network error: \(error.localizedDescription)")
+                await MainActor.run {
+                    let escaped = error.localizedDescription.replacingOccurrences(of: "'", with: "\\'")
+                    webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
                 }
             }
         }
