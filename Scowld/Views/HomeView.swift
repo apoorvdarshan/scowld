@@ -915,24 +915,50 @@ struct AmicaFullView: UIViewRepresentable {
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
-            // Enable webcam by default, then click X to hide preview (shows eye icon)
+            // Enable webcam by default, hide preview, show eye icon to reopen
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 webView.evaluateJavaScript("""
                     (function enableCam() {
                         if (window.__toggleWebcam) {
                             window.__toggleWebcam(true);
-                            // Wait for preview to appear, then click X to hide it
-                            (function clickClose() {
+                            (function setupPreview() {
                                 var v = document.querySelector('video');
                                 if (v && v.parentElement) {
-                                    var buttons = v.parentElement.querySelectorAll('button');
-                                    if (buttons.length > 0) {
-                                        buttons[0].click();
-                                    } else {
-                                        setTimeout(clickClose, 500);
-                                    }
+                                    var container = v.parentElement;
+                                    // Functions to show/hide preview
+                                    window.__showCamPreview = function() {
+                                        container.style.cssText = '';
+                                        v.style.cssText = '';
+                                        if (window.__eyeBtn) window.__eyeBtn.style.display = 'none';
+                                    };
+                                    window.__hideCamPreview = function() {
+                                        container.style.cssText = 'position:fixed!important;left:-9999px!important;opacity:0!important;pointer-events:none!important;';
+                                        v.style.cssText = 'width:1px!important;height:1px!important;';
+                                        if (window.__eyeBtn) window.__eyeBtn.style.display = 'flex';
+                                    };
+                                    // Override X button to hide preview (not disable camera)
+                                    var buttons = container.querySelectorAll('button');
+                                    buttons.forEach(function(btn, i) {
+                                        if (i === 0) {
+                                            btn.onclick = null;
+                                            btn.addEventListener('click', function(e) {
+                                                e.stopImmediatePropagation();
+                                                e.preventDefault();
+                                                window.__hideCamPreview();
+                                            }, true);
+                                        }
+                                    });
+                                    // Create eye icon button
+                                    var eye = document.createElement('button');
+                                    eye.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+                                    eye.style.cssText = 'position:fixed;bottom:100px;right:16px;z-index:9999;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,0.6);border:1.5px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);';
+                                    eye.onclick = function() { window.__showCamPreview(); };
+                                    document.body.appendChild(eye);
+                                    window.__eyeBtn = eye;
+                                    // Hide preview by default
+                                    window.__hideCamPreview();
                                 } else {
-                                    setTimeout(clickClose, 500);
+                                    setTimeout(setupPreview, 500);
                                 }
                             })();
                         } else {
