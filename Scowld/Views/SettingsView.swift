@@ -23,7 +23,7 @@ struct SettingsView: View {
     @State private var speechPitch: Float = 1.2
 
     // MARK: - STT Settings
-    @State private var sttBackend: String = "none"
+    @State private var sttBackend: String = "native_ios"
 
     // MARK: - Vision Settings
     @State private var visionBackend: String = "none"
@@ -336,7 +336,7 @@ struct SettingsView: View {
         if speechPitch == 0 { speechPitch = 1.2 }
         // Amica backend settings
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
-        sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
+        sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
         visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
 

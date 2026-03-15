@@ -358,7 +358,7 @@ struct AmicaFullView: UIViewRepresentable {
         // Inject native config before page loads
         let defaults = UserDefaults.standard
         let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "elevenlabs"
-        let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
+        let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
         let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
