@@ -155,13 +155,8 @@ struct HomeView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
+            aiResponseText = ""
             voiceManager.onTTSDone()
-            // Clear AI caption after TTS ends
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                if voiceManager.state == .listening {
-                    aiResponseText = ""
-                }
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .aiResponseReady)) { notification in
             if let text = notification.object as? String {
