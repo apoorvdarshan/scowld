@@ -752,7 +752,7 @@ struct AmicaFullView: UIViewRepresentable {
                     window.__activeAudioCount--;
                     if (window.__activeAudioCount <= 0) {
                         window.__activeAudioCount = 0;
-                        // Debounce: wait 3s to make sure no new audio chunks start
+                        // Debounce: wait 1s to make sure no new audio chunks start
                         if (_ttsDoneTimer) clearTimeout(_ttsDoneTimer);
                         _ttsDoneTimer = setTimeout(function() {
                             if (window.__activeAudioCount <= 0) {
@@ -760,7 +760,7 @@ struct AmicaFullView: UIViewRepresentable {
                                     window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'tts_done'}));
                                 } catch(e) {}
                             }
-                        }, 3000);
+                        }, 1000);
                     }
                 }
                 // Hook Audio elements
