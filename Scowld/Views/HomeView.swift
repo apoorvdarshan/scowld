@@ -121,11 +121,8 @@ struct HomeView: View {
             }
         }
         .onAppear {
-            try? AVAudioSession.sharedInstance().setCategory(
-                .playAndRecord,
-                mode: .default,
-                options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers]
-            )
+            // Start in playback mode so TTS works through speaker
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try? AVAudioSession.sharedInstance().setActive(true)
 
             Task {
@@ -199,13 +196,16 @@ struct HomeView: View {
         guard !text.isEmpty else { return }
         messageText = ""
 
-        // Pause wake word listening so TTS can play through speaker
+        // Ensure audio session is in playback mode so TTS plays through speaker
         if wakeWordManager.isEnabled {
             wakeWordManager.pauseForTTS()
             // Resume wake listening after giving TTS time to play
             DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
                 wakeWordManager.resumeWakeListening()
             }
+        } else {
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try? AVAudioSession.sharedInstance().setActive(true)
         }
 
         logger.info("[HomeView] Sending message: \(text)")
@@ -229,8 +229,13 @@ struct HomeView: View {
     // MARK: - Wake Word
 
     private func setupWakeWord() {
-        let handsFreeEnabled = UserDefaults.standard.bool(forKey: "hands_free_mode")
-        wakeWordManager.wakeWord = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
+        let defaults = UserDefaults.standard
+        // Default to enabled if never set
+        if defaults.object(forKey: "hands_free_mode") == nil {
+            defaults.set(true, forKey: "hands_free_mode")
+        }
+        let handsFreeEnabled = defaults.bool(forKey: "hands_free_mode")
+        wakeWordManager.wakeWord = defaults.string(forKey: "character_name") ?? "Scowlly"
         wakeWordManager.isEnabled = handsFreeEnabled
     }
 

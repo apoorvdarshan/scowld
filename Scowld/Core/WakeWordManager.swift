@@ -298,18 +298,26 @@ final class WakeWordManager: NSObject {
 
     private func handleCommandTranscript(_ transcript: String) {
         let cleanTranscript = stripWakeWord(from: transcript)
-        commandText = cleanTranscript
         debugTranscript = cleanTranscript.isEmpty ? "..." : cleanTranscript
         logger.info("[WakeWord] Command transcript: \(cleanTranscript)")
-        lastTranscriptTime = .now
-        resetSilenceTimer()
+        // Only reset silence timer if the text actually changed
+        if cleanTranscript != commandText {
+            commandText = cleanTranscript
+            lastTranscriptTime = .now
+        }
     }
 
     private func stripWakeWord(from transcript: String) -> String {
-        // Remove the wake word if it appears at the very beginning (leftover from detection)
-        var text = transcript
-        if let range = text.range(of: wakeWord, options: [.caseInsensitive, .anchored]) {
-            text.removeSubrange(range)
+        // Remove the wake word (or fuzzy variants) from the beginning
+        var text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let wake = wakeWord.lowercased()
+        let words = text.components(separatedBy: .whitespaces)
+        // Check if first word is the wake word or close to it
+        if let firstWord = words.first?.lowercased() {
+            if firstWord.contains(wake) || wake.contains(firstWord)
+                || editDistance(firstWord, wake) <= 2 {
+                text = words.dropFirst().joined(separator: " ")
+            }
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
