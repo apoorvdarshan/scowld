@@ -936,18 +936,19 @@ struct AmicaFullView: UIViewRepresentable {
                                         v.style.cssText = 'width:1px!important;height:1px!important;';
                                         if (window.__eyeBtn) window.__eyeBtn.style.display = 'flex';
                                     };
-                                    // Override X button to hide preview (not disable camera)
+                                    // Replace X button with one that only hides preview
                                     var buttons = container.querySelectorAll('button');
-                                    buttons.forEach(function(btn, i) {
-                                        if (i === 0) {
-                                            btn.onclick = null;
-                                            btn.addEventListener('click', function(e) {
-                                                e.stopImmediatePropagation();
-                                                e.preventDefault();
-                                                window.__hideCamPreview();
-                                            }, true);
-                                        }
-                                    });
+                                    if (buttons.length > 0) {
+                                        var oldBtn = buttons[0];
+                                        var newBtn = document.createElement('button');
+                                        newBtn.innerHTML = oldBtn.innerHTML;
+                                        newBtn.style.cssText = oldBtn.style.cssText || 'background:rgba(0,0,0,0.6);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.3);color:white;';
+                                        newBtn.onclick = function(e) {
+                                            e.stopPropagation();
+                                            window.__hideCamPreview();
+                                        };
+                                        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+                                    }
                                     // Create eye icon button
                                     var eye = document.createElement('button');
                                     eye.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
