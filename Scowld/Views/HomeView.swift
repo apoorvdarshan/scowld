@@ -177,7 +177,7 @@ struct HomeView: View {
     }
 
     private var handsFreeIconColor: Color {
-        if !wakeWordManager.isEnabled { return .secondary }
+        if !wakeWordManager.isEnabled { return .amicaBlue }
         switch wakeWordManager.state {
         case .commandListening: return .green
         case .wakeListening: return .orange
