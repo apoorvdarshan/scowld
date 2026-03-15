@@ -912,7 +912,7 @@ struct AmicaFullView: UIViewRepresentable {
             // Force full-screen coverage via CSS
             webView.evaluateJavaScript("""
                 var s = document.createElement('style');
-                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; } video { position: fixed !important; left: -9999px !important; width: 1px !important; height: 1px !important; opacity: 0 !important; } video + *, video ~ button, [class*="webcam"], [class*="camera-preview"] { display: none !important; }';
+                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; }';
                 document.head.appendChild(s);
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
@@ -923,21 +923,14 @@ struct AmicaFullView: UIViewRepresentable {
                     (function enableCam() {
                         if (window.__toggleWebcam) {
                             window.__toggleWebcam(true);
-                            // Hide preview, buttons, and parent containers
-                            (function hideAll() {
+                            // Move preview offscreen but keep video rendering at full size
+                            (function hidePreview() {
                                 var v = document.querySelector('video');
-                                if (v) {
-                                    v.style.cssText = 'position:fixed!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;';
-                                    var p = v.parentElement;
-                                    while (p && p !== document.body) {
-                                        if (p.querySelector('video') && p.tagName !== 'BODY' && p.tagName !== 'HTML' && !p.querySelector('canvas')) {
-                                            p.style.cssText = 'position:fixed!important;left:-9999px!important;opacity:0!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important;';
-                                            break;
-                                        }
-                                        p = p.parentElement;
-                                    }
+                                if (v && v.parentElement) {
+                                    var container = v.parentElement;
+                                    container.style.cssText = 'position:fixed!important;top:-9999px!important;left:-9999px!important;pointer-events:none!important;';
                                 }
-                                setTimeout(hideAll, 2000);
+                                setTimeout(hidePreview, 2000);
                             })();
                         } else {
                             setTimeout(enableCam, 1000);
