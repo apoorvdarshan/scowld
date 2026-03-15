@@ -28,9 +28,9 @@ final class WakeWordManager: NSObject {
         }
     }
 
-    // MARK: - Callbacks
-    var onWakeWordDetected: (() -> Void)?
-    var onCommandReady: ((String) -> Void)?
+    // MARK: - Observable Events (used by SwiftUI instead of closures)
+    var wakeWordTriggered: Bool = false
+    var readyCommand: String? = nil
 
     // MARK: - Configuration
     var wakeWord: String = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
@@ -209,11 +209,55 @@ final class WakeWordManager: NSObject {
     // MARK: - Transcript Handling
 
     private func handleWakeWordTranscript(_ transcript: String) {
-        if transcript.localizedCaseInsensitiveContains(wakeWord) {
+        if matchesWakeWord(transcript) {
             logger.info("[WakeWord] Wake word detected in: \(transcript)")
-            onWakeWordDetected?()
+            wakeWordTriggered = true
             startCommandListening()
         }
+    }
+
+    /// Fuzzy match: checks if the transcript contains the wake word or sounds similar.
+    /// Speech recognizer often mishears uncommon names (e.g. "Amica" → "America", "a Micah").
+    private func matchesWakeWord(_ transcript: String) -> Bool {
+        let lower = transcript.lowercased()
+        let wake = wakeWord.lowercased()
+
+        // Exact substring match
+        if lower.contains(wake) { return true }
+
+        // Check each word in transcript for close match
+        let words = lower.components(separatedBy: .whitespacesAndNewlines)
+        for word in words {
+            // Starts-with match (e.g. "amica" matches "america")
+            if word.hasPrefix(wake) || wake.hasPrefix(word) { return true }
+            // Edit distance — allow 2 edits for words of similar length
+            if abs(word.count - wake.count) <= 2 && editDistance(word, wake) <= 2 { return true }
+        }
+
+        // Multi-word run match (e.g. "a micah" → "amica")
+        let joined = words.joined()
+        if joined.contains(wake) { return true }
+
+        return false
+    }
+
+    private func editDistance(_ a: String, _ b: String) -> Int {
+        let a = Array(a), b = Array(b)
+        var dp = Array(0...b.count)
+        for i in 1...a.count {
+            var prev = dp[0]
+            dp[0] = i
+            for j in 1...b.count {
+                let temp = dp[j]
+                if a[i-1] == b[j-1] {
+                    dp[j] = prev
+                } else {
+                    dp[j] = 1 + min(prev, dp[j], dp[j-1])
+                }
+                prev = temp
+            }
+        }
+        return dp[b.count]
     }
 
     private func handleCommandTranscript(_ transcript: String) {
@@ -266,7 +310,7 @@ final class WakeWordManager: NSObject {
 
         logger.info("[WakeWord] Command ready: \(text)")
         state = .idle
-        onCommandReady?(text)
+        readyCommand = text
         // Resume wake word listening after sending
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(500))

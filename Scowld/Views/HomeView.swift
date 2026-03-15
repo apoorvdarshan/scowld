@@ -128,6 +128,23 @@ struct HomeView: View {
                 messageText = speechManager.recognizedText
             }
         }
+        .onChange(of: wakeWordManager.wakeWordTriggered) {
+            if wakeWordManager.wakeWordTriggered {
+                wakeWordManager.wakeWordTriggered = false
+                stopTTS()
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+                logger.info("[WakeWord] Wake word detected — listening for command")
+            }
+        }
+        .onChange(of: wakeWordManager.readyCommand) {
+            if let text = wakeWordManager.readyCommand {
+                wakeWordManager.readyCommand = nil
+                messageText = text
+                sendMessage()
+                logger.info("[WakeWord] Command sent: \(text)")
+            }
+        }
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
@@ -216,22 +233,6 @@ struct HomeView: View {
     private func setupWakeWord() {
         let handsFreeEnabled = UserDefaults.standard.bool(forKey: "hands_free_mode")
         wakeWordManager.wakeWord = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
-
-        wakeWordManager.onWakeWordDetected = { [self] in
-            // Stop any TTS playing in WKWebView
-            stopTTS()
-            // Haptic feedback
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            generator.impactOccurred()
-            logger.info("[WakeWord] Wake word detected — listening for command")
-        }
-
-        wakeWordManager.onCommandReady = { [self] text in
-            messageText = text
-            sendMessage()
-            logger.info("[WakeWord] Command sent: \(text)")
-        }
-
         wakeWordManager.isEnabled = handsFreeEnabled
     }
 
