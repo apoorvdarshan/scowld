@@ -65,7 +65,7 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .glassEffect()
+                    .background(.bar)
                 }
             }
             .tabItem {
