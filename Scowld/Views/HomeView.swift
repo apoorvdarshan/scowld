@@ -78,8 +78,9 @@ struct HomeView: View {
                             amicaCoordinator?.webView?.evaluateJavaScript("""
                                 (function() {
                                     var video = document.querySelector('video');
-                                    if (video && video.parentElement) {
-                                        video.parentElement.style.display = '\(displayVal)';
+                                    if (video) {
+                                        video.style.display = '\(displayVal)';
+                                        if (video.parentElement) video.parentElement.style.display = '\(displayVal)';
                                     }
                                 })();
                             """)
@@ -916,25 +917,28 @@ struct AmicaFullView: UIViewRepresentable {
             // Force full-screen coverage via CSS
             webView.evaluateJavaScript("""
                 var s = document.createElement('style');
-                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; }';
+                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; } video { display: none !important; }';
                 document.head.appendChild(s);
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
-            // Enable webcam by default but hide the preview
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                webView.evaluateJavaScript("window.__toggleWebcam && window.__toggleWebcam(true);")
-                // Hide video preview after webcam starts
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    webView.evaluateJavaScript("""
-                        (function() {
-                            var video = document.querySelector('video');
-                            if (video && video.parentElement) {
-                                video.parentElement.style.display = 'none';
-                            }
-                        })();
-                    """)
-                }
+            // Enable webcam by default (preview hidden via CSS)
+            // Retry until Amica's __toggleWebcam function is available
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                webView.evaluateJavaScript("""
+                    (function enableCam() {
+                        if (window.__toggleWebcam) {
+                            window.__toggleWebcam(true);
+                            // Also hide the video container (parent of video)
+                            setTimeout(function() {
+                                var v = document.querySelector('video');
+                                if (v && v.parentElement) v.parentElement.style.display = 'none';
+                            }, 500);
+                        } else {
+                            setTimeout(enableCam, 1000);
+                        }
+                    })();
+                """)
             }
             // Style webcam overlay buttons to be more visible
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
