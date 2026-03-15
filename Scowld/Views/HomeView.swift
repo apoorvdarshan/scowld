@@ -106,18 +106,8 @@ struct HomeView: View {
                             .foregroundStyle(handsFreeIconColor)
                     }
 
-                    TextField("Message...", text: $messageText)
-                        .textFieldStyle(.roundedBorder)
-                        .submitLabel(.send)
-                        .onSubmit { stopAndSend() }
-
-                    Button {
-                        stopAndSend()
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .foregroundStyle(.amicaBlue)
-                    }
-                    .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    messageField
+                    sendButton
                 }
             }
         }
@@ -177,6 +167,28 @@ struct HomeView: View {
                 break
             }
         }
+    }
+
+    private var messageField: some View {
+        TextField("Message...", text: $messageText)
+            .textFieldStyle(.roundedBorder)
+            .submitLabel(.send)
+            .onSubmit { if !isBusy { stopAndSend() } }
+            .disabled(isBusy)
+    }
+
+    private var sendButton: some View {
+        Button {
+            stopAndSend()
+        } label: {
+            Image(systemName: "arrow.up.circle.fill")
+                .foregroundColor(isBusy ? .secondary : .amicaBlue)
+        }
+        .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
+    }
+
+    private var isBusy: Bool {
+        !aiResponseText.isEmpty
     }
 
     private var handsFreeIconName: String {
