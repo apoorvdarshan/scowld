@@ -245,12 +245,48 @@ class AmicaLocalServer {
     private func handleClient(_ client: Int32) {
         defer { close(client) }
 
-        // Read request
+        // Read full request (headers + body)
+        var allData = Data()
         var buffer = [UInt8](repeating: 0, count: 8192)
-        let bytesRead = read(client, &buffer, buffer.count)
-        guard bytesRead > 0 else { return }
+        var headerEndIndex: Int?
 
-        let request = String(bytes: buffer[0..<bytesRead], encoding: .utf8) ?? ""
+        // Read until we have full headers + body
+        while true {
+            let bytesRead = read(client, &buffer, buffer.count)
+            if bytesRead <= 0 { break }
+            allData.append(contentsOf: buffer[0..<bytesRead])
+
+            // Check if we have the full headers
+            if headerEndIndex == nil {
+                if let headerStr = String(data: allData, encoding: .utf8),
+                   let range = headerStr.range(of: "\r\n\r\n") {
+                    headerEndIndex = headerStr.distance(from: headerStr.startIndex, to: range.upperBound)
+
+                    // Check Content-Length to know how much body to read
+                    let headers = String(headerStr[..<range.lowerBound])
+                    if let clLine = headers.lowercased().components(separatedBy: "\r\n").first(where: { $0.hasPrefix("content-length:") }),
+                       let cl = Int(clLine.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) {
+                        let totalNeeded = headerEndIndex! + cl
+                        if allData.count >= totalNeeded { break }
+                        continue
+                    } else {
+                        break // No Content-Length, we have everything
+                    }
+                }
+            } else {
+                // Already found headers, check if we have enough body
+                let headers = String(data: allData[0..<headerEndIndex!], encoding: .utf8) ?? ""
+                if let clLine = headers.lowercased().components(separatedBy: "\r\n").first(where: { $0.hasPrefix("content-length:") }),
+                   let cl = Int(clLine.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) {
+                    if allData.count >= headerEndIndex! + cl { break }
+                } else {
+                    break
+                }
+            }
+        }
+
+        guard !allData.isEmpty else { return }
+        let request = String(data: allData, encoding: .utf8) ?? ""
         let lines = request.components(separatedBy: "\r\n")
         guard let firstLine = lines.first else { return }
 
@@ -259,6 +295,12 @@ class AmicaLocalServer {
 
         let method = String(parts[0])
         var path = String(parts[1])
+
+        // Extract body as raw Data
+        let requestBody: Data? = {
+            guard let idx = headerEndIndex, idx < allData.count else { return nil }
+            return allData[idx...]
+        }()
         if path == "/" { path = "/index.html" }
 
         // URL decode
@@ -268,14 +310,14 @@ class AmicaLocalServer {
         // Intercept /api/elevenlabs/* and proxy to api.elevenlabs.io (bypasses CORS)
         if path.hasPrefix("/api/elevenlabs/") {
             let elPath = String(path.dropFirst("/api/elevenlabs".count))
-            handleElevenLabsProxy(client: client, method: method, elPath: elPath, request: request)
+            handleElevenLabsProxy(client: client, method: method, elPath: elPath, body: requestBody)
             return
         }
 
         // MARK: - OpenAI TTS Proxy
         if path.hasPrefix("/api/openai-tts/") {
             let oaiPath = String(path.dropFirst("/api/openai-tts".count))
-            handleOpenAITTSProxy(client: client, method: method, oaiPath: oaiPath, request: request)
+            handleOpenAITTSProxy(client: client, method: method, oaiPath: oaiPath, body: requestBody)
             return
         }
 
@@ -346,13 +388,7 @@ class AmicaLocalServer {
         }
     }
 
-    private func extractBody(from request: String) -> Data? {
-        guard let range = request.range(of: "\r\n\r\n") else { return nil }
-        let bodyStr = String(request[range.upperBound...])
-        return bodyStr.isEmpty ? nil : bodyStr.data(using: .utf8)
-    }
-
-    private func handleElevenLabsProxy(client: Int32, method: String, elPath: String, request: String) {
+    private func handleElevenLabsProxy(client: Int32, method: String, elPath: String, body: Data?) {
         let apiKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
         guard !apiKey.isEmpty else {
             sendResponse(client: client, data: Data("{\"error\":\"No ElevenLabs API key\"}".utf8), mimeType: "application/json", statusCode: 401)
@@ -373,8 +409,13 @@ class AmicaLocalServer {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
 
-        if method == "POST", let body = extractBody(from: request) {
+        if method == "POST" {
             urlRequest.httpBody = body
+        }
+
+        logger.info("[Proxy] ElevenLabs \(method) \(fullPath) bodyLen=\(body?.count ?? 0)")
+        if let body, let bodyStr = String(data: body, encoding: .utf8) {
+            logger.info("[Proxy] ElevenLabs body: \(bodyStr.prefix(200))")
         }
 
         let semaphore = DispatchSemaphore(value: 0)
@@ -394,10 +435,13 @@ class AmicaLocalServer {
         semaphore.wait()
 
         logger.info("[Proxy] ElevenLabs \(method) \(fullPath) -> \(responseCode) (\(responseData.count) bytes)")
+        if responseCode != 200, let errStr = String(data: responseData, encoding: .utf8) {
+            logger.error("[Proxy] ElevenLabs error: \(errStr.prefix(300))")
+        }
         sendResponse(client: client, data: responseData, mimeType: responseMime, statusCode: responseCode)
     }
 
-    private func handleOpenAITTSProxy(client: Int32, method: String, oaiPath: String, request: String) {
+    private func handleOpenAITTSProxy(client: Int32, method: String, oaiPath: String, body: Data?) {
         let apiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
         guard !apiKey.isEmpty else {
             sendResponse(client: client, data: Data("{\"error\":\"No OpenAI API key\"}".utf8), mimeType: "application/json", statusCode: 401)
@@ -416,7 +460,7 @@ class AmicaLocalServer {
         urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        if method == "POST", let body = extractBody(from: request) {
+        if method == "POST" {
             urlRequest.httpBody = body
         }
 
