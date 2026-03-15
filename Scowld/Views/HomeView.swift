@@ -74,13 +74,18 @@ struct HomeView: View {
                     Menu {
                         Button {
                             cameraPreviewVisible.toggle()
-                            let displayVal = cameraPreviewVisible ? "block" : "none"
                             amicaCoordinator?.webView?.evaluateJavaScript("""
                                 (function() {
-                                    var video = document.querySelector('video');
-                                    if (video) {
-                                        video.style.display = '\(displayVal)';
-                                        if (video.parentElement) video.parentElement.style.display = '\(displayVal)';
+                                    var v = document.querySelector('video');
+                                    if (v && v.parentElement) {
+                                        var show = \(cameraPreviewVisible);
+                                        if (show) {
+                                            v.parentElement.style.cssText = '';
+                                            v.style.cssText = '';
+                                        } else {
+                                            v.parentElement.style.cssText = 'position:fixed !important; left:-9999px !important; opacity:0 !important; pointer-events:none !important;';
+                                            v.style.cssText = 'width:1px !important; height:1px !important;';
+                                        }
                                     }
                                 })();
                             """)
@@ -917,23 +922,28 @@ struct AmicaFullView: UIViewRepresentable {
             // Force full-screen coverage via CSS
             webView.evaluateJavaScript("""
                 var s = document.createElement('style');
-                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; } video { display: none !important; }';
+                s.textContent = 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; } body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; } canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; }';
                 document.head.appendChild(s);
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
-            // Enable webcam by default (preview hidden via CSS)
-            // Retry until Amica's __toggleWebcam function is available
+            // Enable webcam by default with preview hidden
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 webView.evaluateJavaScript("""
                     (function enableCam() {
                         if (window.__toggleWebcam) {
                             window.__toggleWebcam(true);
-                            // Also hide the video container (parent of video)
-                            setTimeout(function() {
+                            // Hide the preview container but keep video element active
+                            (function hidePreview() {
                                 var v = document.querySelector('video');
-                                if (v && v.parentElement) v.parentElement.style.display = 'none';
-                            }, 500);
+                                if (v && v.parentElement) {
+                                    var container = v.parentElement;
+                                    container.style.cssText = 'position:fixed !important; left:-9999px !important; opacity:0 !important; pointer-events:none !important;';
+                                    v.style.cssText = 'width:1px !important; height:1px !important;';
+                                } else {
+                                    setTimeout(hidePreview, 500);
+                                }
+                            })();
                         } else {
                             setTimeout(enableCam, 1000);
                         }
