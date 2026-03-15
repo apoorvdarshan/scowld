@@ -345,9 +345,11 @@ final class WakeWordManager: NSObject {
         state = .idle
         debugTranscript = ""
         readyCommand = text
-        // Ensure audio session is set for playback so TTS can be heard
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        // Ensure audio session is set for playback so TTS can be heard through speaker
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
+        // Also override output to speaker (not earpiece)
+        try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
         // Don't auto-restart here — HomeView will call resumeWakeListening() after TTS
     }
 }
