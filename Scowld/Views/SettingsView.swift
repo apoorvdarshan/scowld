@@ -25,8 +25,7 @@ struct SettingsView: View {
     // MARK: - STT Settings
     @State private var sttBackend: String = "native_ios"
 
-    // MARK: - Vision Settings
-    @State private var visionBackend: String = "none"
+    // Vision is handled automatically by the selected LLM provider
 
     var memoryStore: MemoryStore
 
@@ -233,20 +232,6 @@ struct SettingsView: View {
                     }
                 }
 
-                // MARK: - Vision
-                Section {
-                    Picker("Backend", selection: $visionBackend) {
-                        Text("Gemini").tag("chatgpt")
-                        Text("Ollama").tag("ollama")
-                        Text("None").tag("none")
-                    }
-                    .onChange(of: visionBackend) { hasChanges = true }
-                } header: {
-                    Label("Vision", systemImage: "eye")
-                } footer: {
-                    Text("Enables the character to see via camera. Uses your LLM provider's vision API.")
-                }
-
 
 
                 // MARK: - Memory Management
@@ -337,7 +322,6 @@ struct SettingsView: View {
         // Amica backend settings
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
-        visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
 
         // Load existing keys into fields
@@ -365,7 +349,6 @@ struct SettingsView: View {
         // Amica backend settings
         defaults.set(ttsBackend, forKey: "amica_tts_backend")
         defaults.set(sttBackend, forKey: "amica_stt_backend")
-        defaults.set(visionBackend, forKey: "amica_vision_backend")
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
 
         // Save or clear API keys in Keychain

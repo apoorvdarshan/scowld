@@ -359,7 +359,9 @@ struct AmicaFullView: UIViewRepresentable {
         let defaults = UserDefaults.standard
         let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "elevenlabs"
         let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
-        let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
+        let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
+        let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
+        let visionBackend = visionEnabled ? "native_ios" : "none"
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
         let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
@@ -541,9 +543,16 @@ struct AmicaFullView: UIViewRepresentable {
                 return ChatMessage(role: role, content: content)
             }
 
+            // Check if current provider supports vision
+            let defaults = UserDefaults.standard
+            let providerStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
+            let currentProvider = AIProvider(rawValue: providerStr)
+            let supportsVision = currentProvider?.supportsVision ?? false
+
             do {
                 let response: String
-                if let imageBase64 = imageData,
+                if supportsVision,
+                   let imageBase64 = imageData,
                    !imageBase64.isEmpty,
                    let imgData = Data(base64Encoded: imageBase64),
                    let image = UIImage(data: imgData) {
