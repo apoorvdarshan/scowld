@@ -39,31 +39,37 @@ struct HomeView: View {
                     amicaCoordinator = coord
                 })
                 .ignoresSafeArea()
+                .navigationTitle("Scowld")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        HStack(spacing: 8) {
-                            Button {
-                                toggleListening()
-                            } label: {
-                                Image(systemName: isListening ? "stop.fill" : "mic.fill")
-                                    .foregroundStyle(isListening ? .red : .amicaBlue)
-                            }
-
-                            TextField("Message...", text: $messageText)
-                                .textFieldStyle(.roundedBorder)
-                                .submitLabel(.send)
-                                .onSubmit { stopAndSend() }
-
-                            Button {
-                                stopAndSend()
-                            } label: {
-                                Image(systemName: "arrow.up.circle.fill")
-                                    .foregroundStyle(.amicaBlue)
-                            }
-                            .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+                .safeAreaInset(edge: .bottom) {
+                    HStack(spacing: 12) {
+                        Button {
+                            toggleListening()
+                        } label: {
+                            Image(systemName: isListening ? "stop.fill" : "mic.fill")
+                                .font(.title3)
+                                .foregroundStyle(isListening ? .red : .amicaBlue)
                         }
+
+                        TextField("Message...", text: $messageText)
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.send)
+                            .onSubmit { stopAndSend() }
+
+                        Button {
+                            stopAndSend()
+                        } label: {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.amicaBlue)
+                        }
+                        .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .glassEffect(.regular, in: .capsule)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4)
                 }
             }
             .tabItem {
