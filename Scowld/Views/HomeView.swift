@@ -247,40 +247,40 @@ class AmicaLocalServer {
 
         // Read full request (headers + body)
         var allData = Data()
-        var buffer = [UInt8](repeating: 0, count: 16384)
-        let separator: [UInt8] = [0x0D, 0x0A, 0x0D, 0x0A] // \r\n\r\n
-        var headerEndByteIndex: Int?
-        var contentLength: Int = 0
+        var buffer = [UInt8](repeating: 0, count: 65536)
+        let separator = Data([0x0D, 0x0A, 0x0D, 0x0A]) // \r\n\r\n
+        var contentLength = 0
+        var headerEnd = 0
 
-        while true {
-            let bytesRead = read(client, &buffer, buffer.count)
-            if bytesRead <= 0 { break }
-            allData.append(contentsOf: buffer[0..<bytesRead])
+        // First read — usually gets headers + body for small requests
+        let firstRead = read(client, &buffer, buffer.count)
+        guard firstRead > 0 else { return }
+        allData.append(contentsOf: buffer[0..<firstRead])
 
-            if headerEndByteIndex == nil {
-                // Search for \r\n\r\n in raw bytes
-                if let sepRange = allData.range(of: Data(separator)) {
-                    headerEndByteIndex = sepRange.upperBound
-                    // Parse Content-Length from header bytes
-                    if let headerStr = String(data: allData[0..<sepRange.lowerBound], encoding: .utf8) {
-                        for line in headerStr.components(separatedBy: "\r\n") {
-                            if line.lowercased().hasPrefix("content-length:") {
-                                contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
-                            }
-                        }
-                    }
-                    if allData.count >= headerEndByteIndex! + contentLength { break }
+        // Find header/body boundary
+        guard let sepRange = allData.range(of: separator) else { return }
+        headerEnd = sepRange.upperBound
+
+        // Parse Content-Length
+        if let headerStr = String(data: allData[0..<sepRange.lowerBound], encoding: .utf8) {
+            for line in headerStr.components(separatedBy: "\r\n") {
+                if line.lowercased().hasPrefix("content-length:") {
+                    contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
                 }
-            } else {
-                if allData.count >= headerEndByteIndex! + contentLength { break }
             }
         }
 
-        guard !allData.isEmpty, let headerEnd = headerEndByteIndex else { return }
-        let headerData = allData[0..<headerEnd]
-        let requestBody: Data? = headerEnd < allData.count ? Data(allData[headerEnd...]) : nil
+        // Read remaining body if needed
+        let totalNeeded = headerEnd + contentLength
+        while allData.count < totalNeeded {
+            let n = read(client, &buffer, min(buffer.count, totalNeeded - allData.count))
+            if n <= 0 { break }
+            allData.append(contentsOf: buffer[0..<n])
+        }
 
-        let headerStr = String(data: headerData, encoding: .utf8) ?? ""
+        let requestBody: Data? = headerEnd < allData.count ? Data(allData[headerEnd..<min(allData.count, totalNeeded)]) : nil
+
+        let headerStr = String(data: allData[0..<sepRange.lowerBound], encoding: .utf8) ?? ""
         let lines = headerStr.components(separatedBy: "\r\n")
         guard let firstLine = lines.first else { return }
 
