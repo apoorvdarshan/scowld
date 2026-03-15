@@ -28,7 +28,7 @@ struct HomeView: View {
     @State private var cameraEnabled = false
     @State private var showSettings = false
     @State private var showMemories = false
-    @State private var wakeWordManager = WakeWordManager()
+    @State private var voiceManager = VoiceManager()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -40,8 +40,8 @@ struct HomeView: View {
                 .ignoresSafeArea()
 
                 // Debug overlay for wake word
-                if wakeWordManager.isEnabled && !wakeWordManager.debugTranscript.isEmpty {
-                    Text(wakeWordManager.debugTranscript)
+                if voiceManager.isEnabled && !voiceManager.transcriptText.isEmpty {
+                    Text(voiceManager.transcriptText)
                         .font(.caption2)
                         .padding(6)
                         .background(.black.opacity(0.7))
@@ -109,10 +109,8 @@ struct HomeView: View {
         }
         .onChange(of: showSettings) {
             if !showSettings {
-                // Re-sync wake word settings after settings close
                 let handsFree = UserDefaults.standard.bool(forKey: "hands_free_mode")
-                wakeWordManager.wakeWord = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
-                wakeWordManager.isEnabled = handsFree
+                voiceManager.isEnabled = handsFree
             }
         }
         .sheet(isPresented: $showMemories) {
@@ -129,42 +127,31 @@ struct HomeView: View {
                 _ = await SpeechManager().requestPermissions()
             }
 
-            setupWakeWord()
+            setupVoice()
         }
-        .onChange(of: wakeWordManager.wakeWordTriggered) {
-            if wakeWordManager.wakeWordTriggered {
-                wakeWordManager.wakeWordTriggered = false
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-                logger.info("[WakeWord] Wake word detected — listening for command")
-            }
-        }
-        .onChange(of: wakeWordManager.readyCommand) {
-            if let text = wakeWordManager.readyCommand {
-                wakeWordManager.readyCommand = nil
+        .onChange(of: voiceManager.readyCommand) {
+            if let text = voiceManager.readyCommand {
+                voiceManager.readyCommand = nil
                 messageText = text
                 sendMessage()
                 logger.info("[WakeWord] Command sent: \(text)")
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
-            guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
-            logger.info("[HomeView] TTS done — resuming command listening")
-            // 2s delay so mic doesn't pick up tail end of audio
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
-                wakeWordManager.startCommandListening()
-            }
+            voiceManager.onTTSDone()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .voiceInterrupt)) { _ in
+            stopTTS()
         }
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
-                if wakeWordManager.isEnabled {
-                    wakeWordManager.startWakeWordListening()
+                if voiceManager.isEnabled {
+                    voiceManager.startListening()
                 }
             case .inactive, .background:
-                if wakeWordManager.isEnabled {
-                    wakeWordManager.stop()
+                if voiceManager.isEnabled {
+                    voiceManager.stop()
                 }
             @unknown default:
                 break
@@ -173,23 +160,27 @@ struct HomeView: View {
     }
 
     private var handsFreeIconName: String {
-        if !wakeWordManager.isEnabled { return "mic.slash" }
-        switch wakeWordManager.state {
-        case .commandListening: return "waveform"
-        case .wakeListening: return "mic.fill"
+        if !voiceManager.isEnabled { return "mic.slash" }
+        switch voiceManager.state {
+        case .listening: return "waveform"
+        case .waitingForTTS: return "speaker.wave.2.fill"
         case .idle: return "mic.fill"
         }
     }
 
     private var handsFreeIconColor: Color {
-        if !wakeWordManager.isEnabled { return .secondary }
-        return .amicaBlue
+        if !voiceManager.isEnabled { return .secondary }
+        switch voiceManager.state {
+        case .listening: return .green
+        case .waitingForTTS: return .orange
+        case .idle: return .amicaBlue
+        }
     }
 
     private func toggleHandsFree() {
-        wakeWordManager.isEnabled.toggle()
-        UserDefaults.standard.set(wakeWordManager.isEnabled, forKey: "hands_free_mode")
-        if wakeWordManager.isEnabled {
+        voiceManager.isEnabled.toggle()
+        UserDefaults.standard.set(voiceManager.isEnabled, forKey: "hands_free_mode")
+        if voiceManager.isEnabled {
             let generator = UIImpactFeedbackGenerator(style: .medium)
             generator.impactOccurred()
         }
@@ -204,14 +195,9 @@ struct HomeView: View {
         guard !text.isEmpty else { return }
         messageText = ""
 
-        // Ensure audio session is in playback mode so TTS plays through speaker
-        if wakeWordManager.isEnabled {
-            wakeWordManager.pauseForTTS()
-            // Command listening resumes when tts_done fires; fallback after 15s
-            DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
-                guard wakeWordManager.isEnabled, wakeWordManager.state == .idle else { return }
-                wakeWordManager.startCommandListening()
-            }
+        // Pause listening so TTS plays through speaker
+        if voiceManager.isEnabled {
+            voiceManager.pauseForTTS()
         } else {
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try? AVAudioSession.sharedInstance().setActive(true)
@@ -237,15 +223,12 @@ struct HomeView: View {
 
     // MARK: - Wake Word
 
-    private func setupWakeWord() {
+    private func setupVoice() {
         let defaults = UserDefaults.standard
-        // Default to enabled if never set
         if defaults.object(forKey: "hands_free_mode") == nil {
             defaults.set(true, forKey: "hands_free_mode")
         }
-        let handsFreeEnabled = defaults.bool(forKey: "hands_free_mode")
-        wakeWordManager.wakeWord = defaults.string(forKey: "character_name") ?? "Scowlly"
-        wakeWordManager.isEnabled = handsFreeEnabled
+        voiceManager.isEnabled = defaults.bool(forKey: "hands_free_mode")
     }
 
     private func stopTTS() {

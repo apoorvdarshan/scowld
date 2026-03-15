@@ -2,52 +2,46 @@ import AVFoundation
 import Speech
 import os
 
-private let logger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "WakeWord")
+private let logger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "Voice")
 
-// MARK: - Wake Word Manager
+// MARK: - Voice Manager
 
-enum WakeWordState {
+enum VoiceState {
     case idle
-    case wakeListening
-    case commandListening
+    case listening
+    case waitingForTTS
 }
 
 @Observable
 @MainActor
-final class WakeWordManager: NSObject {
+final class VoiceManager: NSObject {
     // MARK: - Public State
-    var state: WakeWordState = .idle
-    var commandText: String = ""
+    var state: VoiceState = .idle
+    var transcriptText: String = ""
+    var readyCommand: String? = nil
     var isEnabled: Bool = false {
         didSet {
             if isEnabled {
-                startWakeWordListening()
+                startListening()
             } else {
                 stop()
             }
         }
     }
 
-    // MARK: - Observable Events (used by SwiftUI instead of closures)
-    var wakeWordTriggered: Bool = false
-    var readyCommand: String? = nil
-    var debugTranscript: String = ""  // Shows what the recognizer is hearing
-
-    // MARK: - Configuration
-    var wakeWord: String = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
-
     // MARK: - Private
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
-    private var silenceTimer: Timer?
     private var restartTimer: Timer?
-    private var lastTranscriptTime: Date = .now
-    private var commandListeningStartTime: Date = .now
     private var isRestarting = false
     private var silenceWorkItem: DispatchWorkItem?
     private var lastNormalizedText: String = ""
+    private var commandText: String = ""
+    /// Monitors mic amplitude during TTS to detect user speaking (interrupt)
+    private var interruptMonitorTimer: Timer?
+    private var isTTSPlaying = false
 
     private static let silenceTimeout: TimeInterval = 1.5
     private static let maxRecognitionDuration: TimeInterval = 55.0
@@ -58,89 +52,142 @@ final class WakeWordManager: NSObject {
 
     // MARK: - Public API
 
-    func startWakeWordListening() {
-        guard isEnabled else {
-            logger.info("[WakeWord] startWakeWordListening skipped — not enabled")
-            return
-        }
-        guard state == .idle || state == .commandListening else {
-            logger.info("[WakeWord] startWakeWordListening skipped — state is \(String(describing: self.state))")
-            return
-        }
-        commandText = ""
-        state = .wakeListening
-        startRecognition(mode: .wakeWord)
-        logger.info("[WakeWord] Entered WAKE_LISTENING")
-    }
-
-    func startCommandListening() {
-        stopRecognitionInternal()
+    func startListening() {
+        guard isEnabled else { return }
+        silenceWorkItem?.cancel()
+        silenceWorkItem = nil
         commandText = ""
         lastNormalizedText = ""
-        debugTranscript = "Listening..."
-        state = .commandListening
-        lastTranscriptTime = .now
-        logger.info("[WakeWord] Entered COMMAND_LISTENING")
-        // Small delay so the audio engine fully resets before restarting
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(300))
-            guard self.state == .commandListening else { return }
-            self.startRecognition(mode: .command)
-            // If nothing said after 8s, go back to wake listening
-            try? await Task.sleep(for: .seconds(8))
-            if self.state == .commandListening && self.commandText.isEmpty {
-                logger.info("[WakeWord] No speech detected, returning to wake listening")
-                self.stopRecognitionInternal()
-                self.startWakeWordListening()
-            }
-        }
+        transcriptText = ""
+        isTTSPlaying = false
+        stopInterruptMonitor()
+        state = .listening
+        startRecognition()
+        logger.info("[Voice] Started listening")
     }
 
-    /// Stop all listening and switch to playback mode so TTS can be heard.
     func pauseForTTS() {
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
         stopRecognitionInternal()
-        state = .idle
-        // Deactivate and switch to playback so WebView audio plays through speaker
+        state = .waitingForTTS
+        isTTSPlaying = true
+        transcriptText = ""
+        // Switch to playback so TTS plays through speaker
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
         try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-        logger.info("[WakeWord] Paused for TTS playback")
+        logger.info("[Voice] Paused for TTS")
+        // Start monitoring mic for user interrupt
+        startInterruptMonitor()
     }
 
-    /// Call this after TTS/response is done to resume wake word detection
-    func resumeWakeListening() {
-        guard isEnabled, state == .idle else { return }
-        startWakeWordListening()
+    func onTTSDone() {
+        guard isEnabled, state == .waitingForTTS else { return }
+        isTTSPlaying = false
+        stopInterruptMonitor()
+        logger.info("[Voice] TTS done, resuming listening after delay")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self, self.isEnabled, self.state == .waitingForTTS else { return }
+            self.startListening()
+        }
     }
 
     func stop() {
         stopRecognitionInternal()
+        stopInterruptMonitor()
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
         restartTimer?.invalidate()
         restartTimer = nil
         state = .idle
         commandText = ""
-        logger.info("[WakeWord] Stopped")
+        transcriptText = ""
+        isTTSPlaying = false
+        logger.info("[Voice] Stopped")
+    }
+
+    /// Called when user interrupts TTS by speaking
+    func interruptTTS() {
+        guard state == .waitingForTTS, isTTSPlaying else { return }
+        isTTSPlaying = false
+        stopInterruptMonitor()
+        logger.info("[Voice] User interrupted TTS")
+        // Notify to stop TTS
+        NotificationCenter.default.post(name: .voiceInterrupt, object: nil)
+        // Start listening
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self, self.isEnabled else { return }
+            self.startListening()
+        }
+    }
+
+    // MARK: - Interrupt Monitor (amplitude-based)
+
+    private func startInterruptMonitor() {
+        stopInterruptMonitor()
+        // Use a lightweight audio tap to monitor input amplitude during TTS
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .mixWithOthers])
+            try audioSession.setActive(true)
+
+            let inputNode = audioEngine.inputNode
+            let format = inputNode.outputFormat(forBus: 0)
+            var consecutiveLoudFrames = 0
+
+            inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+                // Calculate RMS amplitude
+                let channelData = buffer.floatChannelData?[0]
+                let frameLength = Int(buffer.frameLength)
+                guard let data = channelData, frameLength > 0 else { return }
+
+                var sum: Float = 0
+                for i in 0..<frameLength {
+                    sum += data[i] * data[i]
+                }
+                let rms = sqrt(sum / Float(frameLength))
+
+                // If amplitude is high enough, user might be speaking
+                if rms > 0.05 {
+                    consecutiveLoudFrames += 1
+                } else {
+                    consecutiveLoudFrames = 0
+                }
+
+                // Need sustained loud input (~0.5s worth) to trigger interrupt
+                // 4096 samples at 44100Hz ≈ 0.09s per buffer, so ~5 buffers ≈ 0.5s
+                if consecutiveLoudFrames >= 5 {
+                    consecutiveLoudFrames = 0
+                    Task { @MainActor in
+                        self?.interruptTTS()
+                    }
+                }
+            }
+
+            audioEngine.prepare()
+            try audioEngine.start()
+        } catch {
+            logger.error("[Voice] Failed to start interrupt monitor: \(error.localizedDescription)")
+        }
+    }
+
+    private func stopInterruptMonitor() {
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+        }
     }
 
     // MARK: - Recognition
 
-    private enum RecognitionMode {
-        case wakeWord
-        case command
-    }
-
-    private func startRecognition(mode: RecognitionMode) {
+    private func startRecognition() {
         guard let speechRecognizer, speechRecognizer.isAvailable else {
-            logger.error("[WakeWord] Speech recognizer not available")
+            logger.error("[Voice] Speech recognizer not available")
             return
         }
 
-        // Stop any existing recognition
         stopRecognitionInternal()
 
         do {
@@ -158,29 +205,18 @@ final class WakeWordManager: NSObject {
                     guard let self else { return }
                     if let result {
                         let transcript = result.bestTranscription.formattedString
-                        switch mode {
-                        case .wakeWord:
-                            self.handleWakeWordTranscript(transcript)
-                        case .command:
-                            self.handleCommandTranscript(transcript)
-                        }
+                        self.handleTranscript(transcript)
                     }
                     if let error {
-                        // Error code 216 = recognition ended normally, 209 = retry needed
                         let nsError = error as NSError
-                        if nsError.domain == "kAFAssistantErrorDomain" && (nsError.code == 216 || nsError.code == 209 || nsError.code == 203) {
-                            logger.info("[WakeWord] Recognition ended (code \(nsError.code)), restarting...")
-                            self.scheduleRestart(mode: mode)
-                        } else {
-                            logger.error("[WakeWord] Recognition error: \(error.localizedDescription)")
-                            self.scheduleRestart(mode: mode)
-                        }
+                        logger.info("[Voice] Recognition ended (code \(nsError.code)), restarting...")
+                        self.scheduleRestart()
                     } else if result?.isFinal == true {
-                        if mode == .wakeWord {
-                            self.scheduleRestart(mode: mode)
-                        } else if mode == .command && !self.commandText.isEmpty {
-                            logger.info("[WakeWord] Recognition finalized, sending command")
+                        if !self.commandText.isEmpty {
+                            logger.info("[Voice] Recognition finalized, sending")
                             self.finishCommand()
+                        } else {
+                            self.scheduleRestart()
                         }
                     }
                 }
@@ -195,24 +231,21 @@ final class WakeWordManager: NSObject {
             audioEngine.prepare()
             try audioEngine.start()
 
-            // Auto-restart before Apple's 60s limit (wake word mode only)
-            if mode == .wakeWord {
-                restartTimer?.invalidate()
-                restartTimer = Timer.scheduledTimer(withTimeInterval: Self.maxRecognitionDuration, repeats: false) { [weak self] _ in
-                    Task { @MainActor in
-                        guard let self, self.state == .wakeListening else { return }
-                        logger.info("[WakeWord] Auto-restart at 55s limit")
-                        self.scheduleRestart(mode: .wakeWord)
-                    }
+            // Auto-restart before Apple's 60s limit
+            restartTimer?.invalidate()
+            restartTimer = Timer.scheduledTimer(withTimeInterval: Self.maxRecognitionDuration, repeats: false) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.state == .listening else { return }
+                    logger.info("[Voice] Auto-restart at 55s limit")
+                    self.scheduleRestart()
                 }
             }
         } catch {
-            logger.error("[WakeWord] Failed to start recognition: \(error.localizedDescription)")
-            // Retry after a delay
+            logger.error("[Voice] Failed to start recognition: \(error.localizedDescription)")
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1))
-                if self.isEnabled && self.state != .idle {
-                    self.startRecognition(mode: mode)
+                if self.isEnabled && self.state == .listening {
+                    self.startRecognition()
                 }
             }
         }
@@ -232,7 +265,7 @@ final class WakeWordManager: NSObject {
         recognitionTask = nil
     }
 
-    private func scheduleRestart(mode: RecognitionMode) {
+    private func scheduleRestart() {
         guard isEnabled, !isRestarting else { return }
         isRestarting = true
         stopRecognitionInternal()
@@ -240,115 +273,35 @@ final class WakeWordManager: NSObject {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(200))
             self.isRestarting = false
-            guard self.isEnabled else { return }
-            switch mode {
-            case .wakeWord where self.state == .wakeListening:
-                self.startRecognition(mode: .wakeWord)
-            case .command where self.state == .commandListening:
-                self.startRecognition(mode: .command)
-            default:
-                break
-            }
+            guard self.isEnabled, self.state == .listening else { return }
+            self.startRecognition()
         }
     }
 
     // MARK: - Transcript Handling
 
-    private func handleWakeWordTranscript(_ transcript: String) {
-        debugTranscript = transcript
-        logger.info("[WakeWord] Heard: \(transcript)")
-        if matchesWakeWord(transcript) {
-            logger.info("[WakeWord] MATCH for '\(self.wakeWord)' in: \(transcript)")
-            wakeWordTriggered = true
-            startCommandListening()
-        }
-    }
+    private func handleTranscript(_ transcript: String) {
+        let clean = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        transcriptText = clean
+        commandText = clean
 
-    /// Fuzzy match: checks if the transcript contains the wake word or sounds similar.
-    /// Speech recognizer often mishears uncommon names (e.g. "Amica" → "America", "a Micah").
-    private func matchesWakeWord(_ transcript: String) -> Bool {
-        let lower = transcript.lowercased()
-        let wake = wakeWord.lowercased()
-
-        // Exact substring match
-        if lower.contains(wake) { return true }
-
-        // Check each word in transcript for close match
-        let words = lower.components(separatedBy: .whitespacesAndNewlines)
-        for word in words {
-            // Starts-with match (e.g. "amica" matches "america")
-            if word.hasPrefix(wake) || wake.hasPrefix(word) { return true }
-            // Edit distance — allow 2 edits for words of similar length
-            if abs(word.count - wake.count) <= 2 && editDistance(word, wake) <= 2 { return true }
-        }
-
-        // Multi-word run match (e.g. "a micah" → "amica")
-        let joined = words.joined()
-        if joined.contains(wake) { return true }
-
-        return false
-    }
-
-    private func editDistance(_ a: String, _ b: String) -> Int {
-        let a = Array(a), b = Array(b)
-        var dp = Array(0...b.count)
-        for i in 1...a.count {
-            var prev = dp[0]
-            dp[0] = i
-            for j in 1...b.count {
-                let temp = dp[j]
-                if a[i-1] == b[j-1] {
-                    dp[j] = prev
-                } else {
-                    dp[j] = 1 + min(prev, dp[j], dp[j-1])
-                }
-                prev = temp
-            }
-        }
-        return dp[b.count]
-    }
-
-    private func handleCommandTranscript(_ transcript: String) {
-        let cleanTranscript = stripWakeWord(from: transcript)
-        debugTranscript = cleanTranscript.isEmpty ? "..." : cleanTranscript
-        logger.info("[WakeWord] Command transcript: '\(cleanTranscript)'")
-        commandText = cleanTranscript
-        // Only reschedule auto-send if the actual words changed (ignore case/punctuation)
-        let normalized = cleanTranscript.lowercased().filter { $0.isLetter || $0.isWhitespace }
-        let previousNormalized = lastNormalizedText
-        if normalized != previousNormalized {
+        let normalized = clean.lowercased().filter { $0.isLetter || $0.isWhitespace }
+        if normalized != lastNormalizedText {
             lastNormalizedText = normalized
             scheduleSilenceCheck()
         }
     }
 
     private func scheduleSilenceCheck() {
-        // Cancel previous pending send
         silenceWorkItem?.cancel()
-        // Schedule new one — fires 1.5s after last text change
         let workItem = DispatchWorkItem { [weak self] in
             Task { @MainActor in
-                guard let self, self.state == .commandListening, !self.commandText.isEmpty else { return }
+                guard let self, self.state == .listening, !self.commandText.isEmpty else { return }
                 self.finishCommand()
             }
         }
         silenceWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.silenceTimeout, execute: workItem)
-    }
-
-    private func stripWakeWord(from transcript: String) -> String {
-        // Remove the wake word (or fuzzy variants) from the beginning
-        var text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        let wake = wakeWord.lowercased()
-        let words = text.components(separatedBy: .whitespaces)
-        // Check if first word is the wake word or close to it
-        if let firstWord = words.first?.lowercased() {
-            if firstWord.contains(wake) || wake.contains(firstWord)
-                || editDistance(firstWord, wake) <= 2 {
-                text = words.dropFirst().joined(separator: " ")
-            }
-        }
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func finishCommand() {
@@ -358,14 +311,19 @@ final class WakeWordManager: NSObject {
         stopRecognitionInternal()
 
         guard !text.isEmpty else {
-            startWakeWordListening()
+            if isEnabled { startListening() }
             return
         }
 
-        logger.info("[WakeWord] Command ready: \(text)")
-        debugTranscript = ""
+        logger.info("[Voice] Command ready: \(text)")
+        transcriptText = ""
         readyCommand = text
-        // Switch to playback mode so TTS plays through speaker
         pauseForTTS()
     }
+}
+
+// MARK: - Notifications
+
+extension Notification.Name {
+    static let voiceInterrupt = Notification.Name("voiceInterrupt")
 }
