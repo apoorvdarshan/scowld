@@ -32,21 +32,15 @@ struct HomeView: View {
     @State private var showMemories = false
 
     var body: some View {
-        ZStack {
-            // Full screen character
+        NavigationStack {
             AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
                 amicaCoordinator = coord
             })
             .ignoresSafeArea()
-
-            // Floating UI overlay
-            VStack {
-                // Top bar
-                HStack {
-                    Text("Scowld")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                    Spacer()
+            .navigationTitle("Scowld")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button {
                             cameraEnabled.toggle()
@@ -69,24 +63,17 @@ struct HomeView: View {
                             Label("Settings", systemImage: "gearshape")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.white.opacity(0.8))
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
 
-                Spacer()
-
-                // Bottom input bar
-                HStack(spacing: 10) {
+                ToolbarItemGroup(placement: .bottomBar) {
                     Button {
                         toggleListening()
                     } label: {
-                        Image(systemName: isListening ? "stop.circle.fill" : "mic.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(isListening ? .red : .white.opacity(0.9))
+                        Image(systemName: isListening ? "stop.fill" : "mic.fill")
+                            .foregroundStyle(isListening ? .red : .orange)
                     }
 
                     TextField("Message...", text: $messageText)
@@ -98,16 +85,10 @@ struct HomeView: View {
                         stopAndSend()
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
                             .foregroundStyle(.orange)
                     }
                     .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-                .padding(.horizontal, 8)
-                .padding(.bottom, 4)
             }
         }
         .sheet(isPresented: $showSettings) {
