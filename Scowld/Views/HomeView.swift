@@ -30,6 +30,8 @@ struct HomeView: View {
     @State private var cameraEnabled = false
     @State private var showSettings = false
     @State private var showMemories = false
+    @State private var wakeWordManager = WakeWordManager()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -72,8 +74,8 @@ struct HomeView: View {
                     Button {
                         toggleListening()
                     } label: {
-                        Image(systemName: isListening ? "stop.fill" : "mic.fill")
-                            .foregroundStyle(isListening ? .red : .amicaBlue)
+                        Image(systemName: micIconName)
+                            .foregroundStyle(micIconColor)
                     }
 
                     TextField("Message...", text: $messageText)
@@ -94,6 +96,14 @@ struct HomeView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(memoryStore: memoryStore)
         }
+        .onChange(of: showSettings) {
+            if !showSettings {
+                // Re-sync wake word settings after settings close
+                let handsFree = UserDefaults.standard.bool(forKey: "hands_free_mode")
+                wakeWordManager.wakeWord = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
+                wakeWordManager.isEnabled = handsFree
+            }
+        }
         .sheet(isPresented: $showMemories) {
             NavigationStack {
                 MemoryView(memoryStore: memoryStore)
@@ -110,11 +120,45 @@ struct HomeView: View {
             Task {
                 _ = await speechManager.requestPermissions()
             }
+
+            setupWakeWord()
         }
         .onChange(of: speechManager.recognizedText) {
             if isListening {
                 messageText = speechManager.recognizedText
             }
+        }
+        .onChange(of: scenePhase) {
+            switch scenePhase {
+            case .active:
+                if wakeWordManager.isEnabled {
+                    wakeWordManager.startWakeWordListening()
+                }
+            case .inactive, .background:
+                if wakeWordManager.isEnabled {
+                    wakeWordManager.stop()
+                }
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    private var micIconName: String {
+        if isListening { return "stop.fill" }
+        switch wakeWordManager.state {
+        case .commandListening: return "waveform"
+        case .wakeListening: return "mic.fill"
+        case .idle: return "mic.fill"
+        }
+    }
+
+    private var micIconColor: Color {
+        if isListening { return .red }
+        switch wakeWordManager.state {
+        case .commandListening: return .green
+        case .wakeListening: return .orange
+        case .idle: return .amicaBlue
         }
     }
 
@@ -165,6 +209,55 @@ struct HomeView: View {
             speechManager.startListening()
             isListening = true
         }
+    }
+
+    // MARK: - Wake Word
+
+    private func setupWakeWord() {
+        let handsFreeEnabled = UserDefaults.standard.bool(forKey: "hands_free_mode")
+        wakeWordManager.wakeWord = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
+
+        wakeWordManager.onWakeWordDetected = { [self] in
+            // Stop any TTS playing in WKWebView
+            stopTTS()
+            // Haptic feedback
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+            logger.info("[WakeWord] Wake word detected — listening for command")
+        }
+
+        wakeWordManager.onCommandReady = { [self] text in
+            messageText = text
+            sendMessage()
+            logger.info("[WakeWord] Command sent: \(text)")
+        }
+
+        wakeWordManager.isEnabled = handsFreeEnabled
+    }
+
+    private func stopTTS() {
+        amicaCoordinator?.webView?.evaluateJavaScript("""
+            (function() {
+                // Stop all AudioContext sources
+                if (window._allAudioContexts) {
+                    window._allAudioContexts.forEach(function(ctx) {
+                        try { ctx.close(); } catch(e) {}
+                    });
+                    window._allAudioContexts = [];
+                }
+                // Pause all HTML5 audio elements
+                document.querySelectorAll('audio').forEach(function(a) {
+                    a.pause();
+                    a.currentTime = 0;
+                });
+                // Stop any speech synthesis
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+                }
+            })();
+        """)
+        // Also stop native speech manager if it's speaking
+        speechManager.stopSpeaking()
     }
 }
 

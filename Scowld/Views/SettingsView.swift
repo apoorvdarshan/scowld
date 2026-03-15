@@ -25,6 +25,9 @@ struct SettingsView: View {
     // MARK: - STT Settings
     @State private var sttBackend: String = "native_ios"
 
+    // MARK: - Voice Activation
+    @State private var handsFreeMode: Bool = false
+
     // MARK: - Character Settings
     @State private var characterName: String = "Scowlly"
     @State private var systemPrompt: String = ""
@@ -240,6 +243,17 @@ struct SettingsView: View {
 
 
 
+                // MARK: - Voice Activation
+                Section {
+                    Toggle("Hands-Free Mode", isOn: $handsFreeMode)
+                        .tint(.amicaBlue)
+                        .onChange(of: handsFreeMode) { hasChanges = true }
+                } header: {
+                    Label("Voice Activation", systemImage: "waveform.and.mic")
+                } footer: {
+                    Text("Say \"\(characterName)\" to start listening. Auto-sends after a pause.")
+                }
+
                 // MARK: - Character
                 Section {
                     TextField("Name", text: $characterName)
@@ -354,6 +368,7 @@ struct SettingsView: View {
         characterName = defaults.string(forKey: "character_name") ?? "Scowlly"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
+        handsFreeMode = defaults.bool(forKey: "hands_free_mode")
 
         // Load existing keys into fields
         if let existingKey = KeychainManager.load(key: selectedProvider.keychainKey) {
@@ -383,6 +398,7 @@ struct SettingsView: View {
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
         defaults.set(characterName, forKey: "character_name")
         defaults.set(systemPrompt, forKey: "system_prompt")
+        defaults.set(handsFreeMode, forKey: "hands_free_mode")
 
         // Save or clear API keys in Keychain
         if apiKeyInput.isEmpty {
