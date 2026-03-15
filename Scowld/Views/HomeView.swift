@@ -362,6 +362,7 @@ struct AmicaFullView: UIViewRepresentable {
         let visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+        let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
 
         let settingsScript = WKUserScript(
             source: """
@@ -381,7 +382,8 @@ struct AmicaFullView: UIViewRepresentable {
                 vision_backend: '\(visionBackend)',
                 elevenlabs_apikey: '\(elevenLabsKey)',
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
-                elevenlabs_model: 'eleven_flash_v2_5'
+                elevenlabs_model: 'eleven_flash_v2_5',
+                openai_tts_apikey: '\(openaiKey)'
             };
             // Force full screen coverage
             var meta = document.createElement('meta');
@@ -585,6 +587,12 @@ struct AmicaFullView: UIViewRepresentable {
             let savedModel = defaults.string(forKey: "selectedModel") ?? provider.defaultModel
             let model = provider.availableModels.contains(savedModel) ? savedModel : provider.defaultModel
 
+            // OpenAI-compatible providers (OpenRouter, xAI, Together AI, etc.)
+            if let baseURL = provider.baseURL {
+                guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
+                return OpenAICompatibleProvider(baseURL: baseURL, apiKey: apiKey, model: model)
+            }
+
             switch provider {
             case .gemini:
                 guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
@@ -598,6 +606,8 @@ struct AmicaFullView: UIViewRepresentable {
             case .ollama:
                 let url = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
                 return OllamaProvider(baseURL: url, model: model)
+            default:
+                return nil
             }
         }
     }

@@ -133,6 +133,35 @@ struct SettingsView: View {
                     }
                 }
 
+                // MARK: - OpenAI TTS Note
+                if ttsBackend == "openai_tts" {
+                    Section {
+                        Text("Uses the OpenAI API key from your AI Provider settings (if OpenAI is selected), or enter one below.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if selectedProvider != .openai {
+                            HStack {
+                                SecureField("OpenAI API Key for TTS", text: Binding(
+                                    get: { KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "" },
+                                    set: {
+                                        if $0.isEmpty {
+                                            KeychainManager.delete(key: AIProvider.openai.keychainKey)
+                                        } else {
+                                            KeychainManager.save(key: AIProvider.openai.keychainKey, value: $0)
+                                        }
+                                        hasChanges = true
+                                    }
+                                ))
+                                .textContentType(.password)
+                                .autocorrectionDisabled()
+                            }
+                        }
+                    } header: {
+                        Label("OpenAI TTS", systemImage: "speaker.wave.2.circle")
+                    }
+                }
+
                 // MARK: - ElevenLabs Settings
                 if ttsBackend == "elevenlabs" {
                     Section {
