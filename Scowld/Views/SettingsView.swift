@@ -198,6 +198,7 @@ struct SettingsView: View {
                 // MARK: - STT (Speech-to-Text)
                 Section {
                     Picker("Backend", selection: $sttBackend) {
+                        Text("Native iOS").tag("native_ios")
                         Text("OpenAI Whisper API").tag("openai_whisper")
                         Text("Amica (Browser Whisper)").tag("whisper_browser")
                         Text("None (use text input)").tag("none")
@@ -207,6 +208,7 @@ struct SettingsView: View {
                     Label("Speech-to-Text", systemImage: "mic")
                 } footer: {
                     switch sttBackend {
+                    case "native_ios": Text("Built-in iOS speech recognition. Free, on-device, no API needed.")
                     case "openai_whisper": Text("High accuracy, cloud-based. Uses your OpenAI API key.")
                     case "whisper_browser": Text("Runs Whisper locally in the browser. Free, on-device.")
                     default: Text("Voice input disabled. Use text input only.")
