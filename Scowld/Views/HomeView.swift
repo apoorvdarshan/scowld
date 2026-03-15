@@ -560,7 +560,8 @@ struct AmicaFullView: UIViewRepresentable {
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                 elevenlabs_model: 'eleven_flash_v2_5',
                 openai_tts_apikey: '\(openaiKey)',
-                name: '\(characterName)'
+                name: '\(characterName)',
+                system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.'
             };
             // Force full screen coverage
             var meta = document.createElement('meta');
