@@ -41,7 +41,7 @@ final class VoiceManager: NSObject {
     private var commandText: String = ""
     private var isTTSPlaying = false
 
-    private static let silenceTimeout: TimeInterval = 1.5
+    private static let silenceTimeout: TimeInterval = 0.8
     private static let maxRecognitionDuration: TimeInterval = 55.0
 
     override init() {
