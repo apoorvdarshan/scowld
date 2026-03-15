@@ -63,7 +63,7 @@ struct HomeView: View {
                             Label("Settings", systemImage: "gearshape")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
                             .font(.title3)
                     }
                 }
