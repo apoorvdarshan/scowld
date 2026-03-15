@@ -40,7 +40,27 @@ struct HomeView: View {
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Button {
+                        toggleListening()
+                    } label: {
+                        Image(systemName: isListening ? "stop.fill" : "mic.fill")
+                            .foregroundStyle(isListening ? .red : .amicaBlue)
+                    }
+
+                    TextField("Message...", text: $messageText)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.send)
+                        .onSubmit { stopAndSend() }
+
+                    Button {
+                        stopAndSend()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundStyle(.amicaBlue)
+                    }
+                    .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+
                     Menu {
                         Button {
                             cameraEnabled.toggle()
@@ -64,30 +84,8 @@ struct HomeView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
-                            .font(.title3)
-                    }
-                }
-
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button {
-                        toggleListening()
-                    } label: {
-                        Image(systemName: isListening ? "stop.fill" : "mic.fill")
-                            .foregroundStyle(isListening ? .red : .amicaBlue)
-                    }
-
-                    TextField("Message...", text: $messageText)
-                        .textFieldStyle(.roundedBorder)
-                        .submitLabel(.send)
-                        .onSubmit { stopAndSend() }
-
-                    Button {
-                        stopAndSend()
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
                             .foregroundStyle(.amicaBlue)
                     }
-                    .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
