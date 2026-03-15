@@ -27,6 +27,9 @@ struct SettingsView: View {
 
     // MARK: - Character Settings
     @State private var characterName: String = "Scowlly"
+    @State private var systemPrompt: String = ""
+
+    private static let defaultSystemPrompt = "You are a warm, cheerful, and expressive AI companion. You're friendly, playful, and genuinely care about the person you're talking to. You speak naturally and conversationally — like a close friend. Keep responses concise (1-3 sentences). Be expressive and show personality."
 
     // Vision is handled automatically by the selected LLM provider
 
@@ -242,10 +245,21 @@ struct SettingsView: View {
                     TextField("Name", text: $characterName)
                         .autocorrectionDisabled()
                         .onChange(of: characterName) { hasChanges = true }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("System Prompt")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: $systemPrompt)
+                            .frame(minHeight: 100)
+                            .font(.body)
+                            .scrollContentBackground(.hidden)
+                            .onChange(of: systemPrompt) { hasChanges = true }
+                    }
                 } header: {
                     Label("Character", systemImage: "person.fill")
                 } footer: {
-                    Text("Give your AI companion a name.")
+                    Text("Defines your AI companion's personality and behavior.")
                 }
 
                 // MARK: - Memory Management
@@ -338,6 +352,7 @@ struct SettingsView: View {
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
         characterName = defaults.string(forKey: "character_name") ?? "Scowlly"
+        systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
 
         // Load existing keys into fields
@@ -367,6 +382,7 @@ struct SettingsView: View {
         defaults.set(sttBackend, forKey: "amica_stt_backend")
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
         defaults.set(characterName, forKey: "character_name")
+        defaults.set(systemPrompt, forKey: "system_prompt")
 
         // Save or clear API keys in Keychain
         if apiKeyInput.isEmpty {

@@ -105,9 +105,13 @@ struct CharacterPack: Identifiable, Codable, Sendable {
 
 enum SystemPromptTemplate {
     static func build(userName: String?, memories: [String], visionDescription: String?, characterName: String = "Scowlly") -> String {
+        let customPrompt = UserDefaults.standard.string(forKey: "system_prompt") ?? ""
+        let personality = customPrompt.isEmpty
+            ? "You are \(characterName), a friendly and expressive AI assistant with an anime avatar. You are warm, curious, and genuinely care about helping. You speak naturally and conversationally. You're cheerful and engaging, with a playful personality."
+            : "You are \(characterName). \(customPrompt)"
+
         var prompt = """
-        You are \(characterName), a friendly and expressive AI assistant with an anime avatar. You are warm, curious, and genuinely care about helping.
-        You speak naturally and conversationally. You're cheerful and engaging, with a playful personality.
+        \(personality)
 
         IMPORTANT: Start every response with an emotion tag in brackets that reflects the emotional tone of your response.
         Valid emotions: [neutral], [happy], [sad], [angry], [surprised], [thinking], [concerned], [excited]
