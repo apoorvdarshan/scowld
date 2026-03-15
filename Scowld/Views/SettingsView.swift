@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showSaved = false
+    @State private var hasChanges = false
 
     // MARK: - LLM Settings
     @State private var selectedProvider: AIProvider = .gemini
@@ -48,6 +49,7 @@ struct SettingsView: View {
                     .onChange(of: selectedProvider) {
                         selectedModel = selectedProvider.defaultModel
                         loadAPIKey()
+                        hasChanges = true
                     }
 
                     Picker("Model", selection: $selectedModel) {
@@ -64,44 +66,16 @@ struct SettingsView: View {
                 // MARK: - LLM API Key
                 if selectedProvider.requiresAPIKey {
                     Section {
-                        if hasAPIKey {
-                            HStack {
-                                Image(systemName: "lock.fill")
-                                    .foregroundStyle(.green)
-                                    .font(.caption)
-                                Text(String(repeating: "\u{2022}", count: 20))
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Button("Change") {
-                                    hasAPIKey = false
-                                    apiKeyInput = ""
-                                }
-                                .font(.caption)
-                                .tint(.orange)
-                            }
-                        } else {
-                            SecureField("Enter API Key", text: $apiKeyInput)
-                                .textContentType(.password)
-                                .autocorrectionDisabled()
-
-                            if !apiKeyInput.isEmpty {
-                                Button {
-                                    saveAPIKey()
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "key.fill")
-                                        Text("Save to Keychain")
-                                    }
-                                }
-                                .tint(.orange)
-                            }
-                        }
+                        SecureField("API Key", text: $apiKeyInput)
+                            .textContentType(.password)
+                            .autocorrectionDisabled()
+                            .onChange(of: apiKeyInput) { hasChanges = true }
 
                         Text("Stored securely in iOS Keychain.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } header: {
-                        Label("LLM API Key", systemImage: "key")
+                        Label("API Key", systemImage: "key")
                     }
                 }
 
@@ -185,44 +159,17 @@ struct SettingsView: View {
                 // MARK: - ElevenLabs Settings
                 if ttsBackend == "elevenlabs" {
                     Section {
-                        if hasElevenLabsKey {
-                            HStack {
-                                Image(systemName: "lock.fill")
-                                    .foregroundStyle(.green)
-                                    .font(.caption)
-                                Text(String(repeating: "\u{2022}", count: 20))
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Button("Change") {
-                                    hasElevenLabsKey = false
-                                    elevenLabsAPIKey = ""
-                                }
-                                .font(.caption)
-                                .tint(.orange)
-                            }
-                        } else {
-                            SecureField("ElevenLabs API Key", text: $elevenLabsAPIKey)
-                                .textContentType(.password)
-                                .autocorrectionDisabled()
-
-                            if !elevenLabsAPIKey.isEmpty {
-                                Button {
-                                    saveElevenLabsKey()
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "key.fill")
-                                        Text("Save to Keychain")
-                                    }
-                                }
-                                .tint(.orange)
-                            }
-                        }
+                        SecureField("API Key", text: $elevenLabsAPIKey)
+                            .textContentType(.password)
+                            .autocorrectionDisabled()
+                            .onChange(of: elevenLabsAPIKey) { hasChanges = true }
 
                         TextField("Voice ID", text: $elevenLabsVoiceId)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
+                            .onChange(of: elevenLabsVoiceId) { hasChanges = true }
 
-                        Text("Get your API key at elevenlabs.io. Default voice: Jessica (playful, warm).")
+                        Text("Get your API key at elevenlabs.io. Default voice: Sarah.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } header: {
@@ -363,13 +310,9 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         saveSettings()
-                        withAnimation {
-                            showSaved = true
-                        }
+                        withAnimation { showSaved = true }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            withAnimation {
-                                showSaved = false
-                            }
+                            withAnimation { showSaved = false }
                             dismiss()
                         }
                     } label: {
@@ -380,9 +323,10 @@ struct SettingsView: View {
                         } else {
                             Text("Save")
                                 .fontWeight(.semibold)
-                                .tint(.orange)
+                                .foregroundStyle(hasChanges ? .orange : .secondary)
                         }
                     }
+                    .disabled(!hasChanges && !showSaved)
                 }
             }
         }
@@ -409,9 +353,17 @@ struct SettingsView: View {
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
         visionBackend = defaults.string(forKey: "amica_vision_backend") ?? "none"
-        elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
-        hasElevenLabsKey = KeychainManager.exists(key: "com.scowld.elevenlabs.apikey")
+        elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
 
+        // Load existing keys into fields (show dots if set)
+        if let existingKey = KeychainManager.load(key: selectedProvider.keychainKey) {
+            apiKeyInput = existingKey
+        }
+        if let existingELKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") {
+            elevenLabsAPIKey = existingELKey
+        }
+
+        hasChanges = false
         loadAPIKey()
     }
 
@@ -429,9 +381,18 @@ struct SettingsView: View {
         defaults.set(visionBackend, forKey: "amica_vision_backend")
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
 
+        // Save ALL API keys to Keychain
+        if !apiKeyInput.isEmpty {
+            KeychainManager.save(key: selectedProvider.keychainKey, value: apiKeyInput)
+        }
+        if !elevenLabsAPIKey.isEmpty {
+            KeychainManager.save(key: "com.scowld.elevenlabs.apikey", value: elevenLabsAPIKey)
+        }
         if selectedProvider == .ollama {
             KeychainManager.save(key: OllamaConfig.keychainURLKey, value: ollamaURL)
         }
+
+        hasChanges = false
 
         // Push settings to Amica WebView via notification
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
