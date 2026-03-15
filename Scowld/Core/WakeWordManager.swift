@@ -87,6 +87,12 @@ final class WakeWordManager: NSObject {
         }
     }
 
+    /// Call this after TTS/response is done to resume wake word detection
+    func resumeWakeListening() {
+        guard isEnabled, state == .idle else { return }
+        startWakeWordListening()
+    }
+
     func stop() {
         stopRecognitionInternal()
         silenceTimer?.invalidate()
@@ -337,13 +343,11 @@ final class WakeWordManager: NSObject {
 
         logger.info("[WakeWord] Command ready: \(text)")
         state = .idle
+        debugTranscript = ""
         readyCommand = text
-        // Resume wake word listening after sending
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(500))
-            if self.isEnabled {
-                self.startWakeWordListening()
-            }
-        }
+        // Ensure audio session is set for playback so TTS can be heard
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
+        // Don't auto-restart here — HomeView will call resumeWakeListening() after TTS
     }
 }

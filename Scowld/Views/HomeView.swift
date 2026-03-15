@@ -156,6 +156,10 @@ struct HomeView: View {
                 messageText = text
                 sendMessage()
                 logger.info("[WakeWord] Command sent: \(text)")
+                // Resume wake listening after giving TTS time to play
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                    wakeWordManager.resumeWakeListening()
+                }
             }
         }
         .onChange(of: scenePhase) {
