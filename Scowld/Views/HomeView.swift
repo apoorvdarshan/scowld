@@ -890,9 +890,10 @@ struct AmicaFullView: UIViewRepresentable {
                 } else {
                     let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
                     logger.error("[TTS] ElevenLabs error \(httpResponse.statusCode): \(errorBody)")
+                    logger.error("[TTS] Sent body: \(body.prefix(300))")
                     await MainActor.run {
-                        let escaped = "ElevenLabs API Error (\(httpResponse.statusCode))".replacingOccurrences(of: "'", with: "\\'")
-                        webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
+                        let detail = errorBody.replacingOccurrences(of: "'", with: "").replacingOccurrences(of: "\n", with: " ").prefix(200)
+                        webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('ElevenLabs \(httpResponse.statusCode): \(detail)')")
                     }
                 }
             } catch {
