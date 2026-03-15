@@ -995,8 +995,10 @@ struct AmicaFullView: UIViewRepresentable {
         func webView(_ webView: WKWebView,
                      requestMediaCapturePermissionFor origin: WKSecurityOrigin,
                      initiatedByFrame frame: WKFrameInfo,
-                     type: WKMediaCaptureType) async -> WKPermissionDecision {
-            return .grant
+                     type: WKMediaCaptureType,
+                     decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+            logger.info("[Amica] Auto-granting camera permission")
+            decisionHandler(.grant)
         }
 
         // MARK: WKScriptMessageHandler
