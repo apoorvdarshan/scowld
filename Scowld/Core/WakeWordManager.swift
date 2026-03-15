@@ -87,6 +87,20 @@ final class WakeWordManager: NSObject {
         }
     }
 
+    /// Temporarily pause wake listening so TTS can play through the speaker.
+    /// Call resumeWakeListening() when TTS is done.
+    func pauseForTTS() {
+        guard state == .wakeListening else { return }
+        stopRecognitionInternal()
+        state = .idle
+        // Deactivate and switch to playback so WebView audio plays through speaker
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        try? AVAudioSession.sharedInstance().setActive(true)
+        try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+        logger.info("[WakeWord] Paused for TTS playback")
+    }
+
     /// Call this after TTS/response is done to resume wake word detection
     func resumeWakeListening() {
         guard isEnabled, state == .idle else { return }
@@ -342,14 +356,9 @@ final class WakeWordManager: NSObject {
         }
 
         logger.info("[WakeWord] Command ready: \(text)")
-        state = .idle
         debugTranscript = ""
         readyCommand = text
-        // Ensure audio session is set for playback so TTS can be heard through speaker
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-        try? AVAudioSession.sharedInstance().setActive(true)
-        // Also override output to speaker (not earpiece)
-        try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-        // Don't auto-restart here — HomeView will call resumeWakeListening() after TTS
+        // Switch to playback mode so TTS plays through speaker
+        pauseForTTS()
     }
 }

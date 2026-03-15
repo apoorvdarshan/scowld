@@ -25,8 +25,6 @@ struct HomeView: View {
     var memoryStore: MemoryStore
     @State private var messageText = ""
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
-    @State private var isListening = false
-    @State private var speechManager = SpeechManager()
     @State private var cameraEnabled = false
     @State private var showSettings = false
     @State private var showMemories = false
@@ -85,10 +83,10 @@ struct HomeView: View {
 
                 ToolbarItemGroup(placement: .bottomBar) {
                     Button {
-                        toggleListening()
+                        toggleHandsFree()
                     } label: {
-                        Image(systemName: micIconName)
-                            .foregroundStyle(micIconColor)
+                        Image(systemName: handsFreeIconName)
+                            .foregroundStyle(handsFreeIconColor)
                     }
 
                     TextField("Message...", text: $messageText)
@@ -131,15 +129,10 @@ struct HomeView: View {
             try? AVAudioSession.sharedInstance().setActive(true)
 
             Task {
-                _ = await speechManager.requestPermissions()
+                _ = await SpeechManager().requestPermissions()
             }
 
             setupWakeWord()
-        }
-        .onChange(of: speechManager.recognizedText) {
-            if isListening {
-                messageText = speechManager.recognizedText
-            }
         }
         .onChange(of: wakeWordManager.wakeWordTriggered) {
             if wakeWordManager.wakeWordTriggered {
@@ -156,10 +149,6 @@ struct HomeView: View {
                 messageText = text
                 sendMessage()
                 logger.info("[WakeWord] Command sent: \(text)")
-                // Resume wake listening after giving TTS time to play
-                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-                    wakeWordManager.resumeWakeListening()
-                }
             }
         }
         .onChange(of: scenePhase) {
@@ -178,8 +167,8 @@ struct HomeView: View {
         }
     }
 
-    private var micIconName: String {
-        if isListening { return "stop.fill" }
+    private var handsFreeIconName: String {
+        if !wakeWordManager.isEnabled { return "mic.slash" }
         switch wakeWordManager.state {
         case .commandListening: return "waveform"
         case .wakeListening: return "mic.fill"
@@ -187,8 +176,8 @@ struct HomeView: View {
         }
     }
 
-    private var micIconColor: Color {
-        if isListening { return .red }
+    private var handsFreeIconColor: Color {
+        if !wakeWordManager.isEnabled { return .secondary }
         switch wakeWordManager.state {
         case .commandListening: return .green
         case .wakeListening: return .orange
@@ -196,17 +185,16 @@ struct HomeView: View {
         }
     }
 
-    private func stopAndSend() {
-        // Stop listening if active
-        if isListening {
-            speechManager.stopListening()
-            isListening = false
-            // Use recognized text if messageText is empty
-            if messageText.trimmingCharacters(in: .whitespaces).isEmpty {
-                messageText = speechManager.recognizedText
-            }
-            speechManager.recognizedText = ""
+    private func toggleHandsFree() {
+        wakeWordManager.isEnabled.toggle()
+        UserDefaults.standard.set(wakeWordManager.isEnabled, forKey: "hands_free_mode")
+        if wakeWordManager.isEnabled {
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
         }
+    }
+
+    private func stopAndSend() {
         sendMessage()
     }
 
@@ -214,6 +202,15 @@ struct HomeView: View {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         messageText = ""
+
+        // Pause wake word listening so TTS can play through speaker
+        if wakeWordManager.isEnabled {
+            wakeWordManager.pauseForTTS()
+            // Resume wake listening after giving TTS time to play
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                wakeWordManager.resumeWakeListening()
+            }
+        }
 
         logger.info("[HomeView] Sending message: \(text)")
 
@@ -232,18 +229,6 @@ struct HomeView: View {
         }
     }
 
-    private func toggleListening() {
-        if isListening {
-            // Stop and send
-            stopAndSend()
-        } else {
-            speechManager.stopSpeaking()
-            speechManager.recognizedText = ""
-            messageText = ""
-            speechManager.startListening()
-            isListening = true
-        }
-    }
 
     // MARK: - Wake Word
 
@@ -274,8 +259,6 @@ struct HomeView: View {
                 }
             })();
         """)
-        // Also stop native speech manager if it's speaking
-        speechManager.stopSpeaking()
     }
 }
 
