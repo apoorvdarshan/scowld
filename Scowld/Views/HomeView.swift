@@ -39,80 +39,54 @@ struct HomeView: View {
             .ignoresSafeArea()
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .bottomBar)
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 0) {
-                    // Input row
-                    HStack(spacing: 10) {
-                        Button {
-                            toggleListening()
-                        } label: {
-                            Image(systemName: isListening ? "stop.fill" : "mic.fill")
-                                .font(.title3)
-                                .foregroundStyle(isListening ? .red : .amicaBlue)
-                        }
-
-                        TextField("Message...", text: $messageText)
-                            .textFieldStyle(.roundedBorder)
-                            .submitLabel(.send)
-                            .onSubmit { stopAndSend() }
-
-                        Button {
-                            stopAndSend()
-                        } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(.amicaBlue)
-                        }
-                        .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Button {
+                        toggleListening()
+                    } label: {
+                        Image(systemName: isListening ? "stop.fill" : "mic.fill")
+                            .foregroundStyle(isListening ? .red : .amicaBlue)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
 
-                    Divider().opacity(0.3)
+                    TextField("Message...", text: $messageText)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.send)
+                        .onSubmit { stopAndSend() }
 
-                    // Navigation bar
-                    HStack {
-                        Spacer()
+                    Button {
+                        stopAndSend()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundStyle(.amicaBlue)
+                    }
+                    .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                    Menu {
                         Button {
                             cameraEnabled.toggle()
                             amicaCoordinator?.webView?.evaluateJavaScript(
                                 "window.__toggleWebcam && window.__toggleWebcam(\(cameraEnabled));"
                             )
                         } label: {
-                            VStack(spacing: 3) {
-                                Image(systemName: cameraEnabled ? "eye.fill" : "eye.slash")
-                                    .font(.system(size: 20))
-                                Text("Camera")
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(cameraEnabled ? .amicaBlue : .secondary)
+                            Label(
+                                cameraEnabled ? "Disable Camera" : "Enable Camera",
+                                systemImage: cameraEnabled ? "eye.fill" : "eye.slash"
+                            )
                         }
-                        Spacer()
+
+                        Divider()
+
                         Button { showMemories = true } label: {
-                            VStack(spacing: 3) {
-                                Image(systemName: "brain.head.profile.fill")
-                                    .font(.system(size: 20))
-                                Text("Memories")
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(.secondary)
+                            Label("Memories", systemImage: "brain.head.profile.fill")
                         }
-                        Spacer()
                         Button { showSettings = true } label: {
-                            VStack(spacing: 3) {
-                                Image(systemName: "gearshape")
-                                    .font(.system(size: 20))
-                                Text("Settings")
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(.secondary)
+                            Label("Settings", systemImage: "gearshape")
                         }
-                        Spacer()
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(.amicaBlue)
                     }
-                    .padding(.vertical, 8)
                 }
-                .background(.ultraThinMaterial)
             }
         }
         .sheet(isPresented: $showSettings) {
