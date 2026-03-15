@@ -703,6 +703,28 @@ struct AmicaFullView: UIViewRepresentable {
         )
         contentController.addUserScript(consoleScript)
 
+        // Default webcam to front camera
+        let cameraScript = WKUserScript(
+            source: """
+            (function() {
+                var origGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+                navigator.mediaDevices.getUserMedia = function(constraints) {
+                    if (constraints && constraints.video) {
+                        if (typeof constraints.video === 'boolean') {
+                            constraints.video = { facingMode: 'user' };
+                        } else if (typeof constraints.video === 'object' && !constraints.video.facingMode) {
+                            constraints.video.facingMode = 'user';
+                        }
+                    }
+                    return origGetUserMedia(constraints);
+                };
+            })();
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        contentController.addUserScript(cameraScript)
+
         // Resume AudioContext for TTS audio playback
         let audioResumeScript = WKUserScript(
             source: """
@@ -902,10 +924,14 @@ struct AmicaFullView: UIViewRepresentable {
                             if (parent) {
                                 var buttons = parent.querySelectorAll('button');
                                 buttons.forEach(function(btn) {
-                                    btn.style.cssText = 'background: rgba(0,0,0,0.65) !important; border-radius: 50% !important; width: 36px !important; height: 36px !important; display: flex !important; align-items: center !important; justify-content: center !important; border: 1.5px solid rgba(255,255,255,0.4) !important; backdrop-filter: blur(6px) !important; padding: 0 !important;';
+                                    btn.style.cssText = 'background: rgba(0,0,0,0.65) !important; border-radius: 50% !important; width: 32px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; border: 1.5px solid rgba(255,255,255,0.4) !important; backdrop-filter: blur(6px) !important; padding: 0 !important;';
                                     var svgs = btn.querySelectorAll('svg');
                                     svgs.forEach(function(svg) {
-                                        svg.style.cssText = 'width: 20px !important; height: 20px !important; color: white !important; fill: white !important;';
+                                        svg.style.cssText = 'width: 22px !important; height: 22px !important; color: white !important; fill: white !important; stroke: white !important;';
+                                    });
+                                    // Also scale any inner icon/span
+                                    btn.querySelectorAll('span, img, i').forEach(function(el) {
+                                        el.style.cssText = 'font-size: 20px !important; color: white !important;';
                                     });
                                 });
                             }
