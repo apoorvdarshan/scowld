@@ -14,13 +14,10 @@ struct SettingsView: View {
     @State private var apiKeyInput: String = ""
     @State private var ollamaURL: String = OllamaConfig.defaultURL
     @State private var hasAPIKey: Bool = false
-    @State private var testResult: String = ""
-    @State private var isTesting: Bool = false
 
     // MARK: - TTS Settings
     @State private var ttsBackend: String = "native_ios"
     @State private var elevenLabsAPIKey: String = ""
-    @State private var hasElevenLabsKey: Bool = false
     @State private var elevenLabsVoiceId: String = "cgSgspJ2msm6clMCkdW9"
     @State private var speechRate: Float = 0.95
     @State private var speechPitch: Float = 1.2
@@ -31,10 +28,6 @@ struct SettingsView: View {
     // MARK: - Vision Settings
     @State private var visionBackend: String = "none"
 
-    // MARK: - Character
-    @State private var selectedCharacterId: String = "avatar_a"
-
-    let characters = CharacterPack.defaultPacks
     var memoryStore: MemoryStore
 
     var body: some View {
@@ -58,6 +51,7 @@ struct SettingsView: View {
                             Text(model).tag(model)
                         }
                     }
+                    .onChange(of: selectedModel) { hasChanges = true }
                 } header: {
                     Label("AI Provider (LLM)", systemImage: "cpu")
                 } footer: {
@@ -104,37 +98,6 @@ struct SettingsView: View {
                     }
                 }
 
-                // MARK: - Test Connection
-                Section {
-                    Button {
-                        Task { await testConnection() }
-                    } label: {
-                        HStack {
-                            if isTesting {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .padding(.trailing, 4)
-                            } else {
-                                Image(systemName: "antenna.radiowaves.left.and.right")
-                            }
-                            Text(isTesting ? "Testing..." : "Test Connection")
-                        }
-                    }
-                    .disabled(isTesting || (!hasAPIKey && selectedProvider.requiresAPIKey && apiKeyInput.isEmpty))
-
-                    if !testResult.isEmpty {
-                        HStack {
-                            Image(systemName: testResult.starts(with: "Success") ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundStyle(testResult.starts(with: "Success") ? .green : .red)
-                            Text(testResult)
-                                .font(.caption)
-                                .foregroundStyle(testResult.starts(with: "Success") ? .green : .red)
-                        }
-                    }
-                } header: {
-                    Label("Connection", systemImage: "wifi")
-                }
-
                 // MARK: - TTS (Text-to-Speech)
                 Section {
                     Picker("Backend", selection: $ttsBackend) {
@@ -143,6 +106,7 @@ struct SettingsView: View {
                         Text("Native iOS").tag("native_ios")
                         Text("None").tag("none")
                     }
+                    .onChange(of: ttsBackend) { hasChanges = true }
 
                     if ttsBackend == "native_ios" {
                         VStack(alignment: .leading, spacing: 4) {
@@ -209,6 +173,7 @@ struct SettingsView: View {
                         Text("Amica (Browser Whisper)").tag("whisper_browser")
                         Text("None (use text input)").tag("none")
                     }
+                    .onChange(of: sttBackend) { hasChanges = true }
                 } header: {
                     Label("Speech-to-Text", systemImage: "mic")
                 } footer: {
@@ -244,38 +209,14 @@ struct SettingsView: View {
                         Text("Ollama").tag("ollama")
                         Text("None").tag("none")
                     }
+                    .onChange(of: visionBackend) { hasChanges = true }
                 } header: {
                     Label("Vision", systemImage: "eye")
                 } footer: {
                     Text("Enables the character to see via camera. Uses your LLM provider's vision API.")
                 }
 
-                // MARK: - Character
-                Section {
-                    ForEach(characters) { character in
-                        Button {
-                            selectedCharacterId = character.id
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(character.name)
-                                        .foregroundStyle(.primary)
-                                        .fontWeight(.medium)
-                                    Text(character.description)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if selectedCharacterId == character.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.orange)
-                                }
-                            }
-                        }
-                    }
-                } header: {
-                    Label("Character", systemImage: "person.fill")
-                }
+
 
                 // MARK: - Memory Management
                 Section {
@@ -362,8 +303,6 @@ struct SettingsView: View {
         if speechRate == 0 { speechRate = 0.95 }
         speechPitch = defaults.float(forKey: "speechPitch")
         if speechPitch == 0 { speechPitch = 1.2 }
-        selectedCharacterId = defaults.string(forKey: "selectedCharacter") ?? "avatar_a"
-
         // Amica backend settings
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "none"
@@ -392,8 +331,6 @@ struct SettingsView: View {
         defaults.set(selectedModel, forKey: "selectedModel")
         defaults.set(speechRate, forKey: "speechRate")
         defaults.set(speechPitch, forKey: "speechPitch")
-        defaults.set(selectedCharacterId, forKey: "selectedCharacter")
-
         // Amica backend settings
         defaults.set(ttsBackend, forKey: "amica_tts_backend")
         defaults.set(sttBackend, forKey: "amica_stt_backend")
@@ -423,56 +360,6 @@ struct SettingsView: View {
 
     private func loadAPIKey() {
         hasAPIKey = KeychainManager.exists(key: selectedProvider.keychainKey)
-    }
-
-    private func saveAPIKey() {
-        guard !apiKeyInput.isEmpty else { return }
-        let success = KeychainManager.save(key: selectedProvider.keychainKey, value: apiKeyInput)
-        if success {
-            hasAPIKey = true
-            apiKeyInput = ""
-        }
-    }
-
-    private func saveElevenLabsKey() {
-        guard !elevenLabsAPIKey.isEmpty else { return }
-        let success = KeychainManager.save(key: "com.scowld.elevenlabs.apikey", value: elevenLabsAPIKey)
-        if success {
-            hasElevenLabsKey = true
-            elevenLabsAPIKey = ""
-        }
-    }
-
-    // MARK: - Test Connection
-
-    private func testConnection() async {
-        isTesting = true
-        testResult = ""
-        defer { isTesting = false }
-
-        do {
-            let provider = buildProvider()
-            let response = try await provider.generate(
-                messages: [ChatMessage(role: .user, content: "Say 'Connection successful!' in exactly those words.")],
-                systemPrompt: "Respond with exactly: Connection successful!"
-            )
-            testResult = "Success: \(response.prefix(50))"
-        } catch {
-            testResult = "Error: \(error.localizedDescription)"
-        }
-    }
-
-    private func buildProvider() -> any LLMProvider {
-        let apiKey = apiKeyInput.isEmpty
-            ? (KeychainManager.load(key: selectedProvider.keychainKey) ?? "")
-            : apiKeyInput
-
-        switch selectedProvider {
-        case .gemini: return GeminiProvider(apiKey: apiKey, model: selectedModel)
-        case .openai: return OpenAIProvider(apiKey: apiKey, model: selectedModel)
-        case .claude: return ClaudeProvider(apiKey: apiKey, model: selectedModel)
-        case .ollama: return OllamaProvider(baseURL: ollamaURL, model: selectedModel)
-        }
     }
 }
 
