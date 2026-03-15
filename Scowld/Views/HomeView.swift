@@ -262,23 +262,34 @@ class AmicaLocalServer {
         headerEnd = sepRange.upperBound
 
         // Parse Content-Length
-        if let headerStr = String(data: allData[0..<sepRange.lowerBound], encoding: .utf8) {
-            for line in headerStr.components(separatedBy: "\r\n") {
+        if let hdrStr = String(data: allData[0..<sepRange.lowerBound], encoding: .utf8) {
+            for line in hdrStr.components(separatedBy: "\r\n") {
                 if line.lowercased().hasPrefix("content-length:") {
                     contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
                 }
             }
         }
 
-        // Read remaining body if needed
-        let totalNeeded = headerEnd + contentLength
-        while allData.count < totalNeeded {
-            let n = read(client, &buffer, min(buffer.count, totalNeeded - allData.count))
-            if n <= 0 { break }
-            allData.append(contentsOf: buffer[0..<n])
+        // If we know Content-Length, read until we have it all
+        if contentLength > 0 {
+            let totalNeeded = headerEnd + contentLength
+            while allData.count < totalNeeded {
+                let n = read(client, &buffer, min(buffer.count, totalNeeded - allData.count))
+                if n <= 0 { break }
+                allData.append(contentsOf: buffer[0..<n])
+            }
+        } else {
+            // No Content-Length — try reading more with a short poll
+            var pollFd = pollfd(fd: client, events: Int16(POLLIN), revents: 0)
+            while Darwin.poll(&pollFd, 1, 50) > 0 { // 50ms timeout
+                let n = read(client, &buffer, buffer.count)
+                if n <= 0 { break }
+                allData.append(contentsOf: buffer[0..<n])
+            }
         }
 
-        let requestBody: Data? = headerEnd < allData.count ? Data(allData[headerEnd..<min(allData.count, totalNeeded)]) : nil
+        // Body = everything after headers
+        let requestBody: Data? = headerEnd < allData.count ? Data(allData[headerEnd...]) : nil
 
         let headerStr = String(data: allData[0..<sepRange.lowerBound], encoding: .utf8) ?? ""
         let lines = headerStr.components(separatedBy: "\r\n")
