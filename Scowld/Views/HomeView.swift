@@ -28,33 +28,64 @@ struct HomeView: View {
     @State private var isListening = false
     @State private var speechManager = SpeechManager()
     @State private var cameraEnabled = false
+    @State private var showSettings = false
+    @State private var showMemories = false
 
     var body: some View {
-        AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-            amicaCoordinator = coord
-        })
-        .ignoresSafeArea()
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
-                HStack(spacing: 10) {
-                    // Camera toggle
-                    Button {
-                        cameraEnabled.toggle()
-                        amicaCoordinator?.webView?.evaluateJavaScript(
-                            "window.__toggleWebcam && window.__toggleWebcam(\(cameraEnabled));"
-                        )
-                    } label: {
-                        Image(systemName: cameraEnabled ? "eye.circle.fill" : "eye.slash.circle")
-                            .font(.title2)
-                            .foregroundStyle(cameraEnabled ? .green : .secondary)
-                    }
+        NavigationStack {
+            ZStack {
+                AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                    amicaCoordinator = coord
+                })
+                .ignoresSafeArea()
+            }
+            .navigationTitle("Scowld")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // Top right menu
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        // Camera toggle
+                        Button {
+                            cameraEnabled.toggle()
+                            amicaCoordinator?.webView?.evaluateJavaScript(
+                                "window.__toggleWebcam && window.__toggleWebcam(\(cameraEnabled));"
+                            )
+                        } label: {
+                            Label(
+                                cameraEnabled ? "Disable Camera" : "Enable Camera",
+                                systemImage: cameraEnabled ? "eye.fill" : "eye.slash"
+                            )
+                        }
 
+                        Divider()
+
+                        // Memories
+                        Button {
+                            showMemories = true
+                        } label: {
+                            Label("Memories", systemImage: "brain.head.profile.fill")
+                        }
+
+                        // Settings
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                    }
+                }
+
+                // Bottom bar — message input
+                ToolbarItemGroup(placement: .bottomBar) {
                     // Mic button
                     Button {
                         toggleListening()
                     } label: {
-                        Image(systemName: isListening ? "stop.circle.fill" : "mic.circle.fill")
-                            .font(.title2)
+                        Image(systemName: isListening ? "stop.fill" : "mic.fill")
                             .foregroundStyle(isListening ? .red : .orange)
                     }
 
@@ -69,18 +100,23 @@ struct HomeView: View {
                         stopAndSend()
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
                             .foregroundStyle(.orange)
                     }
                     .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
+            }
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(.ultraThinMaterial, for: .bottomBar)
+            .sheet(isPresented: $showSettings) {
+                SettingsView(memoryStore: memoryStore)
+            }
+            .sheet(isPresented: $showMemories) {
+                NavigationStack {
+                    MemoryView(memoryStore: memoryStore)
+                }
             }
         }
         .onAppear {
-            // Set audio session to allow both playback and recording
             try? AVAudioSession.sharedInstance().setCategory(
                 .playAndRecord,
                 mode: .default,
@@ -93,7 +129,6 @@ struct HomeView: View {
             }
         }
         .onChange(of: speechManager.recognizedText) {
-            // Update live text while listening
             if isListening {
                 messageText = speechManager.recognizedText
             }
