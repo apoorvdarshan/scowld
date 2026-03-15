@@ -96,10 +96,10 @@ final class WakeWordManager: NSObject {
         }
     }
 
-    /// Temporarily pause wake listening so TTS can play through the speaker.
-    /// Call resumeWakeListening() when TTS is done.
+    /// Stop all listening and switch to playback mode so TTS can be heard.
     func pauseForTTS() {
-        guard state == .wakeListening else { return }
+        silenceWorkItem?.cancel()
+        silenceWorkItem = nil
         stopRecognitionInternal()
         state = .idle
         // Deactivate and switch to playback so WebView audio plays through speaker
