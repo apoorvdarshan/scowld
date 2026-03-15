@@ -247,47 +247,41 @@ class AmicaLocalServer {
 
         // Read full request (headers + body)
         var allData = Data()
-        var buffer = [UInt8](repeating: 0, count: 8192)
-        var headerEndIndex: Int?
+        var buffer = [UInt8](repeating: 0, count: 16384)
+        let separator: [UInt8] = [0x0D, 0x0A, 0x0D, 0x0A] // \r\n\r\n
+        var headerEndByteIndex: Int?
+        var contentLength: Int = 0
 
-        // Read until we have full headers + body
         while true {
             let bytesRead = read(client, &buffer, buffer.count)
             if bytesRead <= 0 { break }
             allData.append(contentsOf: buffer[0..<bytesRead])
 
-            // Check if we have the full headers
-            if headerEndIndex == nil {
-                if let headerStr = String(data: allData, encoding: .utf8),
-                   let range = headerStr.range(of: "\r\n\r\n") {
-                    headerEndIndex = headerStr.distance(from: headerStr.startIndex, to: range.upperBound)
-
-                    // Check Content-Length to know how much body to read
-                    let headers = String(headerStr[..<range.lowerBound])
-                    if let clLine = headers.lowercased().components(separatedBy: "\r\n").first(where: { $0.hasPrefix("content-length:") }),
-                       let cl = Int(clLine.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) {
-                        let totalNeeded = headerEndIndex! + cl
-                        if allData.count >= totalNeeded { break }
-                        continue
-                    } else {
-                        break // No Content-Length, we have everything
+            if headerEndByteIndex == nil {
+                // Search for \r\n\r\n in raw bytes
+                if let sepRange = allData.range(of: Data(separator)) {
+                    headerEndByteIndex = sepRange.upperBound
+                    // Parse Content-Length from header bytes
+                    if let headerStr = String(data: allData[0..<sepRange.lowerBound], encoding: .utf8) {
+                        for line in headerStr.components(separatedBy: "\r\n") {
+                            if line.lowercased().hasPrefix("content-length:") {
+                                contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
+                            }
+                        }
                     }
+                    if allData.count >= headerEndByteIndex! + contentLength { break }
                 }
             } else {
-                // Already found headers, check if we have enough body
-                let headers = String(data: allData[0..<headerEndIndex!], encoding: .utf8) ?? ""
-                if let clLine = headers.lowercased().components(separatedBy: "\r\n").first(where: { $0.hasPrefix("content-length:") }),
-                   let cl = Int(clLine.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) {
-                    if allData.count >= headerEndIndex! + cl { break }
-                } else {
-                    break
-                }
+                if allData.count >= headerEndByteIndex! + contentLength { break }
             }
         }
 
-        guard !allData.isEmpty else { return }
-        let request = String(data: allData, encoding: .utf8) ?? ""
-        let lines = request.components(separatedBy: "\r\n")
+        guard !allData.isEmpty, let headerEnd = headerEndByteIndex else { return }
+        let headerData = allData[0..<headerEnd]
+        let requestBody: Data? = headerEnd < allData.count ? Data(allData[headerEnd...]) : nil
+
+        let headerStr = String(data: headerData, encoding: .utf8) ?? ""
+        let lines = headerStr.components(separatedBy: "\r\n")
         guard let firstLine = lines.first else { return }
 
         let parts = firstLine.split(separator: " ")
@@ -295,12 +289,6 @@ class AmicaLocalServer {
 
         let method = String(parts[0])
         var path = String(parts[1])
-
-        // Extract body as raw Data
-        let requestBody: Data? = {
-            guard let idx = headerEndIndex, idx < allData.count else { return nil }
-            return allData[idx...]
-        }()
         if path == "/" { path = "/index.html" }
 
         // URL decode
