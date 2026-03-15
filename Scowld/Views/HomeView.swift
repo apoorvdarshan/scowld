@@ -447,8 +447,49 @@ struct AmicaFullView: UIViewRepresentable {
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
 
+        private var settingsObserver: NSObjectProtocol?
+
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
+            super.init()
+            settingsObserver = NotificationCenter.default.addObserver(
+                forName: .amicaSettingsChanged, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.pushUpdatedConfig()
+            }
+        }
+
+        deinit {
+            if let observer = settingsObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
+
+        private func pushUpdatedConfig() {
+            let defaults = UserDefaults.standard
+            let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "elevenlabs"
+            let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
+            let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
+            let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "EXAVITQu4vr4xnSDxMaL"
+            let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
+            let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
+            let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
+            let visionBackend = visionEnabled ? "native_ios" : "none"
+
+            let js = """
+                window.__nativeConfig = {
+                    chatbot_backend: 'native_ios',
+                    tts_backend: '\(ttsBackend)',
+                    stt_backend: '\(sttBackend)',
+                    vision_backend: '\(visionBackend)',
+                    elevenlabs_apikey: '\(elevenLabsKey)',
+                    elevenlabs_voiceid: '\(elevenLabsVoiceId)',
+                    elevenlabs_model: 'eleven_flash_v2_5',
+                    openai_tts_apikey: '\(openaiKey)'
+                };
+            """
+            webView?.evaluateJavaScript(js)
+            logger.info("[Amica] Pushed updated config to WebView")
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
