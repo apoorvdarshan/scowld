@@ -31,6 +31,7 @@ final class WakeWordManager: NSObject {
     // MARK: - Observable Events (used by SwiftUI instead of closures)
     var wakeWordTriggered: Bool = false
     var readyCommand: String? = nil
+    var debugTranscript: String = ""  // Shows what the recognizer is hearing
 
     // MARK: - Configuration
     var wakeWord: String = UserDefaults.standard.string(forKey: "character_name") ?? "Scowlly"
@@ -55,8 +56,14 @@ final class WakeWordManager: NSObject {
     // MARK: - Public API
 
     func startWakeWordListening() {
-        guard isEnabled else { return }
-        guard state == .idle || state == .commandListening else { return }
+        guard isEnabled else {
+            logger.info("[WakeWord] startWakeWordListening skipped — not enabled")
+            return
+        }
+        guard state == .idle || state == .commandListening else {
+            logger.info("[WakeWord] startWakeWordListening skipped — state is \(String(describing: self.state))")
+            return
+        }
         commandText = ""
         state = .wakeListening
         startRecognition(mode: .wakeWord)
@@ -209,8 +216,10 @@ final class WakeWordManager: NSObject {
     // MARK: - Transcript Handling
 
     private func handleWakeWordTranscript(_ transcript: String) {
+        debugTranscript = transcript
+        logger.info("[WakeWord] Heard: \(transcript)")
         if matchesWakeWord(transcript) {
-            logger.info("[WakeWord] Wake word detected in: \(transcript)")
+            logger.info("[WakeWord] MATCH for '\(self.wakeWord)' in: \(transcript)")
             wakeWordTriggered = true
             startCommandListening()
         }

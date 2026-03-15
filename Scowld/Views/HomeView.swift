@@ -35,10 +35,23 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-                amicaCoordinator = coord
-            })
-            .ignoresSafeArea()
+            ZStack(alignment: .top) {
+                AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                    amicaCoordinator = coord
+                })
+                .ignoresSafeArea()
+
+                // Debug overlay for wake word
+                if wakeWordManager.isEnabled && !wakeWordManager.debugTranscript.isEmpty {
+                    Text(wakeWordManager.debugTranscript)
+                        .font(.caption2)
+                        .padding(6)
+                        .background(.black.opacity(0.7))
+                        .foregroundStyle(.green)
+                        .cornerRadius(6)
+                        .padding(.top, 50)
+                }
+            }
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
