@@ -32,7 +32,7 @@ Native iOS (Swift/SwiftUI)
 ├── LLM Providers       — Gemini, OpenAI, Claude, Ollama, OpenRouter, xAI, Together
 └── HomeView            — Main UI with WKWebView bridge
 
-WKWebView (Amica Frontend)
+WKWebView (Web Frontend)
 ├── Three.js + three-vrm — 3D avatar rendering
 ├── VRMA Animations      — Idle, gesture, and lip sync
 ├── AudioContext          — TTS audio playback
@@ -76,7 +76,7 @@ The AI automatically extracts important details from conversations and stores th
 ## Tech Stack
 
 - **Swift / SwiftUI** — Native iOS app
-- **WKWebView** — Hosts Amica's Three.js frontend for 3D avatar
+- **WKWebView** — Hosts Three.js frontend for 3D avatar rendering
 - **CoreData** — Chat history and memory persistence
 - **Apple Speech** — On-device speech recognition
 - **AVAudioEngine** — Audio session management for simultaneous TTS and STT
