@@ -929,6 +929,10 @@ struct AmicaFullView: UIViewRepresentable {
                                 if (v && v.parentElement) {
                                     var container = v.parentElement;
                                     container.style.cssText = 'position:fixed!important;top:-9999px!important;left:-9999px!important;pointer-events:none!important;';
+                                    // Notify native that app is ready (preview hidden)
+                                    try {
+                                        window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'app_ready'}));
+                                    } catch(e) {}
                                 }
                                 setTimeout(hidePreview, 2000);
                             })();
@@ -1004,6 +1008,9 @@ struct AmicaFullView: UIViewRepresentable {
             case "tts_done":
                 logger.info("[Amica] TTS playback finished")
                 NotificationCenter.default.post(name: .ttsDone, object: nil)
+            case "app_ready":
+                logger.info("[Amica] App ready — preview hidden")
+                NotificationCenter.default.post(name: .appReady, object: nil)
             case "console":
                 let level = json["level"] as? String ?? "log"
                 let msg = json["message"] as? String ?? ""
@@ -1185,4 +1192,5 @@ extension Notification.Name {
     static let amicaSettingsChanged = Notification.Name("amicaSettingsChanged")
     static let ttsDone = Notification.Name("ttsDone")
     static let aiResponseReady = Notification.Name("aiResponseReady")
+    static let appReady = Notification.Name("appReady")
 }

@@ -17,8 +17,12 @@ struct ScowldApp: App {
                 }
             }
             .animation(.easeOut(duration: 0.5), value: showSplash)
+            .onReceive(NotificationCenter.default.publisher(for: .appReady)) { _ in
+                showSplash = false
+            }
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                // Fallback: dismiss after 6s if notification never fires
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
                     showSplash = false
                 }
             }
