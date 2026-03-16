@@ -19,7 +19,7 @@ struct SettingsView: View {
     // MARK: - TTS Settings
     @State private var ttsBackend: String = "native_ios"
     @State private var elevenLabsAPIKey: String = ""
-    @State private var elevenLabsVoiceId: String = "cgSgspJ2msm6clMCkdW9"
+    @State private var elevenLabsVoiceId: String = "mHX7OoPk2G45VMAuinIt"
     @State private var speechRate: Float = 0.95
     @State private var speechPitch: Float = 1.2
 
@@ -368,7 +368,7 @@ struct SettingsView: View {
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
         characterName = defaults.string(forKey: "character_name") ?? "Scowlly"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
-        elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
+        elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
 
         // Load existing keys into fields
         if let existingKey = KeychainManager.load(key: selectedProvider.keychainKey) {

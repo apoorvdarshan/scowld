@@ -646,7 +646,7 @@ struct AmicaFullView: UIViewRepresentable {
         let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
         let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
         let visionBackend = visionEnabled ? "native_ios" : "none"
-        let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
+        let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
         let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
         let characterName = defaults.string(forKey: "character_name") ?? "Scowlly"
@@ -883,7 +883,7 @@ struct AmicaFullView: UIViewRepresentable {
             let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "elevenlabs"
             let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
             let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
-            let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "cgSgspJ2msm6clMCkdW9"
+            let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
             let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
             let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
             let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
