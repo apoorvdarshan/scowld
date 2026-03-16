@@ -76,14 +76,14 @@ The AI automatically extracts important details from conversations and stores th
 ## Tech Stack
 
 - **Swift / SwiftUI** — Native iOS app
-- **WKWebView** — Hosts [Amica](https://github.com/arbius/amica) (by Arbius AI) Three.js frontend for 3D avatar rendering
+- **WKWebView** — Hosts [Amica](https://github.com/semperai/amica) (by Arbius AI) Three.js frontend for 3D avatar rendering
 - **CoreData** — Chat history and memory persistence
 - **Apple Speech** — On-device speech recognition
 - **AVAudioEngine** — Audio session management for simultaneous TTS and STT
 
 ## Acknowledgments
 
-- **[Amica](https://github.com/arbius/amica)** by Arbius AI — Open-source 3D avatar frontend with Three.js and VRM support (MIT License)
+- **[Amica](https://github.com/semperai/amica)** by Arbius AI — Open-source 3D avatar frontend with Three.js and VRM support (MIT License)
 
 ## License
 
