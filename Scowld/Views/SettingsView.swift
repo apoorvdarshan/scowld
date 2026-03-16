@@ -309,6 +309,12 @@ struct SettingsView: View {
                         Text("v1.0")
                             .foregroundStyle(.secondary)
                     }
+                    Link(destination: URL(string: "https://scowld.vercel.app/privacy")!) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
+                    }
+                    Link(destination: URL(string: "https://scowld.vercel.app/terms")!) {
+                        Label("Terms of Service", systemImage: "doc.text")
+                    }
                     Text("Open Source AI Assistant — MIT License")
                         .font(.caption)
                         .foregroundStyle(.secondary)
