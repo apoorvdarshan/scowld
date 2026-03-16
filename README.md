@@ -1,6 +1,16 @@
-# Scowld
+<p align="center">
+  <img src="assets/logo.png" alt="Scowld Logo" width="120">
+</p>
 
-An open-source AI companion app for iOS with a 3D anime avatar, hands-free voice chat, vision, and persistent memory.
+<h1 align="center">Scowld</h1>
+
+<p align="center">
+  An open-source AI companion app for iOS with a 3D anime avatar, hands-free voice chat, vision, and persistent memory.
+</p>
+
+<p align="center">
+  <img src="assets/screenshot.png" alt="Scowld App" width="300">
+</p>
 
 ## Features
 
