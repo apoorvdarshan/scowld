@@ -53,14 +53,14 @@ struct SplashScreen: View {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [cyan.opacity(0.15), .clear],
+                        colors: [cyan.opacity(0.06), .clear],
                         center: .center,
-                        startRadius: 20,
-                        endRadius: 200
+                        startRadius: 10,
+                        endRadius: 160
                     )
                 )
-                .frame(width: 400, height: 400)
-                .blur(radius: 40)
+                .frame(width: 350, height: 350)
+                .blur(radius: 30)
                 .opacity(ringOpacity)
 
             VStack(spacing: 0) {
@@ -100,7 +100,7 @@ struct SplashScreen: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 100, height: 100)
-                        .shadow(color: cyan.opacity(0.6), radius: glowRadius)
+                        .shadow(color: cyan.opacity(0.3), radius: glowRadius)
                         .scaleEffect(logoScale)
                         .opacity(logoOpacity)
                 }
@@ -145,7 +145,7 @@ struct SplashScreen: View {
             }
             withAnimation(.easeOut(duration: 0.6).delay(0.3)) {
                 textOpacity = 1.0
-                glowRadius = 20
+                glowRadius = 12
             }
             withAnimation(.easeOut(duration: 0.5).delay(0.6)) {
                 subtitleOpacity = 1.0
