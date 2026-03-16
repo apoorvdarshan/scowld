@@ -27,7 +27,7 @@ struct SettingsView: View {
     @State private var sttBackend: String = "native_ios"
 
     // MARK: - Character Settings
-    @State private var characterName: String = "Scowlly"
+    @State private var characterName: String = "Stella"
     @State private var systemPrompt: String = ""
 
     private static let defaultSystemPrompt = "You are a warm, cheerful, and expressive AI companion. You're friendly, playful, and genuinely care about the person you're talking to. You speak naturally and conversationally — like a close friend. Keep responses concise (1-3 sentences). Be expressive and show personality."
@@ -366,7 +366,7 @@ struct SettingsView: View {
         // Amica backend settings
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
-        characterName = defaults.string(forKey: "character_name") ?? "Scowlly"
+        characterName = defaults.string(forKey: "character_name") ?? "Stella"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
 

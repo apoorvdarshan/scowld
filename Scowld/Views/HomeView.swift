@@ -649,7 +649,7 @@ struct AmicaFullView: UIViewRepresentable {
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
         let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
-        let characterName = defaults.string(forKey: "character_name") ?? "Scowlly"
+        let characterName = defaults.string(forKey: "character_name") ?? "Stella"
 
         let settingsScript = WKUserScript(
             source: """
@@ -888,7 +888,7 @@ struct AmicaFullView: UIViewRepresentable {
             let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
             let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
             let visionBackend = visionEnabled ? "native_ios" : "none"
-            let characterName = defaults.string(forKey: "character_name") ?? "Scowlly"
+            let characterName = defaults.string(forKey: "character_name") ?? "Stella"
 
             let js = """
                 window.__nativeConfig = {
