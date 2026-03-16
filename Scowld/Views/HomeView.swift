@@ -929,10 +929,12 @@ struct AmicaFullView: UIViewRepresentable {
                                 if (v && v.parentElement) {
                                     var container = v.parentElement;
                                     container.style.cssText = 'position:fixed!important;top:-9999px!important;left:-9999px!important;pointer-events:none!important;';
-                                    // Notify native that app is ready (preview hidden)
-                                    try {
-                                        window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'app_ready'}));
-                                    } catch(e) {}
+                                    // Notify native that app is ready (preview hidden) after 1s buffer
+                                    setTimeout(function() {
+                                        try {
+                                            window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'app_ready'}));
+                                        } catch(e) {}
+                                    }, 1000);
                                 }
                                 setTimeout(hidePreview, 2000);
                             })();
