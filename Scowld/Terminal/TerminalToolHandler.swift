@@ -71,11 +71,12 @@ enum TerminalToolHandler {
             .replacingOccurrences(of: "\"", with: "\\\"")
 
         // Opens Terminal.app with interactive Claude — user sees the full TUI
-        // Returns immediately so Stella doesn't hang waiting
+        // When claude finishes, writes a done marker so Stella knows
         return """
+        rm -f /tmp/stella_claude_done && \
         osascript \
         -e 'tell application "Terminal" to activate' \
-        -e 'tell application "Terminal" to do script "export PATH=\\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\\" && \(claudePath) --dangerously-skip-permissions \\"\(asEscaped)\\"\"'
+        -e 'tell application "Terminal" to do script "export PATH=\\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\\" && \(claudePath) --dangerously-skip-permissions \\"\(asEscaped)\\"; touch /tmp/stella_claude_done"'
         """
     }
 

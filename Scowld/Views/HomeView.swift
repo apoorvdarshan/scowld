@@ -1160,12 +1160,37 @@ struct AmicaFullView: UIViewRepresentable {
                 // This returns immediately — it just opens Terminal.app with claude running
                 _ = try await SSHManager.shared.execute(command: command)
 
-                // Get the text Stella said before the terminal block
+                // Poll in background for Claude to finish, then notify Stella
+                let taskDescription = task.task
+                Task { [weak self] in
+                    guard let self else { return }
+                    // Poll every 5 seconds for done marker
+                    while true {
+                        try? await Task.sleep(for: .seconds(5))
+                        let check = try? await SSHManager.shared.execute(command: "test -f /tmp/stella_claude_done && echo yes || echo no")
+                        if check?.stdout.contains("yes") == true {
+                            // Claude finished — tell Stella to respond
+                            logger.info("[Terminal] Claude finished task: \(taskDescription)")
+                            NotificationCenter.default.post(name: .terminalCommandFinished, object: taskDescription)
+
+                            // Have Stella speak the completion
+                            let doneMessage = "[happy] Claude just finished working on your Mac! The task is done — go check it out."
+                            deliverResponse(callbackId: "terminal_done_\(UUID().uuidString)", response: doneMessage)
+                            NotificationCenter.default.post(name: .aiResponseReady, object: doneMessage)
+
+                            // Clean up
+                            _ = try? await SSHManager.shared.execute(command: "rm -f /tmp/stella_claude_done")
+                            break
+                        }
+                    }
+                }
+
+                // Immediate response while Claude works
                 let preText = TerminalToolHandler.extractTextPortion(from: originalResponse)
                 if !preText.isEmpty {
                     return preText + " Check your Mac — Claude is working on it in Terminal!"
                 }
-                return "[excited] I've sent the task to Claude Code on your Mac! Check your Terminal to watch it work."
+                return "[excited] On it! I've sent the task to Claude on your Mac. Watch Terminal to see it work — I'll let you know when it's done!"
             } catch {
                 return "[concerned] I couldn't open Terminal on your Mac: \(error.localizedDescription). Want me to try again?"
             }
