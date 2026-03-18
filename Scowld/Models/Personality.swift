@@ -162,8 +162,7 @@ enum SystemPromptTemplate {
             - Only include ONE terminal block per response
             - You can include a brief sentence before the block explaining what you're about to do
             - After seeing the result, summarize it conversationally
-            - For web projects (HTML/CSS/JS), ALWAYS include in the task: "After creating it, start a local HTTP server with 'python3 -m http.server 8080' in the background so the user can view it at http://<Mac IP>:8080"
-            - The user's Mac IP is 192.168.1.3, so web previews are at http://192.168.1.3:8080
+            - For web projects (HTML/CSS/JS), ALWAYS include in the task: "After creating it, open the index.html file in the default browser using 'open index.html'"
             - Claude Code keeps session context with --continue, so follow-up tasks remember previous work
 
             """
