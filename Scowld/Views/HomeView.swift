@@ -30,6 +30,7 @@ struct HomeView: View {
     @State private var showMemories = false
     @State private var voiceManager = VoiceManager()
     @State private var aiResponseText = ""
+    @State private var terminalCommandRunning: String?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -42,6 +43,20 @@ struct HomeView: View {
 
                 // Live captions
                 VStack(spacing: 6) {
+                    if let cmd = terminalCommandRunning {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(.white)
+                            Text("Running: `\(cmd)`...")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.orange.opacity(0.7))
+                        .cornerRadius(16)
+                    }
                     if !aiResponseText.isEmpty {
                         Text(aiResponseText)
                             .font(.subheadline)
@@ -129,6 +144,11 @@ struct HomeView: View {
                 _ = await SpeechManager().requestPermissions()
             }
 
+            // Auto-connect SSH if enabled
+            if SSHConfig.load().isEnabled && SSHConfig.load().isConfigured {
+                Task { await SSHManager.shared.connect() }
+            }
+
             setupVoice()
         }
         .onChange(of: voiceManager.readyCommand) {
@@ -147,6 +167,14 @@ struct HomeView: View {
             if let text = notification.object as? String {
                 aiResponseText = text
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .terminalCommandStarted)) { notification in
+            if let cmd = notification.object as? String {
+                terminalCommandRunning = cmd
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .terminalCommandFinished)) { _ in
+            terminalCommandRunning = nil
         }
         .onChange(of: scenePhase) {
             switch scenePhase {
@@ -1064,8 +1092,27 @@ struct AmicaFullView: UIViewRepresentable {
                 } else {
                     response = try await provider.generate(messages: chatMessages, systemPrompt: systemPrompt)
                 }
+
+                // Check for terminal command in response
+                let finalResponse: String
+                if TerminalToolHandler.containsTerminalBlock(response),
+                   SSHManager.shared.isConnected,
+                   UserDefaults.standard.bool(forKey: SSHConfig.enabledKey),
+                   let terminalCmd = TerminalToolHandler.extractCommand(from: response) {
+
+                    finalResponse = await handleTerminalCommand(
+                        terminalCmd: terminalCmd,
+                        originalResponse: response,
+                        chatMessages: chatMessages,
+                        systemPrompt: systemPrompt,
+                        provider: provider
+                    )
+                } else {
+                    finalResponse = response
+                }
+
                 await MainActor.run {
-                    deliverResponse(callbackId: callbackId, response: response)
+                    deliverResponse(callbackId: callbackId, response: finalResponse)
                 }
 
                 // Update memory log in background
@@ -1074,7 +1121,7 @@ struct AmicaFullView: UIViewRepresentable {
                 Task.detached { [memoryExtractor, memoryStore] in
                     await memoryExtractor.updateMemoryLog(
                         userMessage: lastUserMsg,
-                        aiResponse: response,
+                        aiResponse: finalResponse,
                         currentLog: currentLog,
                         using: provider,
                         store: memoryStore
@@ -1084,6 +1131,70 @@ struct AmicaFullView: UIViewRepresentable {
                 await MainActor.run {
                     deliverError(callbackId: callbackId, error: error.localizedDescription)
                 }
+            }
+        }
+
+        // MARK: - Terminal Command Execution
+
+        private func handleTerminalCommand(
+            terminalCmd: TerminalToolHandler.TerminalCommand,
+            originalResponse: String,
+            chatMessages: [ChatMessage],
+            systemPrompt: String,
+            provider: any LLMProvider
+        ) async -> String {
+            let command = terminalCmd.command
+
+            // Safety check
+            guard TerminalToolHandler.isCommandSafe(command) else {
+                return "[concerned] I can't run that command — it's been flagged as potentially destructive. Could you rephrase what you'd like me to do?"
+            }
+
+            // Show "running command" status
+            NotificationCenter.default.post(name: .terminalCommandStarted, object: command)
+            logger.info("[Terminal] Executing: \(command)")
+
+            do {
+                // Determine if this is a long-running command (like Claude CLI)
+                let actualCommand: String
+                let isLongRunning: Bool
+                if TerminalToolHandler.isClaudeCommand(command) {
+                    actualCommand = TerminalToolHandler.wrapClaudeCommand(command)
+                    isLongRunning = true
+                } else if let cwd = terminalCmd.workingDirectory {
+                    actualCommand = "cd \(cwd) && \(command)"
+                    isLongRunning = false
+                } else {
+                    actualCommand = command
+                    isLongRunning = false
+                }
+
+                // Use background task for longer commands
+                let bgTaskId = UIApplication.shared.beginBackgroundTask()
+
+                let result: CommandResult
+                if isLongRunning {
+                    result = try await SSHManager.shared.executeLongRunning(command: actualCommand)
+                } else {
+                    result = try await SSHManager.shared.execute(command: actualCommand)
+                }
+
+                UIApplication.shared.endBackgroundTask(bgTaskId)
+
+                NotificationCenter.default.post(name: .terminalCommandFinished, object: command)
+
+                // Build summary messages and re-query LLM
+                let summaryMessages = TerminalToolHandler.buildSummaryMessages(
+                    command: command,
+                    result: result,
+                    originalMessages: chatMessages
+                )
+
+                let summary = try await provider.generate(messages: summaryMessages, systemPrompt: systemPrompt)
+                return summary
+            } catch {
+                NotificationCenter.default.post(name: .terminalCommandFinished, object: command)
+                return "[concerned] I tried to run `\(command)` but hit an error: \(error.localizedDescription). Want me to try something else?"
             }
         }
 
@@ -1195,4 +1306,6 @@ extension Notification.Name {
     static let ttsDone = Notification.Name("ttsDone")
     static let aiResponseReady = Notification.Name("aiResponseReady")
     static let appReady = Notification.Name("appReady")
+    static let terminalCommandStarted = Notification.Name("terminalCommandStarted")
+    static let terminalCommandFinished = Notification.Name("terminalCommandFinished")
 }

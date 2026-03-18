@@ -65,6 +65,7 @@
 			);
 			name = Scowld;
 			packageProductDependencies = (
+				BA82250B2F6522FA002E853D /* Citadel */,
 			);
 			productName = Scowld;
 			productReference = BA82249B2F6521F9002E853D /* Scowld.app */;
@@ -98,6 +99,9 @@
 			productRefGroup = BA82249C2F6521F9002E853D /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				BA82250A2F6522FA002E853D /* XCRemoteSwiftPackageReference "Citadel" */,
+			);
 			targets = (
 				BA82249A2F6521F9002E853D /* Scowld */,
 			);
@@ -257,6 +261,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scowld uses your front camera to see you and your environment during conversations. Nothing is recorded or stored.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Scowld connects to your Mac via SSH to run terminal commands on your behalf.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Scowld listens to your voice so you can talk naturally with her.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Scowld converts your speech to text so she can understand what you say.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -292,6 +297,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scowld uses your front camera to see you and your environment during conversations. Nothing is recorded or stored.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Scowld connects to your Mac via SSH to run terminal commands on your behalf.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Scowld listens to your voice so you can talk naturally with her.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Scowld converts your speech to text so she can understand what you say.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -338,6 +344,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BA82250A2F6522FA002E853D /* XCRemoteSwiftPackageReference "Citadel" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/orlandos-nl/Citadel.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BA82250B2F6522FA002E853D /* Citadel */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BA82250A2F6522FA002E853D /* XCRemoteSwiftPackageReference "Citadel" */;
+			productName = Citadel;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BA8224932F6521F9002E853D /* Project object */;
 }

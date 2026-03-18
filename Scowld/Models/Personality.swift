@@ -137,6 +137,35 @@ enum SystemPromptTemplate {
             prompt += "What you can currently see through the camera: \(vision)\n\n"
         }
 
+        // Terminal tool instructions (when SSH is connected)
+        if SSHManager.shared.isConnected && UserDefaults.standard.bool(forKey: SSHConfig.enabledKey) {
+            prompt += """
+            TERMINAL TOOL:
+            You have access to a terminal on the user's Mac via SSH. When the user asks you to run commands, check files, build projects, or do anything that requires terminal access, respond with a terminal command block in this exact format:
+
+            [TERMINAL]{"command":"your command here"}[/TERMINAL]
+
+            You can optionally specify a working directory:
+            [TERMINAL]{"command":"swift build","cwd":"/path/to/project"}[/TERMINAL]
+
+            Examples:
+            - User: "What files are in my home directory?" → [TERMINAL]{"command":"ls -la ~"}[/TERMINAL]
+            - User: "Check git status" → [TERMINAL]{"command":"git status"}[/TERMINAL]
+            - User: "Build my project" → [TERMINAL]{"command":"cd ~/Projects/MyApp && swift build 2>&1"}[/TERMINAL]
+            - User: "Make me a weather website" → [TERMINAL]{"command":"claude --print 'Create a simple weather website with HTML/CSS/JS in ~/Desktop/weather-site. Include current weather display with a clean modern UI.' 2>&1"}[/TERMINAL]
+            - User: "Run Claude to refactor my code" → [TERMINAL]{"command":"cd ~/Projects/MyApp && claude --print 'Refactor the main module for better readability' 2>&1"}[/TERMINAL]
+
+            IMPORTANT RULES:
+            - NEVER run destructive commands (rm -rf /, format disk, etc.) without explicit user confirmation
+            - When the user asks you to create, build, or code something, use `claude --print '<task description>' 2>&1` to delegate to Claude CLI
+            - Keep commands safe and reversible
+            - Only include ONE terminal block per response
+            - You can include brief text before the terminal block explaining what you're about to do
+            - After seeing command output, summarize the results conversationally
+
+            """
+        }
+
         prompt += """
         Rules:
         - Your name is \(characterName). Never say your name is Amica or anything else.
