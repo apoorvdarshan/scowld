@@ -63,12 +63,12 @@ enum TerminalToolHandler {
 
     // MARK: - Command Building
 
-    /// Build the actual SSH command — uses claude --print --continue with default model (Opus)
+    /// Build the actual SSH command — uses claude --print with default model (Opus)
     static func buildCommand(for task: String) -> String {
         // Escape single quotes in the task for shell
         let escapedTask = task.replacingOccurrences(of: "'", with: "'\\''")
-        // Use full path, --continue keeps session context between tasks
-        return "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" && \(claudePath) --print --continue '\(escapedTask)' 2>&1"
+        // Fresh session each time — --continue was causing hangs loading large previous sessions
+        return "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" && \(claudePath) --print '\(escapedTask)' 2>&1"
     }
 
     // MARK: - Output Processing
