@@ -65,8 +65,8 @@ enum TerminalToolHandler {
 
     /// Build the SSH command — opens Terminal.app with interactive Claude so user can watch
     static func buildCommand(for task: String) -> String {
-        // Write a shell script, then open it in Terminal.app
-        // Using 'open -a Terminal' works over SSH (osascript doesn't)
+        // Write a shell script, then launch Terminal via launchctl in the GUI session
+        // SSH can't launch GUI apps directly — launchctl asuser runs in the logged-in user's context
         let escapedTask = task.replacingOccurrences(of: "'", with: "'\\''")
         return """
         rm -f /tmp/stella_claude_done && \
@@ -77,7 +77,7 @@ enum TerminalToolHandler {
         touch /tmp/stella_claude_done
         SCRIPT_EOF
         chmod +x /tmp/stella_run.sh && \
-        open -a Terminal /tmp/stella_run.sh
+        launchctl asuser 501 open -a Terminal /tmp/stella_run.sh
         """
     }
 
