@@ -1151,34 +1151,23 @@ struct AmicaFullView: UIViewRepresentable {
             systemPrompt: String,
             provider: any LLMProvider
         ) async -> String {
-            // Build the claude --print command
+            // Build the command to open Terminal.app with interactive Claude
             let command = TerminalToolHandler.buildCommand(for: task.task)
 
-            // Show "running task" status
-            NotificationCenter.default.post(name: .terminalCommandStarted, object: task.task)
-            logger.info("[Terminal] Running Claude CLI for task: \(task.task)")
+            logger.info("[Terminal] Launching Claude in Terminal for: \(task.task)")
 
             do {
-                // Use background task — claude CLI can take a while
-                let bgTaskId = UIApplication.shared.beginBackgroundTask()
+                // This returns immediately — it just opens Terminal.app with claude running
+                _ = try await SSHManager.shared.execute(command: command)
 
-                let result = try await SSHManager.shared.executeLongRunning(command: command)
-
-                UIApplication.shared.endBackgroundTask(bgTaskId)
-                NotificationCenter.default.post(name: .terminalCommandFinished, object: task.task)
-
-                // Build summary messages and re-query LLM
-                let summaryMessages = TerminalToolHandler.buildSummaryMessages(
-                    task: task.task,
-                    result: result,
-                    originalMessages: chatMessages
-                )
-
-                let summary = try await provider.generate(messages: summaryMessages, systemPrompt: systemPrompt)
-                return summary
+                // Get the text Stella said before the terminal block
+                let preText = TerminalToolHandler.extractTextPortion(from: originalResponse)
+                if !preText.isEmpty {
+                    return preText + " Check your Mac — Claude is working on it in Terminal!"
+                }
+                return "[excited] I've sent the task to Claude Code on your Mac! Check your Terminal to watch it work."
             } catch {
-                NotificationCenter.default.post(name: .terminalCommandFinished, object: task.task)
-                return "[concerned] I tried to run that task on your Mac but hit an error: \(error.localizedDescription). Want me to try again?"
+                return "[concerned] I couldn't open Terminal on your Mac: \(error.localizedDescription). Want me to try again?"
             }
         }
 

@@ -63,24 +63,19 @@ enum TerminalToolHandler {
 
     // MARK: - Command Building
 
-    /// Build the actual SSH command — opens Terminal.app so user can watch, captures output for Stella
+    /// Build the SSH command — opens Terminal.app with interactive Claude so user can watch
     static func buildCommand(for task: String) -> String {
-        // Escape single quotes for shell nesting
-        let escapedTask = task.replacingOccurrences(of: "'", with: "'\\''")
-        // Escape for AppleScript string (backslashes and quotes)
+        // Escape for AppleScript string
         let asEscaped = task
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
 
-        // 1. Clear previous output file
-        // 2. Open Terminal.app with claude running visibly + tee output to file
-        // 3. Wait for completion marker
-        // 4. Return captured output
+        // Opens Terminal.app with interactive Claude — user sees the full TUI
+        // Returns immediately so Stella doesn't hang waiting
         return """
-        rm -f /tmp/stella_claude_output.txt && \
-        osascript -e 'tell application "Terminal" to do script "export PATH=\\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\\" && \(claudePath) --print --dangerously-skip-permissions \\"\(asEscaped)\\" 2>&1 | tee /tmp/stella_claude_output.txt; echo __STELLA_DONE__ >> /tmp/stella_claude_output.txt"' && \
-        while ! grep -q __STELLA_DONE__ /tmp/stella_claude_output.txt 2>/dev/null; do sleep 2; done && \
-        sed '/__STELLA_DONE__/d' /tmp/stella_claude_output.txt
+        osascript \
+        -e 'tell application "Terminal" to activate' \
+        -e 'tell application "Terminal" to do script "export PATH=\\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\\" && \(claudePath) --dangerously-skip-permissions \\"\(asEscaped)\\"\"'
         """
     }
 
