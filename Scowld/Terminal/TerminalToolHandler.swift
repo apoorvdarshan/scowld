@@ -65,18 +65,19 @@ enum TerminalToolHandler {
 
     /// Build the SSH command — opens Terminal.app with interactive Claude so user can watch
     static func buildCommand(for task: String) -> String {
-        // Escape for AppleScript string
-        let asEscaped = task
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-
-        // Opens Terminal.app with interactive Claude — user sees the full TUI
-        // When claude finishes, writes a done marker so Stella knows
+        // Write a shell script, then open it in Terminal.app
+        // Using 'open -a Terminal' works over SSH (osascript doesn't)
+        let escapedTask = task.replacingOccurrences(of: "'", with: "'\\''")
         return """
         rm -f /tmp/stella_claude_done && \
-        osascript \
-        -e 'tell application "Terminal" to activate' \
-        -e 'tell application "Terminal" to do script "export PATH=\\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\\" && \(claudePath) --dangerously-skip-permissions \\"\(asEscaped)\\"; touch /tmp/stella_claude_done"'
+        cat > /tmp/stella_run.sh << 'SCRIPT_EOF'
+        #!/bin/bash
+        export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+        \(claudePath) --dangerously-skip-permissions '\(escapedTask)'
+        touch /tmp/stella_claude_done
+        SCRIPT_EOF
+        chmod +x /tmp/stella_run.sh && \
+        open -a Terminal /tmp/stella_run.sh
         """
     }
 
