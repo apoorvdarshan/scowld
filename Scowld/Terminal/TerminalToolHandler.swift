@@ -65,13 +65,15 @@ enum TerminalToolHandler {
 
     /// Build the SSH command — opens Terminal.app with interactive Claude so user can watch
     static func buildCommand(for task: String) -> String {
-        // Write a shell script, then launch Terminal via launchctl in the GUI session
+        // Write script and launch Terminal via multiple fallback methods
         let escapedTask = task.replacingOccurrences(of: "'", with: "'\\''")
         return """
         rm -f /tmp/stella_claude_done && \
         printf '#!/bin/bash\\nexport PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"\\n\(claudePath) --dangerously-skip-permissions \\x27\(escapedTask)\\x27\\ntouch /tmp/stella_claude_done\\n' > /tmp/stella_run.command && \
         chmod +x /tmp/stella_run.command && \
-        launchctl asuser 501 open /tmp/stella_run.command
+        osascript -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script "/tmp/stella_run.command"' 2>/dev/null || \
+        open /tmp/stella_run.command 2>/dev/null || \
+        launchctl asuser 501 open /tmp/stella_run.command 2>/dev/null
         """
     }
 
