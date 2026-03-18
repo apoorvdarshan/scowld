@@ -141,27 +141,27 @@ enum SystemPromptTemplate {
         if SSHManager.shared.isConnected && UserDefaults.standard.bool(forKey: SSHConfig.enabledKey) {
             prompt += """
             TERMINAL TOOL:
-            You have access to a terminal on the user's Mac via SSH. When the user asks you to run commands, check files, build projects, or do anything that requires terminal access, respond with a terminal command block in this exact format:
+            You have access to Claude Code CLI on the user's Mac via SSH. When the user asks you to do anything that requires their computer — coding, building, checking files, git operations, creating projects, or ANY task — you delegate it to Claude Code by responding with a terminal command block.
 
-            [TERMINAL]{"command":"your command here"}[/TERMINAL]
+            FORMAT (use this exact format):
+            [TERMINAL]{"task":"describe what to do in detail"}[/TERMINAL]
 
-            You can optionally specify a working directory:
-            [TERMINAL]{"command":"swift build","cwd":"/path/to/project"}[/TERMINAL]
+            You ONLY provide the task description. The system automatically runs `claude --print '<your task>'` on the Mac. Claude Code handles everything — file creation, builds, git, installations, etc.
 
             Examples:
-            - User: "What files are in my home directory?" → [TERMINAL]{"command":"ls -la ~"}[/TERMINAL]
-            - User: "Check git status" → [TERMINAL]{"command":"git status"}[/TERMINAL]
-            - User: "Build my project" → [TERMINAL]{"command":"cd ~/Projects/MyApp && swift build 2>&1"}[/TERMINAL]
-            - User: "Make me a weather website" → [TERMINAL]{"command":"claude --print 'Create a simple weather website with HTML/CSS/JS in ~/Desktop/weather-site. Include current weather display with a clean modern UI.' 2>&1"}[/TERMINAL]
-            - User: "Run Claude to refactor my code" → [TERMINAL]{"command":"cd ~/Projects/MyApp && claude --print 'Refactor the main module for better readability' 2>&1"}[/TERMINAL]
+            - User: "What files are in my home directory?" → [TERMINAL]{"task":"List all files and folders in the home directory with details"}[/TERMINAL]
+            - User: "Check git status of Scowld" → [TERMINAL]{"task":"Check the git status of the Scowld project in ~/Scowld"}[/TERMINAL]
+            - User: "Build my project" → [TERMINAL]{"task":"Build the Xcode project in ~/Scowld using xcodebuild"}[/TERMINAL]
+            - User: "Make me a weather website" → [TERMINAL]{"task":"Create a beautiful weather website with HTML/CSS/JS in ~/Desktop/weather-site. Include current weather display with a clean modern UI, responsive design, and use a free weather API."}[/TERMINAL]
+            - User: "Refactor the networking code" → [TERMINAL]{"task":"Refactor the networking/API code in ~/Scowld for better readability and error handling"}[/TERMINAL]
+            - User: "Install python" → [TERMINAL]{"task":"Install Python using Homebrew if not already installed"}[/TERMINAL]
 
-            IMPORTANT RULES:
-            - NEVER run destructive commands (rm -rf /, format disk, etc.) without explicit user confirmation
-            - When the user asks you to create, build, or code something, use `claude --print '<task description>' 2>&1` to delegate to Claude CLI
-            - Keep commands safe and reversible
+            RULES:
+            - ALWAYS use the [TERMINAL] block for ANY task that involves the user's computer
+            - Describe the task clearly and in detail — Claude Code will figure out the commands
             - Only include ONE terminal block per response
-            - You can include brief text before the terminal block explaining what you're about to do
-            - After seeing command output, summarize the results conversationally
+            - You can include a brief sentence before the block explaining what you're about to do
+            - After seeing the result, summarize it conversationally
 
             """
         }

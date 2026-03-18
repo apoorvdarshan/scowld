@@ -1093,15 +1093,15 @@ struct AmicaFullView: UIViewRepresentable {
                     response = try await provider.generate(messages: chatMessages, systemPrompt: systemPrompt)
                 }
 
-                // Check for terminal command in response
+                // Check for terminal task in response
                 let finalResponse: String
                 if TerminalToolHandler.containsTerminalBlock(response),
                    SSHManager.shared.isConnected,
                    UserDefaults.standard.bool(forKey: SSHConfig.enabledKey),
-                   let terminalCmd = TerminalToolHandler.extractCommand(from: response) {
+                   let terminalTask = TerminalToolHandler.extractTask(from: response) {
 
-                    finalResponse = await handleTerminalCommand(
-                        terminalCmd: terminalCmd,
+                    finalResponse = await handleTerminalTask(
+                        task: terminalTask,
                         originalResponse: response,
                         chatMessages: chatMessages,
                         systemPrompt: systemPrompt,
@@ -1134,58 +1134,34 @@ struct AmicaFullView: UIViewRepresentable {
             }
         }
 
-        // MARK: - Terminal Command Execution
+        // MARK: - Terminal Task Execution
 
-        private func handleTerminalCommand(
-            terminalCmd: TerminalToolHandler.TerminalCommand,
+        private func handleTerminalTask(
+            task: TerminalToolHandler.TerminalTask,
             originalResponse: String,
             chatMessages: [ChatMessage],
             systemPrompt: String,
             provider: any LLMProvider
         ) async -> String {
-            let command = terminalCmd.command
+            // Build the claude --print command
+            let command = TerminalToolHandler.buildCommand(for: task.task)
 
-            // Safety check
-            guard TerminalToolHandler.isCommandSafe(command) else {
-                return "[concerned] I can't run that command — it's been flagged as potentially destructive. Could you rephrase what you'd like me to do?"
-            }
-
-            // Show "running command" status
-            NotificationCenter.default.post(name: .terminalCommandStarted, object: command)
-            logger.info("[Terminal] Executing: \(command)")
+            // Show "running task" status
+            NotificationCenter.default.post(name: .terminalCommandStarted, object: task.task)
+            logger.info("[Terminal] Running Claude CLI for task: \(task.task)")
 
             do {
-                // Determine if this is a long-running command (like Claude CLI)
-                let actualCommand: String
-                let isLongRunning: Bool
-                if TerminalToolHandler.isClaudeCommand(command) {
-                    actualCommand = TerminalToolHandler.wrapClaudeCommand(command)
-                    isLongRunning = true
-                } else if let cwd = terminalCmd.workingDirectory {
-                    actualCommand = "cd \(cwd) && \(command)"
-                    isLongRunning = false
-                } else {
-                    actualCommand = command
-                    isLongRunning = false
-                }
-
-                // Use background task for longer commands
+                // Use background task — claude CLI can take a while
                 let bgTaskId = UIApplication.shared.beginBackgroundTask()
 
-                let result: CommandResult
-                if isLongRunning {
-                    result = try await SSHManager.shared.executeLongRunning(command: actualCommand)
-                } else {
-                    result = try await SSHManager.shared.execute(command: actualCommand)
-                }
+                let result = try await SSHManager.shared.executeLongRunning(command: command)
 
                 UIApplication.shared.endBackgroundTask(bgTaskId)
-
-                NotificationCenter.default.post(name: .terminalCommandFinished, object: command)
+                NotificationCenter.default.post(name: .terminalCommandFinished, object: task.task)
 
                 // Build summary messages and re-query LLM
                 let summaryMessages = TerminalToolHandler.buildSummaryMessages(
-                    command: command,
+                    task: task.task,
                     result: result,
                     originalMessages: chatMessages
                 )
@@ -1193,8 +1169,8 @@ struct AmicaFullView: UIViewRepresentable {
                 let summary = try await provider.generate(messages: summaryMessages, systemPrompt: systemPrompt)
                 return summary
             } catch {
-                NotificationCenter.default.post(name: .terminalCommandFinished, object: command)
-                return "[concerned] I tried to run `\(command)` but hit an error: \(error.localizedDescription). Want me to try something else?"
+                NotificationCenter.default.post(name: .terminalCommandFinished, object: task.task)
+                return "[concerned] I tried to run that task on your Mac but hit an error: \(error.localizedDescription). Want me to try again?"
             }
         }
 
