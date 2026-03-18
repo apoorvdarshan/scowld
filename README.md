@@ -17,6 +17,7 @@
 - **3D Anime Avatar** — VRM character rendered via Three.js with lip sync, idle animations, and expressions
 - **Hands-Free Voice Chat** — Always-on speech recognition with auto-send on silence, live captions for both user and AI
 - **Vision** — Front camera feeds to the AI so it can see what you see (no preview shown, privacy-first)
+- **Terminal SSH** — Say "build me a website" and Stella SSHs into your Mac, opens Terminal with Claude Code, and builds it while you watch in real-time
 - **Multi-Provider LLM** — Gemini, OpenAI, Claude, Ollama, OpenRouter, xAI, Together AI
 - **Text-to-Speech** — ElevenLabs, OpenAI TTS, or native iOS
 - **Persistent Memory** — AI extracts and remembers key details across conversations using memory slots
@@ -30,6 +31,8 @@ Native iOS (Swift/SwiftUI)
 ├── MemoryStore         — CoreData persistence for chat history + memory logs
 ├── MemoryExtractor     — LLM-powered memory extraction from conversations
 ├── LLM Providers       — Gemini, OpenAI, Claude, Ollama, OpenRouter, xAI, Together
+├── SSHManager          — Citadel-based SSH connection to Mac for terminal access
+├── TerminalToolHandler — LLM [TERMINAL] block parsing, safety checks, Claude CLI dispatch
 └── HomeView            — Main UI with WKWebView bridge
 
 WKWebView (Amica Web Frontend (by Arbius AI))
@@ -65,7 +68,7 @@ WKWebView (Amica Web Frontend (by Arbius AI))
 ## How It Works
 
 ### Voice Mode
-Tap the waveform icon to enable hands-free mode. Speak naturally — the app auto-sends after 0.8s of silence. While the AI responds, the mic pauses and resumes automatically after TTS finishes. Live captions show what you're saying and what the AI says.
+Tap the waveform icon to enable hands-free mode. Speak naturally — the app auto-sends after 1.2s of silence. While the AI responds, the mic pauses and resumes automatically after TTS finishes. Live captions show what you're saying and what the AI says.
 
 ### Vision
 The front camera is enabled by default (hidden, no preview). The AI can see through your camera when you send messages. Toggle with the eye icon in the bottom bar.
@@ -73,11 +76,17 @@ The front camera is enabled by default (hidden, no preview). The AI can see thro
 ### Memory
 The AI automatically extracts important details from conversations and stores them in memory slots. These persist across sessions and are injected into the system prompt for context-aware responses.
 
+### Terminal (SSH)
+Enable SSH in Settings to let Stella run tasks on your Mac. Say things like "build me an ecommerce website" — Stella opens Terminal on your Mac with interactive Claude Code, and you watch it create files, write code, and build your project in real-time. When Claude finishes, Stella lets you know.
+
+**Setup:** Settings → Terminal (SSH) → enter your Mac's IP, username, password → enable Remote Login on Mac (System Settings → General → Sharing → Remote Login).
+
 ## Tech Stack
 
 - **Swift / SwiftUI** — Native iOS app
 - **WKWebView** — Hosts [Amica](https://github.com/semperai/amica) (by Arbius AI) Three.js frontend for 3D avatar rendering
 - **CoreData** — Chat history and memory persistence
+- **Citadel** — Pure Swift SSH2 library for terminal access to Mac
 - **Apple Speech** — On-device speech recognition
 - **AVAudioEngine** — Audio session management for simultaneous TTS and STT
 
