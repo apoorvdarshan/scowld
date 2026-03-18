@@ -171,10 +171,18 @@ struct HomeView: View {
         .onReceive(NotificationCenter.default.publisher(for: .terminalCommandStarted)) { notification in
             if let cmd = notification.object as? String {
                 terminalCommandRunning = cmd
+                // Pause voice listening while terminal task runs
+                if voiceManager.isEnabled {
+                    voiceManager.pauseForTTS()
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .terminalCommandFinished)) { _ in
             terminalCommandRunning = nil
+            // Resume voice listening after terminal task completes
+            if voiceManager.isEnabled {
+                voiceManager.onTTSDone()
+            }
         }
         .onChange(of: scenePhase) {
             switch scenePhase {
@@ -211,7 +219,7 @@ struct HomeView: View {
     }
 
     private var isBusy: Bool {
-        !aiResponseText.isEmpty
+        !aiResponseText.isEmpty || terminalCommandRunning != nil
     }
 
     private var handsFreeIconName: String {
