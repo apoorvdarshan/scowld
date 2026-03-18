@@ -63,12 +63,12 @@ enum TerminalToolHandler {
 
     // MARK: - Command Building
 
-    /// Build the actual SSH command — always uses claude --print
+    /// Build the actual SSH command — always uses claude --print --continue
     static func buildCommand(for task: String) -> String {
         // Escape single quotes in the task for shell
         let escapedTask = task.replacingOccurrences(of: "'", with: "'\\''")
-        // Use full path and source profile for PATH (homebrew, etc.)
-        return "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" && \(claudePath) --print '\(escapedTask)' 2>&1"
+        // Use full path, --continue keeps same session context between tasks
+        return "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" && \(claudePath) --print --continue '\(escapedTask)' 2>&1"
     }
 
     // MARK: - Output Processing

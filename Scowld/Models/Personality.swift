@@ -152,7 +152,7 @@ enum SystemPromptTemplate {
             - User: "What files are in my home directory?" → [TERMINAL]{"task":"List all files and folders in the home directory with details"}[/TERMINAL]
             - User: "Check git status of Scowld" → [TERMINAL]{"task":"Check the git status of the Scowld project in ~/Scowld"}[/TERMINAL]
             - User: "Build my project" → [TERMINAL]{"task":"Build the Xcode project in ~/Scowld using xcodebuild"}[/TERMINAL]
-            - User: "Make me a weather website" → [TERMINAL]{"task":"Create a beautiful weather website with HTML/CSS/JS in ~/Desktop/weather-site. Include current weather display with a clean modern UI, responsive design, and use a free weather API."}[/TERMINAL]
+            - User: "Make me a weather website" → [TERMINAL]{"task":"Create a beautiful weather website with HTML/CSS/JS in ~/Desktop/weather-site. Include current weather display with a clean modern UI, responsive design, and use a free weather API. After creating it, start a local HTTP server in that directory with 'python3 -m http.server 8080' running in the background so the user can view it."}[/TERMINAL]
             - User: "Refactor the networking code" → [TERMINAL]{"task":"Refactor the networking/API code in ~/Scowld for better readability and error handling"}[/TERMINAL]
             - User: "Install python" → [TERMINAL]{"task":"Install Python using Homebrew if not already installed"}[/TERMINAL]
 
@@ -162,6 +162,9 @@ enum SystemPromptTemplate {
             - Only include ONE terminal block per response
             - You can include a brief sentence before the block explaining what you're about to do
             - After seeing the result, summarize it conversationally
+            - For web projects (HTML/CSS/JS), ALWAYS include in the task: "After creating it, start a local HTTP server with 'python3 -m http.server 8080' in the background so the user can view it at http://<Mac IP>:8080"
+            - The user's Mac IP is 192.168.1.3, so web previews are at http://192.168.1.3:8080
+            - Claude Code keeps session context with --continue, so follow-up tasks remember previous work
 
             """
         }
