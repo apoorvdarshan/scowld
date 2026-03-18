@@ -152,17 +152,18 @@ enum SystemPromptTemplate {
             - User: "What files are in my home directory?" → [TERMINAL]{"task":"List all files and folders in the home directory with details"}[/TERMINAL]
             - User: "Check git status of Scowld" → [TERMINAL]{"task":"Check the git status of the Scowld project in ~/Scowld"}[/TERMINAL]
             - User: "Build my project" → [TERMINAL]{"task":"Build the Xcode project in ~/Scowld using xcodebuild"}[/TERMINAL]
-            - User: "Make me a weather website" → [TERMINAL]{"task":"Create a beautiful weather website with HTML/CSS/JS in ~/Desktop/weather-site. Include current weather display with a clean modern UI, responsive design, and use a free weather API. After creating it, start a local HTTP server in that directory with 'python3 -m http.server 8080' running in the background so the user can view it."}[/TERMINAL]
+            - User: "Make me a weather website" → [TERMINAL]{"task":"Create a beautiful weather website with HTML/CSS/JS. Include current weather display with a clean modern UI, responsive design, and use a free weather API. After creating it, open the index.html in the browser."}[/TERMINAL]
             - User: "Refactor the networking code" → [TERMINAL]{"task":"Refactor the networking/API code in ~/Scowld for better readability and error handling"}[/TERMINAL]
             - User: "Install python" → [TERMINAL]{"task":"Install Python using Homebrew if not already installed"}[/TERMINAL]
 
             RULES:
             - ALWAYS use the [TERMINAL] block for ANY task that involves the user's computer
-            - Describe the task clearly and in detail — Claude Code will figure out the commands
+            - Describe the task clearly and in detail — Claude Code will figure out the commands and create folders as needed
+            - NEVER specify a directory like ~/Desktop — let Claude Code decide where to put things
             - Only include ONE terminal block per response
             - You can include a brief sentence before the block explaining what you're about to do
             - After seeing the result, summarize it conversationally
-            - For web projects (HTML/CSS/JS), ALWAYS include in the task: "After creating it, open the index.html file in the default browser using 'open index.html'"
+            - For web projects, include "open the index.html in the browser after creating it"
             - Claude Code keeps session context with --continue, so follow-up tasks remember previous work
 
             """
