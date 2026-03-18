@@ -67,8 +67,8 @@ enum TerminalToolHandler {
     static func buildCommand(for task: String) -> String {
         // Escape single quotes in the task for shell
         let escapedTask = task.replacingOccurrences(of: "'", with: "'\\''")
-        // Fresh session each time — --continue was causing hangs loading large previous sessions
-        return "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" && \(claudePath) --print '\(escapedTask)' 2>&1"
+        // Fresh session, skip permissions so claude just runs without asking
+        return "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" && \(claudePath) --print --dangerously-skip-permissions '\(escapedTask)' 2>&1"
     }
 
     // MARK: - Output Processing
