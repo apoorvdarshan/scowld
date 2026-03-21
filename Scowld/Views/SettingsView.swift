@@ -274,7 +274,7 @@ struct SettingsView: View {
                     }
                     .onChange(of: selectedAvatar) { hasChanges = true }
 
-                    TextField("Name", text: $characterName)
+                    TextField("Custom Name (optional)", text: $characterName)
                         .autocorrectionDisabled()
                         .onChange(of: characterName) { hasChanges = true }
 
@@ -291,7 +291,7 @@ struct SettingsView: View {
                 } header: {
                     Label("Character", systemImage: "person.fill")
                 } footer: {
-                    Text("Defines your AI companion's personality and behavior.")
+                    Text("Each avatar uses its own name by default. Set a custom name to override it.")
                 }
 
                 // MARK: - Memory Management
@@ -397,7 +397,7 @@ struct SettingsView: View {
         // Amica backend settings
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
-        characterName = defaults.string(forKey: "character_name") ?? "Stella"
+        characterName = defaults.string(forKey: "character_name") ?? ""
         selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"

@@ -9,7 +9,7 @@ struct ContextBuilder {
     /// Build the complete system prompt with memory log from the active slot
     func buildSystemPrompt(visionDescription: String? = nil) -> String {
         let memoryLog = memoryStore.getActiveMemoryLog()
-        let characterName = UserDefaults.standard.string(forKey: "character_name") ?? "Stella"
+        let characterName = CharacterPack.resolveCharacterName()
 
         // Split memory log into lines for the prompt
         let memories = memoryLog.isEmpty ? [] : memoryLog.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }

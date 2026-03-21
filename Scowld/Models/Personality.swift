@@ -96,6 +96,21 @@ struct CharacterPack: Identifiable, Codable, Sendable {
         CharacterPack(id: "avatar_b", name: "Bella", fileName: "AvatarSample_B", description: "Warm and expressive"),
         CharacterPack(id: "avatar_c", name: "Ciel", fileName: "AvatarSample_C", description: "Cool and collected"),
     ]
+
+    /// Get the name for a given avatar fileName
+    static func nameForAvatar(_ fileName: String) -> String {
+        defaultPacks.first(where: { $0.fileName == fileName })?.name ?? "Stella"
+    }
+
+    /// Resolve the effective character name: custom name if set, otherwise avatar's name
+    static func resolveCharacterName() -> String {
+        let customName = UserDefaults.standard.string(forKey: "character_name") ?? ""
+        if !customName.isEmpty {
+            return customName
+        }
+        let avatar = UserDefaults.standard.string(forKey: "selected_avatar") ?? "AvatarSample_A"
+        return nameForAvatar(avatar)
+    }
 }
 
 // MARK: - System Prompt Template
