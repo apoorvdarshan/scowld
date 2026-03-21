@@ -943,10 +943,19 @@ struct AmicaFullView: UIViewRepresentable {
                     vrm_url: '/vrm/\(selectedAvatar).vrm'
                 };
             """
-            webView?.evaluateJavaScript(js)
-            // Reload page so new avatar loads
-            webView?.reload()
-            logger.info("[Amica] Pushed updated config and reloaded WebView")
+            // Update the user script with new config, then reload
+            if let webView {
+                let contentController = webView.configuration.userContentController
+                contentController.removeAllUserScripts()
+                let newScript = WKUserScript(
+                    source: js,
+                    injectionTime: .atDocumentStart,
+                    forMainFrameOnly: true
+                )
+                contentController.addUserScript(newScript)
+                webView.reload()
+            }
+            logger.info("[Amica] Updated config script and reloaded WebView")
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
