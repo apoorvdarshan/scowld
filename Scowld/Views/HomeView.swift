@@ -944,7 +944,9 @@ struct AmicaFullView: UIViewRepresentable {
                 };
             """
             webView?.evaluateJavaScript(js)
-            logger.info("[Amica] Pushed updated config to WebView")
+            // Reload page so new avatar loads
+            webView?.reload()
+            logger.info("[Amica] Pushed updated config and reloaded WebView")
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
