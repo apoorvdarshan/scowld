@@ -253,7 +253,7 @@ final class VoiceManager: NSObject {
             maxAmplitude = max(maxAmplitude, abs(floatData[0][i]))
         }
 
-        let speechThreshold: Float = 0.01
+        let speechThreshold: Float = 0.05
 
         if maxAmplitude > speechThreshold {
             hasDetectedSpeech = true
