@@ -204,38 +204,40 @@ struct SettingsView: View {
                 // MARK: - STT (Speech-to-Text)
                 Section {
                     Picker("Backend", selection: $sttBackend) {
-                        Text("Native iOS").tag("native_ios")
-                        Text("OpenAI Whisper API").tag("openai_whisper")
-                        Text("Amica (Browser Whisper)").tag("whisper_browser")
-                        Text("None (use text input)").tag("none")
+                        ForEach(STTBackend.allCases, id: \.self) { backend in
+                            Text(backend.displayName).tag(backend.rawValue)
+                        }
                     }
                     .onChange(of: sttBackend) { hasChanges = true }
                 } header: {
                     Label("Speech-to-Text", systemImage: "mic")
                 } footer: {
-                    switch sttBackend {
-                    case "native_ios": Text("Built-in iOS speech recognition. Free, on-device, no API needed.")
-                    case "openai_whisper": Text("High accuracy, cloud-based. Uses your OpenAI API key.")
-                    case "whisper_browser": Text("Runs Whisper locally in the browser. Free, on-device.")
-                    default: Text("Voice input disabled. Use text input only.")
-                    }
+                    Text((STTBackend(rawValue: sttBackend) ?? .nativeIOS).footerText)
                 }
 
-                // MARK: - OpenAI Whisper API Key
-                if sttBackend == "openai_whisper" {
+                // MARK: - Cloud STT API Key
+                if let backend = STTBackend(rawValue: sttBackend), backend.requiresAPIKey {
                     Section {
-                        Text("Uses the same OpenAI API key from your AI Provider settings above, or set a separate one below.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        TextField("OpenAI Whisper API Key (optional)", text: Binding(
-                            get: { UserDefaults.standard.string(forKey: "amica_openai_whisper_apikey") ?? "" },
-                            set: { UserDefaults.standard.set($0, forKey: "amica_openai_whisper_apikey") }
+                        SecureField("API Key", text: Binding(
+                            get: { KeychainManager.load(key: backend.keychainKey) ?? "" },
+                            set: {
+                                if $0.isEmpty {
+                                    KeychainManager.delete(key: backend.keychainKey)
+                                } else {
+                                    KeychainManager.save(key: backend.keychainKey, value: $0)
+                                }
+                                hasChanges = true
+                            }
                         ))
+                        .textContentType(.password)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+
+                        Text("Stored securely in iOS Keychain.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     } header: {
-                        Label("Whisper Settings", systemImage: "mic.badge.xmark")
+                        Label("\(backend.displayName) API Key", systemImage: "key")
                     }
                 }
 

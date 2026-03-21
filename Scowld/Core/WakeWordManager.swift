@@ -10,6 +10,7 @@ enum VoiceState {
     case idle
     case listening
     case waitingForTTS
+    case transcribing // Cloud STT is processing
 }
 
 @Observable
@@ -41,8 +42,20 @@ final class VoiceManager: NSObject {
     private var commandText: String = ""
     private var isTTSPlaying = false
 
+    // Cloud STT audio buffer storage
+    private var audioBuffers: [AVAudioPCMBuffer] = []
+    private var audioFormat: AVAudioFormat?
+    private var cloudSilenceTimer: Timer?
+    private var hasDetectedSpeech = false
+
     private static let silenceTimeout: TimeInterval = 1.2
     private static let maxRecognitionDuration: TimeInterval = 55.0
+
+    /// Current STT backend from settings
+    private var currentBackend: STTBackend {
+        let raw = UserDefaults.standard.string(forKey: "amica_stt_backend") ?? "native_ios"
+        return STTBackend(rawValue: raw) ?? .nativeIOS
+    }
 
     override init() {
         super.init()
@@ -58,15 +71,24 @@ final class VoiceManager: NSObject {
         lastNormalizedText = ""
         transcriptText = ""
         isTTSPlaying = false
+        audioBuffers = []
+        hasDetectedSpeech = false
 
         state = .listening
-        startRecognition()
-        logger.info("[Voice] Started listening")
+
+        if currentBackend.isCloudBased {
+            startCloudRecording()
+        } else {
+            startRecognition()
+        }
+        logger.info("[Voice] Started listening (\(self.currentBackend.rawValue))")
     }
 
     func pauseForTTS() {
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
+        cloudSilenceTimer?.invalidate()
+        cloudSilenceTimer = nil
         stopRecognitionInternal()
         state = .waitingForTTS
         isTTSPlaying = true
@@ -94,17 +116,19 @@ final class VoiceManager: NSObject {
         stopRecognitionInternal()
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
+        cloudSilenceTimer?.invalidate()
+        cloudSilenceTimer = nil
         restartTimer?.invalidate()
         restartTimer = nil
         state = .idle
         commandText = ""
         transcriptText = ""
         isTTSPlaying = false
+        audioBuffers = []
         logger.info("[Voice] Stopped")
     }
 
-
-    // MARK: - Recognition
+    // MARK: - Native iOS Recognition
 
     private func startRecognition() {
         guard let speechRecognizer, speechRecognizer.isAvailable else {
@@ -175,6 +199,143 @@ final class VoiceManager: NSObject {
         }
     }
 
+    // MARK: - Cloud STT Recording
+
+    private func startCloudRecording() {
+        stopRecognitionInternal()
+        audioBuffers = []
+        hasDetectedSpeech = false
+
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers])
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+
+            let inputNode = audioEngine.inputNode
+            let recordingFormat = inputNode.outputFormat(forBus: 0)
+            audioFormat = recordingFormat
+
+            inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
+                Task { @MainActor in
+                    self?.handleCloudAudioBuffer(buffer)
+                }
+            }
+
+            audioEngine.prepare()
+            try audioEngine.start()
+
+            transcriptText = ""
+            logger.info("[Voice] Cloud recording started")
+
+            // Auto-restart to prevent infinite recording
+            restartTimer?.invalidate()
+            restartTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.state == .listening else { return }
+                    if self.hasDetectedSpeech {
+                        self.finishCloudRecording()
+                    } else {
+                        self.scheduleRestart()
+                    }
+                }
+            }
+        } catch {
+            logger.error("[Voice] Failed to start cloud recording: \(error.localizedDescription)")
+        }
+    }
+
+    private func handleCloudAudioBuffer(_ buffer: AVAudioPCMBuffer) {
+        // Detect speech by checking audio amplitude
+        guard let floatData = buffer.floatChannelData else { return }
+        let frameCount = Int(buffer.frameLength)
+        var maxAmplitude: Float = 0
+        for i in 0..<frameCount {
+            maxAmplitude = max(maxAmplitude, abs(floatData[0][i]))
+        }
+
+        let speechThreshold: Float = 0.02
+
+        if maxAmplitude > speechThreshold {
+            hasDetectedSpeech = true
+            // Copy the buffer since we need to keep it
+            let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameCapacity)!
+            copy.frameLength = buffer.frameLength
+            if let srcData = buffer.floatChannelData, let dstData = copy.floatChannelData {
+                for ch in 0..<Int(buffer.format.channelCount) {
+                    memcpy(dstData[ch], srcData[ch], Int(buffer.frameLength) * MemoryLayout<Float>.size)
+                }
+            }
+            audioBuffers.append(copy)
+            transcriptText = "Listening..."
+            resetCloudSilenceTimer()
+        } else if hasDetectedSpeech {
+            // Still capture silence buffers (for natural speech gaps)
+            let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameCapacity)!
+            copy.frameLength = buffer.frameLength
+            if let srcData = buffer.floatChannelData, let dstData = copy.floatChannelData {
+                for ch in 0..<Int(buffer.format.channelCount) {
+                    memcpy(dstData[ch], srcData[ch], Int(buffer.frameLength) * MemoryLayout<Float>.size)
+                }
+            }
+            audioBuffers.append(copy)
+        }
+    }
+
+    private func resetCloudSilenceTimer() {
+        cloudSilenceTimer?.invalidate()
+        cloudSilenceTimer = Timer.scheduledTimer(withTimeInterval: Self.silenceTimeout, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.state == .listening, self.hasDetectedSpeech else { return }
+                self.finishCloudRecording()
+            }
+        }
+    }
+
+    private func finishCloudRecording() {
+        cloudSilenceTimer?.invalidate()
+        cloudSilenceTimer = nil
+        stopRecognitionInternal()
+
+        guard !audioBuffers.isEmpty, let format = audioFormat else {
+            if isEnabled { startListening() }
+            return
+        }
+
+        let buffers = audioBuffers
+        audioBuffers = []
+
+        state = .transcribing
+        transcriptText = "Transcribing..."
+        logger.info("[Voice] Sending \(buffers.count) buffers to cloud STT")
+
+        let backend = currentBackend
+
+        Task {
+            do {
+                let wavData = CloudSTTManager.createWAV(from: buffers, format: format)
+                let transcript = try await CloudSTTManager.transcribe(audioData: wavData, backend: backend)
+
+                let clean = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !clean.isEmpty else {
+                    logger.info("[Voice] Cloud STT returned empty transcript")
+                    if isEnabled { startListening() }
+                    return
+                }
+
+                logger.info("[Voice] Cloud STT result: \(clean)")
+                transcriptText = ""
+                readyCommand = clean
+                pauseForTTS()
+            } catch {
+                logger.error("[Voice] Cloud STT error: \(error.localizedDescription)")
+                transcriptText = ""
+                if isEnabled { startListening() }
+            }
+        }
+    }
+
+    // MARK: - Common
+
     private func stopRecognitionInternal() {
         restartTimer?.invalidate()
         restartTimer = nil
@@ -198,11 +359,15 @@ final class VoiceManager: NSObject {
             try? await Task.sleep(for: .milliseconds(200))
             self.isRestarting = false
             guard self.isEnabled, self.state == .listening else { return }
-            self.startRecognition()
+            if self.currentBackend.isCloudBased {
+                self.startCloudRecording()
+            } else {
+                self.startRecognition()
+            }
         }
     }
 
-    // MARK: - Transcript Handling
+    // MARK: - Transcript Handling (Native iOS)
 
     private func handleTranscript(_ transcript: String) {
         let clean = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
