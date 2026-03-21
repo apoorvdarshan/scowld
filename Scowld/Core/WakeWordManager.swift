@@ -266,7 +266,6 @@ final class VoiceManager: NSObject {
                 }
             }
             audioBuffers.append(copy)
-            transcriptText = "Listening..."
             resetCloudSilenceTimer()
         } else if hasDetectedSpeech {
             // Still capture silence buffers (for natural speech gaps)
