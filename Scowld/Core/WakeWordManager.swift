@@ -47,6 +47,7 @@ final class VoiceManager: NSObject {
     private var audioFormat: AVAudioFormat?
     private var cloudSilenceTimer: Timer?
     private var hasDetectedSpeech = false
+    private var speechBufferCount = 0
 
     private static let silenceTimeout: TimeInterval = 1.2
     private static let maxRecognitionDuration: TimeInterval = 55.0
@@ -73,6 +74,7 @@ final class VoiceManager: NSObject {
         isTTSPlaying = false
         audioBuffers = []
         hasDetectedSpeech = false
+        speechBufferCount = 0
 
         state = .listening
 
@@ -253,10 +255,11 @@ final class VoiceManager: NSObject {
             maxAmplitude = max(maxAmplitude, abs(floatData[0][i]))
         }
 
-        let speechThreshold: Float = 0.05
+        let speechThreshold: Float = 0.08
 
         if maxAmplitude > speechThreshold {
             hasDetectedSpeech = true
+            speechBufferCount += 1
             // Copy the buffer since we need to keep it
             let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameCapacity)!
             copy.frameLength = buffer.frameLength
@@ -295,7 +298,9 @@ final class VoiceManager: NSObject {
         cloudSilenceTimer = nil
         stopRecognitionInternal()
 
-        guard !audioBuffers.isEmpty, let format = audioFormat else {
+        // Need at least 5 speech buffers (~0.5s of actual speech) to avoid noise
+        guard !audioBuffers.isEmpty, let format = audioFormat, speechBufferCount >= 5 else {
+            logger.info("[Voice] Not enough speech detected (\(self.speechBufferCount) buffers), restarting")
             if isEnabled { startListening() }
             return
         }
