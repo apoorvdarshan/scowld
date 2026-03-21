@@ -268,9 +268,9 @@ struct SettingsView: View {
                 // MARK: - Character
                 Section {
                     Picker("Avatar", selection: $selectedAvatar) {
-                        Text("Avatar A").tag("AvatarSample_A")
-                        Text("Avatar B").tag("AvatarSample_B")
-                        Text("Avatar C").tag("AvatarSample_C")
+                        ForEach(CharacterPack.defaultPacks) { pack in
+                            Text(pack.name).tag(pack.fileName)
+                        }
                     }
                     .onChange(of: selectedAvatar) { hasChanges = true }
 
