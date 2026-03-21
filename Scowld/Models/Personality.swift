@@ -93,11 +93,8 @@ struct CharacterPack: Identifiable, Codable, Sendable {
 
     static let defaultPacks: [CharacterPack] = [
         CharacterPack(id: "avatar_a", name: "Aria", fileName: "AvatarSample_A", description: "Elegant and composed"),
+        CharacterPack(id: "avatar_b", name: "Bella", fileName: "AvatarSample_B", description: "Warm and expressive"),
         CharacterPack(id: "avatar_c", name: "Ciel", fileName: "AvatarSample_C", description: "Cool and collected"),
-        CharacterPack(id: "avatar_e", name: "Elena", fileName: "AvatarSample_E", description: "Bright and cheerful"),
-        CharacterPack(id: "avatar_i", name: "Izumi", fileName: "AvatarSample_I", description: "Traditional and graceful"),
-        CharacterPack(id: "avatar_o", name: "Olivia", fileName: "AvatarSample_O", description: "Gentle and thoughtful"),
-        CharacterPack(id: "avatar_r", name: "Rin", fileName: "AvatarSample_R", description: "Bold and confident"),
     ]
 }
 

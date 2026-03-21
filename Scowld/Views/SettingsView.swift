@@ -28,6 +28,7 @@ struct SettingsView: View {
 
     // MARK: - Character Settings
     @State private var characterName: String = "Stella"
+    @State private var selectedAvatar: String = "AvatarSample_A"
     @State private var systemPrompt: String = ""
 
     private static let defaultSystemPrompt = "You are a warm, cheerful, and expressive AI companion. You're friendly, playful, and genuinely care about the person you're talking to. You speak naturally and conversationally — like a close friend. Keep responses concise (1-3 sentences). Be expressive and show personality."
@@ -266,6 +267,13 @@ struct SettingsView: View {
 
                 // MARK: - Character
                 Section {
+                    Picker("Avatar", selection: $selectedAvatar) {
+                        ForEach(CharacterPack.defaultPacks) { pack in
+                            Text(pack.name).tag(pack.fileName)
+                        }
+                    }
+                    .onChange(of: selectedAvatar) { hasChanges = true }
+
                     TextField("Name", text: $characterName)
                         .autocorrectionDisabled()
                         .onChange(of: characterName) { hasChanges = true }
@@ -390,6 +398,7 @@ struct SettingsView: View {
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
         characterName = defaults.string(forKey: "character_name") ?? "Stella"
+        selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
 
@@ -420,6 +429,7 @@ struct SettingsView: View {
         defaults.set(sttBackend, forKey: "amica_stt_backend")
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
         defaults.set(characterName, forKey: "character_name")
+        defaults.set(selectedAvatar, forKey: "selected_avatar")
         defaults.set(systemPrompt, forKey: "system_prompt")
 
         // Save or clear API keys in Keychain

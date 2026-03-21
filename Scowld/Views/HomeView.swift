@@ -686,6 +686,7 @@ struct AmicaFullView: UIViewRepresentable {
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
         let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
         let characterName = defaults.string(forKey: "character_name") ?? "Stella"
+        let selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
 
         let settingsScript = WKUserScript(
             source: """
@@ -708,7 +709,8 @@ struct AmicaFullView: UIViewRepresentable {
                 elevenlabs_model: 'eleven_flash_v2_5',
                 openai_tts_apikey: '\(openaiKey)',
                 name: '\(characterName)',
-                system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.'
+                system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.',
+                vrm_url: '/vrm/\(selectedAvatar).vrm'
             };
             // Force full screen coverage
             var meta = document.createElement('meta');
@@ -925,6 +927,7 @@ struct AmicaFullView: UIViewRepresentable {
             let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
             let visionBackend = visionEnabled ? "native_ios" : "none"
             let characterName = defaults.string(forKey: "character_name") ?? "Stella"
+            let selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
 
             let js = """
                 window.__nativeConfig = {
@@ -936,7 +939,8 @@ struct AmicaFullView: UIViewRepresentable {
                     elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                     elevenlabs_model: 'eleven_flash_v2_5',
                     openai_tts_apikey: '\(openaiKey)',
-                    name: '\(characterName)'
+                    name: '\(characterName)',
+                    vrm_url: '/vrm/\(selectedAvatar).vrm'
                 };
             """
             webView?.evaluateJavaScript(js)
