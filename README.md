@@ -34,8 +34,7 @@
 This is a monorepo containing both the iOS app and the marketing website ([scowld.vercel.app](https://scowld.vercel.app)).
 
 ```
-Scowld/          — iOS app source (Swift/SwiftUI)
-Scowld.xcodeproj — Xcode project
+ios/             — iOS app (open ios/Scowld.xcodeproj in Xcode)
 web/             — Next.js website (cd web && npm install && npm run dev)
 ```
 
@@ -75,7 +74,7 @@ WKWebView (Amica Web Frontend (by Arbius AI))
 
 2. Open in Xcode
    ```bash
-   open Scowld.xcodeproj
+   open ios/Scowld.xcodeproj
    ```
 
 3. Build and run on your iPhone
