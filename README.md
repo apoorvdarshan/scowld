@@ -31,15 +31,13 @@
 
 ## Repo Structure
 
-This is a monorepo containing both the iOS app and the marketing website.
+This is a monorepo containing both the iOS app and the marketing website ([scowld.vercel.app](https://scowld.vercel.app)).
 
 ```
 Scowld/          — iOS app source (Swift/SwiftUI)
 Scowld.xcodeproj — Xcode project
-web/             — Next.js website (scowld.vercel.app)
+web/             — Next.js website (cd web && npm install && npm run dev)
 ```
-
-See [web/README.md](web/README.md) for website dev instructions.
 
 ## Architecture
 
