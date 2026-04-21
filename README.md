@@ -66,20 +66,31 @@ WKWebView (Amica Web Frontend (by Arbius AI))
 
 ## Setup
 
-1. Clone the repo
-   ```bash
-   git clone https://github.com/apoorvdarshan/scowld.git
-   cd scowld
-   ```
+Clone the repo first:
 
-2. Open in Xcode
+```bash
+git clone https://github.com/apoorvdarshan/scowld.git
+cd scowld
+```
+
+### iOS App
+
+1. Open in Xcode
    ```bash
    open ios/Scowld.xcodeproj
    ```
+2. Build and run on your iPhone
+3. In Settings, select your AI provider and enter your API key (stored in iOS Keychain)
 
-3. Build and run on your iPhone
+### Website ([scowld.vercel.app](https://scowld.vercel.app))
 
-4. In Settings, select your AI provider and enter your API key (stored in iOS Keychain)
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Next.js dev server runs at http://localhost:3000.
 
 ## How It Works
 
@@ -102,12 +113,18 @@ Enable SSH in Settings to let your companion run tasks on your Mac. Say things l
 
 ## Tech Stack
 
+**iOS app**
 - **Swift / SwiftUI** — Native iOS app
 - **WKWebView** — Hosts [Amica](https://github.com/semperai/amica) (by Arbius AI) Three.js frontend for 3D avatar rendering
 - **CoreData** — Chat history and memory persistence
 - **Citadel** — Pure Swift SSH2 library for terminal access to Mac
 - **Apple Speech** — On-device speech recognition
 - **AVAudioEngine** — Audio session management for simultaneous TTS and STT
+
+**Website**
+- **Next.js** — React framework, deployed on Vercel
+- **Vanilla CSS** — No Tailwind, no CSS-in-JS
+- **Clash Display** — Font for all text, JetBrains Mono for monospace
 
 ## Acknowledgments
 
