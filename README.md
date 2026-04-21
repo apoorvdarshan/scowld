@@ -29,6 +29,18 @@
 - **Text-to-Speech** — ElevenLabs, OpenAI TTS, or native iOS
 - **Persistent Memory** — AI extracts and remembers key details across conversations using memory slots
 
+## Repo Structure
+
+This is a monorepo containing both the iOS app and the marketing website.
+
+```
+Scowld/          — iOS app source (Swift/SwiftUI)
+Scowld.xcodeproj — Xcode project
+web/             — Next.js website (scowld.vercel.app)
+```
+
+See [web/README.md](web/README.md) for website dev instructions.
+
 ## Architecture
 
 ```
