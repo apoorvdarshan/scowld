@@ -207,8 +207,19 @@ struct HomeView: View {
 
     private func toggleCamera() {
         cameraOn.toggle()
+        let enabled = cameraOn ? "true" : "false"
         amicaCoordinator?.webView?.evaluateJavaScript(
-            "window.__toggleWebcam && window.__toggleWebcam(\(cameraOn));"
+            """
+            (function() {
+                if (window.__toggleWebcam) {
+                    window.__toggleWebcam(\(enabled));
+                }
+                if (\(enabled) && window.__hideWebcamPreview) {
+                    setTimeout(window.__hideWebcamPreview, 0);
+                    setTimeout(window.__hideWebcamPreview, 250);
+                }
+            })();
+            """
         )
     }
 
@@ -709,10 +720,56 @@ struct AmicaFullView: UIViewRepresentable {
         )
         contentController.addUserScript(consoleScript)
 
-        // Force front camera only
+        // Force front camera and hide Amica's webcam preview without stopping the stream.
         let cameraScript = WKUserScript(
             source: """
             (function() {
+                function applyHiddenPreviewStyle(element) {
+                    if (!element || !element.style) return;
+                    element.setAttribute('data-native-webcam-hidden', 'true');
+                    element.style.setProperty('position', 'fixed', 'important');
+                    element.style.setProperty('top', '-10000px', 'important');
+                    element.style.setProperty('left', '-10000px', 'important');
+                    element.style.setProperty('right', 'auto', 'important');
+                    element.style.setProperty('bottom', 'auto', 'important');
+                    element.style.setProperty('width', '1px', 'important');
+                    element.style.setProperty('height', '1px', 'important');
+                    element.style.setProperty('opacity', '0', 'important');
+                    element.style.setProperty('visibility', 'hidden', 'important');
+                    element.style.setProperty('pointer-events', 'none', 'important');
+                    element.style.setProperty('z-index', '-1', 'important');
+                    element.style.setProperty('overflow', 'hidden', 'important');
+                }
+
+                function hideWebcamPreview() {
+                    var count = 0;
+                    document.querySelectorAll('video').forEach(function(video) {
+                        applyHiddenPreviewStyle(video);
+                        if (video.parentElement && !video.parentElement.querySelector('canvas')) {
+                            applyHiddenPreviewStyle(video.parentElement);
+                        }
+                        count += 1;
+                    });
+                    return count;
+                }
+
+                window.__hideWebcamPreview = hideWebcamPreview;
+
+                function startPreviewHider() {
+                    hideWebcamPreview();
+                    if (window.__webcamPreviewObserver) return;
+                    var root = document.documentElement || document.body;
+                    if (!root || !window.MutationObserver) return;
+                    window.__webcamPreviewObserver = new MutationObserver(function() {
+                        hideWebcamPreview();
+                    });
+                    window.__webcamPreviewObserver.observe(root, { childList: true, subtree: true });
+                }
+
+                startPreviewHider();
+                document.addEventListener('DOMContentLoaded', startPreviewHider);
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
                 var origGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
                 navigator.mediaDevices.getUserMedia = function(constraints) {
                     if (constraints && constraints.video) {
@@ -722,7 +779,12 @@ struct AmicaFullView: UIViewRepresentable {
                             constraints.video.facingMode = { exact: 'user' };
                         }
                     }
-                    return origGetUserMedia(constraints);
+                    return origGetUserMedia(constraints).then(function(stream) {
+                        setTimeout(hideWebcamPreview, 0);
+                        setTimeout(hideWebcamPreview, 100);
+                        setTimeout(hideWebcamPreview, 500);
+                        return stream;
+                    });
                 };
             })();
             """,
@@ -940,12 +1002,10 @@ struct AmicaFullView: UIViewRepresentable {
                     (function enableCam() {
                         if (window.__toggleWebcam) {
                             window.__toggleWebcam(true);
-                            // Move preview offscreen but keep video rendering at full size
+                            // Hide preview but keep the camera stream alive.
                             (function hidePreview() {
-                                var v = document.querySelector('video');
-                                if (v && v.parentElement) {
-                                    var container = v.parentElement;
-                                    container.style.cssText = 'position:fixed!important;top:-9999px!important;left:-9999px!important;pointer-events:none!important;';
+                                var hiddenCount = window.__hideWebcamPreview ? window.__hideWebcamPreview() : 0;
+                                if (hiddenCount > 0) {
                                     // Notify native that app is ready (preview hidden) after 1s buffer
                                     setTimeout(function() {
                                         try {
