@@ -63,13 +63,32 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 100)
+                .padding(.bottom, 70)
                 .allowsHitTesting(false)
             }
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                bottomComposer
+            .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    HStack(spacing: 6) {
+                        Button {
+                            toggleHandsFree()
+                        } label: {
+                            Image(systemName: handsFreeIconName)
+                                .foregroundStyle(handsFreeIconColor)
+                        }
+
+                        Button {
+                            toggleCamera()
+                        } label: {
+                            Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
+                                .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
+                        }
+                    }
+
+                    messageField
+                    sendButton
+                }
             }
         }
         .onAppear {
@@ -138,31 +157,6 @@ struct HomeView: View {
                 .foregroundColor(isBusy ? .secondary : .amicaBlue)
         }
         .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
-    }
-
-    private var bottomComposer: some View {
-        HStack(spacing: 6) {
-            HStack(spacing: 6) {
-                Button {
-                    toggleHandsFree()
-                } label: {
-                    Image(systemName: handsFreeIconName)
-                        .foregroundStyle(handsFreeIconColor)
-                }
-
-                Button {
-                    toggleCamera()
-                } label: {
-                    Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
-                        .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
-                }
-            }
-
-            messageField
-            sendButton
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 
     private var isBusy: Bool {
