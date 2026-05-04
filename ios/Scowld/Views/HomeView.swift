@@ -134,6 +134,7 @@ struct HomeView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(.black.opacity(0.24))
             }
+            .padding(.trailing, 8)
     }
 
     private var sendButton: some View {
@@ -142,6 +143,7 @@ struct HomeView: View {
         } label: {
             Image(systemName: "arrow.up.circle.fill")
                 .foregroundColor(isBusy ? .secondary : .amicaBlue)
+                .frame(width: 34, height: 38)
         }
         .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
     }
