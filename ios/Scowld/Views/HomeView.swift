@@ -63,7 +63,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 118)
+                .padding(.bottom, 126)
                 .allowsHitTesting(false)
             }
             .navigationTitle("Scowld")
@@ -130,7 +130,10 @@ struct HomeView: View {
             .focused($messageFieldFocused)
             .padding(.horizontal, 8)
             .padding(.vertical, 11)
-            .background(Color.clear)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.black.opacity(0.24))
+            }
     }
 
     private var sendButton: some View {
@@ -176,7 +179,7 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .glassEffect(.regular.interactive(), in: Capsule())
         .padding(.horizontal, 14)
-        .padding(.bottom, 0)
+        .padding(.bottom, 8)
     }
 
     private var isBusy: Bool {
