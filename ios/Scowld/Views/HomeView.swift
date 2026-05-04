@@ -63,32 +63,13 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 70)
+                .padding(.bottom, 118)
                 .allowsHitTesting(false)
             }
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    HStack(spacing: 6) {
-                        Button {
-                            toggleHandsFree()
-                        } label: {
-                            Image(systemName: handsFreeIconName)
-                                .foregroundStyle(handsFreeIconColor)
-                        }
-
-                        Button {
-                            toggleCamera()
-                        } label: {
-                            Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
-                                .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
-                        }
-                    }
-
-                    messageField
-                    sendButton
-                }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                composerBar
             }
         }
         .onAppear {
@@ -142,11 +123,13 @@ struct HomeView: View {
 
     private var messageField: some View {
         TextField("Message...", text: $messageText)
-            .textFieldStyle(.roundedBorder)
+            .textFieldStyle(.plain)
             .submitLabel(.send)
             .onSubmit { if !isBusy { stopAndSend() } }
             .disabled(isBusy)
             .focused($messageFieldFocused)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 11)
     }
 
     private var sendButton: some View {
@@ -157,6 +140,42 @@ struct HomeView: View {
                 .foregroundColor(isBusy ? .secondary : .amicaBlue)
         }
         .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
+    }
+
+    private var composerBar: some View {
+        HStack(spacing: 7) {
+            Button {
+                toggleHandsFree()
+            } label: {
+                Image(systemName: handsFreeIconName)
+                    .font(.title3)
+                    .frame(width: 30, height: 38)
+                    .foregroundStyle(handsFreeIconColor)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                toggleCamera()
+            } label: {
+                Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
+                    .font(.title3)
+                    .frame(width: 30, height: 38)
+                    .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
+            }
+            .buttonStyle(.plain)
+
+            messageField
+
+            sendButton
+                .font(.title3)
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 10)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity)
+        .glassEffect(.regular.interactive(), in: Capsule())
+        .padding(.horizontal, 14)
+        .padding(.bottom, 8)
     }
 
     private var isBusy: Bool {
