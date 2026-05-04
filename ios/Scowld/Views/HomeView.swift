@@ -63,7 +63,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 156)
+                .padding(.bottom, 118)
                 .allowsHitTesting(false)
             }
             .navigationTitle("Scowld")
@@ -176,7 +176,7 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .glassEffect(.regular.interactive(), in: Capsule())
         .padding(.horizontal, 14)
-        .padding(.bottom, 38)
+        .padding(.bottom, 0)
     }
 
     private var isBusy: Bool {
