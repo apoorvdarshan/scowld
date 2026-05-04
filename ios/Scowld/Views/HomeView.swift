@@ -26,8 +26,6 @@ struct HomeView: View {
     @State private var messageText = ""
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
     @State private var cameraOn = true
-    @State private var showSettings = false
-    @State private var showMemories = false
     @State private var voiceManager = VoiceManager()
     @State private var aiResponseText = ""
     @Environment(\.scenePhase) private var scenePhase
@@ -65,27 +63,13 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 150)
+                .padding(.bottom, 100)
                 .allowsHitTesting(false)
             }
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                bottomGlassControls
-            }
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView(memoryStore: memoryStore)
-        }
-        .onChange(of: showSettings) {
-            if !showSettings {
-                let handsFree = UserDefaults.standard.bool(forKey: "hands_free_mode")
-                voiceManager.isEnabled = handsFree
-            }
-        }
-        .sheet(isPresented: $showMemories) {
-            NavigationStack {
-                MemoryView(memoryStore: memoryStore)
+                bottomComposer
             }
         }
         .onAppear {
@@ -98,6 +82,11 @@ struct HomeView: View {
             }
 
             setupVoice()
+        }
+        .onDisappear {
+            if voiceManager.isEnabled {
+                voiceManager.stop()
+            }
         }
         .onChange(of: voiceManager.readyCommand) {
             if let text = voiceManager.readyCommand {
@@ -134,13 +123,11 @@ struct HomeView: View {
 
     private var messageField: some View {
         TextField("Message...", text: $messageText)
-            .textFieldStyle(.plain)
+            .textFieldStyle(.roundedBorder)
             .submitLabel(.send)
             .onSubmit { if !isBusy { stopAndSend() } }
             .disabled(isBusy)
             .focused($messageFieldFocused)
-            .padding(.leading, 6)
-            .padding(.vertical, 11)
     }
 
     private var sendButton: some View {
@@ -148,75 +135,34 @@ struct HomeView: View {
             stopAndSend()
         } label: {
             Image(systemName: "arrow.up.circle.fill")
-                .font(.title2)
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(isBusy ? Color.secondary : Color.amicaBlue)
+                .foregroundColor(isBusy ? .secondary : .amicaBlue)
         }
-        .buttonStyle(.plain)
         .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
     }
 
-    private var bottomGlassControls: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                messageField
-                sendButton
-            }
-            .padding(.leading, 12)
-            .padding(.trailing, 8)
-            .padding(.vertical, 4)
-            .glassEffect(.regular.interactive(), in: Capsule())
+    private var bottomComposer: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Button {
+                    toggleHandsFree()
+                } label: {
+                    Image(systemName: handsFreeIconName)
+                        .foregroundStyle(handsFreeIconColor)
+                }
 
-            GlassEffectContainer(spacing: 12) {
-                HStack(spacing: 12) {
-                    bottomGlassButton(
-                        systemImage: handsFreeIconName,
-                        tint: handsFreeIconColor,
-                        accessibilityLabel: voiceManager.isEnabled ? "Turn off hands-free" : "Turn on hands-free",
-                        action: toggleHandsFree
-                    )
-
-                    bottomGlassButton(
-                        systemImage: cameraOn ? "eye.fill" : "eye.slash",
-                        tint: cameraOn ? .amicaBlue : .secondary,
-                        accessibilityLabel: cameraOn ? "Turn off camera" : "Turn on camera",
-                        action: toggleCamera
-                    )
-
-                    bottomGlassButton(
-                        systemImage: "brain.head.profile.fill",
-                        tint: .primary,
-                        accessibilityLabel: "Memories",
-                        action: { showMemories = true }
-                    )
-
-                    bottomGlassButton(
-                        systemImage: "gearshape",
-                        tint: .primary,
-                        accessibilityLabel: "Settings",
-                        action: { showSettings = true }
-                    )
+                Button {
+                    toggleCamera()
+                } label: {
+                    Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
+                        .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
                 }
             }
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-    }
 
-    private func bottomGlassButton(
-        systemImage: String,
-        tint: Color,
-        accessibilityLabel: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.title3)
-                .frame(width: 44, height: 44)
-                .foregroundStyle(tint)
+            messageField
+            sendButton
         }
-        .buttonStyle(.glass)
-        .accessibilityLabel(accessibilityLabel)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     private var isBusy: Bool {

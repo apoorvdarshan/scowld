@@ -36,6 +36,7 @@ struct SettingsView: View {
     // Vision is handled automatically by the selected LLM provider
 
     var memoryStore: MemoryStore
+    var showsDismissControls = true
 
     var body: some View {
         NavigationStack {
@@ -336,15 +337,19 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+                if showsDismissControls {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         saveSettings()
-                        dismiss()
+                        if showsDismissControls {
+                            dismiss()
+                        }
                     } label: {
                         Text("Save")
                             .fontWeight(.semibold)
