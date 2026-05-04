@@ -5,7 +5,7 @@
 <h1 align="center">Scowld</h1>
 
 <p align="center">
-  An open-source AI companion app for iOS with 3D anime avatars, hands-free voice chat, vision, terminal SSH, and persistent memory.
+  An open-source AI companion app for iOS with 3D anime avatars, hands-free voice chat, vision, and persistent memory.
 </p>
 
 <p align="center">
@@ -24,7 +24,6 @@
 - **Hands-Free Voice Chat** — Always-on speech recognition with auto-send on silence, live captions for both user and AI
 - **6 STT Backends** — Native iOS, Groq Whisper, Deepgram, AssemblyAI, Google Cloud STT, OpenAI Whisper
 - **Vision** — Front camera feeds to the AI so it can see what you see (no preview shown, privacy-first)
-- **Terminal SSH** — Say "build me a website" and she SSHs into your Mac, opens Terminal with Claude Code, and builds it while you watch in real-time
 - **Multi-Provider LLM** — Gemini, OpenAI, Claude, Ollama, OpenRouter, xAI, Together AI
 - **Text-to-Speech** — ElevenLabs, OpenAI TTS, or native iOS
 - **Persistent Memory** — AI extracts and remembers key details across conversations using memory slots
@@ -47,8 +46,6 @@ Native iOS (Swift/SwiftUI)
 ├── MemoryStore         — CoreData persistence for chat history + memory logs
 ├── MemoryExtractor     — LLM-powered memory extraction from conversations
 ├── LLM Providers       — Gemini, OpenAI, Claude, Ollama, OpenRouter, xAI, Together
-├── SSHManager          — Citadel-based SSH connection to Mac for terminal access
-├── TerminalToolHandler — LLM [TERMINAL] block parsing, safety checks, Claude CLI dispatch
 └── HomeView            — Main UI with WKWebView bridge
 
 WKWebView (Amica Web Frontend (by Arbius AI))
@@ -106,18 +103,12 @@ The front camera is enabled by default (hidden, no preview). The AI can see thro
 ### Memory
 The AI automatically extracts important details from conversations and stores them in memory slots. These persist across sessions and are injected into the system prompt for context-aware responses.
 
-### Terminal (SSH)
-Enable SSH in Settings to let your companion run tasks on your Mac. Say things like "build me an ecommerce website" — she opens Terminal on your Mac with interactive Claude Code, and you watch it create files, write code, and build your project in real-time. When Claude finishes, she lets you know.
-
-**Setup:** Settings → Terminal (SSH) → enter your Mac's IP, username, password → enable Remote Login on Mac (System Settings → General → Sharing → Remote Login).
-
 ## Tech Stack
 
 **iOS app**
 - **Swift / SwiftUI** — Native iOS app
 - **WKWebView** — Hosts [Amica](https://github.com/semperai/amica) (by Arbius AI) Three.js frontend for 3D avatar rendering
 - **CoreData** — Chat history and memory persistence
-- **Citadel** — Pure Swift SSH2 library for terminal access to Mac
 - **Apple Speech** — On-device speech recognition
 - **AVAudioEngine** — Audio session management for simultaneous TTS and STT
 

@@ -30,7 +30,6 @@ struct HomeView: View {
     @State private var showMemories = false
     @State private var voiceManager = VoiceManager()
     @State private var aiResponseText = ""
-    @State private var terminalCommandRunning: String?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -43,20 +42,6 @@ struct HomeView: View {
 
                 // Live captions
                 VStack(spacing: 6) {
-                    if let cmd = terminalCommandRunning {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .controlSize(.small)
-                                .tint(.white)
-                            Text("Running: `\(cmd)`...")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.9))
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.orange.opacity(0.7))
-                        .cornerRadius(16)
-                    }
                     if !aiResponseText.isEmpty {
                         Text(aiResponseText)
                             .font(.subheadline)
@@ -144,11 +129,6 @@ struct HomeView: View {
                 _ = await SpeechManager().requestPermissions()
             }
 
-            // Auto-connect SSH if enabled
-            if SSHConfig.load().isEnabled && SSHConfig.load().isConfigured {
-                Task { await SSHManager.shared.connect() }
-            }
-
             setupVoice()
         }
         .onChange(of: voiceManager.readyCommand) {
@@ -166,22 +146,6 @@ struct HomeView: View {
         .onReceive(NotificationCenter.default.publisher(for: .aiResponseReady)) { notification in
             if let text = notification.object as? String {
                 aiResponseText = text
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .terminalCommandStarted)) { notification in
-            if let cmd = notification.object as? String {
-                terminalCommandRunning = cmd
-                // Pause voice listening while terminal task runs
-                if voiceManager.isEnabled {
-                    voiceManager.pauseForTTS()
-                }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .terminalCommandFinished)) { _ in
-            terminalCommandRunning = nil
-            // Resume voice listening after terminal task completes
-            if voiceManager.isEnabled {
-                voiceManager.onTTSDone()
             }
         }
         .onChange(of: scenePhase) {
@@ -219,7 +183,7 @@ struct HomeView: View {
     }
 
     private var isBusy: Bool {
-        !aiResponseText.isEmpty || terminalCommandRunning != nil
+        !aiResponseText.isEmpty
     }
 
     private var handsFreeIconName: String {
@@ -1116,23 +1080,7 @@ struct AmicaFullView: UIViewRepresentable {
                     response = try await provider.generate(messages: chatMessages, systemPrompt: systemPrompt)
                 }
 
-                // Check for terminal task in response
-                let finalResponse: String
-                if TerminalToolHandler.containsTerminalBlock(response),
-                   SSHManager.shared.isConnected,
-                   UserDefaults.standard.bool(forKey: SSHConfig.enabledKey),
-                   let terminalTask = TerminalToolHandler.extractTask(from: response) {
-
-                    finalResponse = await handleTerminalTask(
-                        task: terminalTask,
-                        originalResponse: response,
-                        chatMessages: chatMessages,
-                        systemPrompt: systemPrompt,
-                        provider: provider
-                    )
-                } else {
-                    finalResponse = response
-                }
+                let finalResponse = response
 
                 await MainActor.run {
                     deliverResponse(callbackId: callbackId, response: finalResponse)
@@ -1154,60 +1102,6 @@ struct AmicaFullView: UIViewRepresentable {
                 await MainActor.run {
                     deliverError(callbackId: callbackId, error: error.localizedDescription)
                 }
-            }
-        }
-
-        // MARK: - Terminal Task Execution
-
-        private func handleTerminalTask(
-            task: TerminalToolHandler.TerminalTask,
-            originalResponse: String,
-            chatMessages: [ChatMessage],
-            systemPrompt: String,
-            provider: any LLMProvider
-        ) async -> String {
-            // Build the command to open Terminal.app with interactive Claude
-            let command = TerminalToolHandler.buildCommand(for: task.task)
-
-            logger.info("[Terminal] Launching Claude in Terminal for: \(task.task)")
-
-            do {
-                // This returns immediately — it just opens Terminal.app with claude running
-                _ = try await SSHManager.shared.execute(command: command)
-
-                // Poll in background for Claude to finish, then notify Stella
-                let taskDescription = task.task
-                Task { [weak self] in
-                    guard let self else { return }
-                    // Poll every 5 seconds for done marker
-                    while true {
-                        try? await Task.sleep(for: .seconds(5))
-                        let check = try? await SSHManager.shared.execute(command: "test -f /tmp/stella_claude_done && echo yes || echo no")
-                        if check?.stdout.contains("yes") == true {
-                            // Claude finished — tell Stella to respond
-                            logger.info("[Terminal] Claude finished task: \(taskDescription)")
-                            NotificationCenter.default.post(name: .terminalCommandFinished, object: taskDescription)
-
-                            // Have Stella speak the completion
-                            let doneMessage = "[happy] Claude just finished working on your Mac! The task is done — go check it out."
-                            deliverResponse(callbackId: "terminal_done_\(UUID().uuidString)", response: doneMessage)
-                            NotificationCenter.default.post(name: .aiResponseReady, object: doneMessage)
-
-                            // Clean up
-                            _ = try? await SSHManager.shared.execute(command: "rm -f /tmp/stella_claude_done")
-                            break
-                        }
-                    }
-                }
-
-                // Immediate response while Claude works
-                let preText = TerminalToolHandler.extractTextPortion(from: originalResponse)
-                if !preText.isEmpty {
-                    return preText + " Check your Mac — Claude is working on it in Terminal!"
-                }
-                return "[excited] On it! I've sent the task to Claude on your Mac. Watch Terminal to see it work — I'll let you know when it's done!"
-            } catch {
-                return "[concerned] I couldn't open Terminal on your Mac: \(error.localizedDescription). Want me to try again?"
             }
         }
 
@@ -1319,6 +1213,4 @@ extension Notification.Name {
     static let ttsDone = Notification.Name("ttsDone")
     static let aiResponseReady = Notification.Name("aiResponseReady")
     static let appReady = Notification.Name("appReady")
-    static let terminalCommandStarted = Notification.Name("terminalCommandStarted")
-    static let terminalCommandFinished = Notification.Name("terminalCommandFinished")
 }

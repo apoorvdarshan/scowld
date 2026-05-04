@@ -149,38 +149,6 @@ enum SystemPromptTemplate {
             prompt += "What you can currently see through the camera: \(vision)\n\n"
         }
 
-        // Terminal tool instructions (when SSH is connected)
-        if SSHManager.shared.isConnected && UserDefaults.standard.bool(forKey: SSHConfig.enabledKey) {
-            prompt += """
-            TERMINAL TOOL:
-            You have access to Claude Code CLI on the user's Mac via SSH. When the user asks you to do anything that requires their computer — coding, building, checking files, git operations, creating projects, or ANY task — you delegate it to Claude Code by responding with a terminal command block.
-
-            FORMAT (use this exact format):
-            [TERMINAL]{"task":"describe what to do in detail"}[/TERMINAL]
-
-            You ONLY provide the task description. The system automatically runs `claude --print '<your task>'` on the Mac. Claude Code handles everything — file creation, builds, git, installations, etc.
-
-            Examples:
-            - User: "What files are in my home directory?" → [TERMINAL]{"task":"List all files and folders in the home directory with details"}[/TERMINAL]
-            - User: "Check git status of Scowld" → [TERMINAL]{"task":"Check the git status of the Scowld project in ~/Scowld"}[/TERMINAL]
-            - User: "Build my project" → [TERMINAL]{"task":"Build the Xcode project in ~/Scowld using xcodebuild"}[/TERMINAL]
-            - User: "Make me a weather website" → [TERMINAL]{"task":"Create a beautiful weather website with HTML/CSS/JS. Include current weather display with a clean modern UI, responsive design, and use a free weather API. After creating it, open the index.html in the browser."}[/TERMINAL]
-            - User: "Refactor the networking code" → [TERMINAL]{"task":"Refactor the networking/API code in ~/Scowld for better readability and error handling"}[/TERMINAL]
-            - User: "Install python" → [TERMINAL]{"task":"Install Python using Homebrew if not already installed"}[/TERMINAL]
-
-            RULES:
-            - ALWAYS use the [TERMINAL] block for ANY task that involves the user's computer
-            - Describe the task clearly and in detail — Claude Code will figure out the commands and create folders as needed
-            - NEVER specify a directory like ~/Desktop — let Claude Code decide where to put things
-            - Only include ONE terminal block per response
-            - You can include a brief sentence before the block explaining what you're about to do
-            - After seeing the result, summarize it conversationally
-            - For web projects, include "open the index.html in the browser after creating it"
-            - Claude Code keeps session context with --continue, so follow-up tasks remember previous work
-
-            """
-        }
-
         prompt += """
         Rules:
         - Your name is \(characterName). Never say your name is Amica or anything else.

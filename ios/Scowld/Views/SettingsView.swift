@@ -242,29 +242,6 @@ struct SettingsView: View {
                     }
                 }
 
-
-
-                // MARK: - Terminal (SSH)
-                Section {
-                    NavigationLink {
-                        TerminalSettingsView()
-                    } label: {
-                        HStack {
-                            Label("Configure SSH", systemImage: "terminal")
-                            Spacer()
-                            if SSHManager.shared.isConnected {
-                                Image(systemName: "circle.fill")
-                                    .foregroundStyle(.green)
-                                    .font(.caption2)
-                            }
-                        }
-                    }
-                } header: {
-                    Label("Terminal (SSH)", systemImage: "terminal.fill")
-                } footer: {
-                    Text("Let your AI companion run commands on your Mac via SSH.")
-                }
-
                 // MARK: - Character
                 Section {
                     Picker("Avatar", selection: $selectedAvatar) {
@@ -457,4 +434,3 @@ struct SettingsView: View {
         hasAPIKey = KeychainManager.exists(key: selectedProvider.keychainKey)
     }
 }
-
