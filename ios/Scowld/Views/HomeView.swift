@@ -63,7 +63,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 188)
+                .padding(.bottom, 156)
                 .allowsHitTesting(false)
             }
             .navigationTitle("Scowld")
@@ -123,11 +123,14 @@ struct HomeView: View {
 
     private var messageField: some View {
         TextField("Message...", text: $messageText)
-            .textFieldStyle(.roundedBorder)
+            .textFieldStyle(.plain)
             .submitLabel(.send)
             .onSubmit { if !isBusy { stopAndSend() } }
             .disabled(isBusy)
             .focused($messageFieldFocused)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 11)
+            .background(Color.clear)
     }
 
     private var sendButton: some View {
@@ -141,32 +144,39 @@ struct HomeView: View {
     }
 
     private var composerBar: some View {
-        HStack(spacing: 6) {
-            HStack(spacing: 6) {
-                Button {
-                    toggleHandsFree()
-                } label: {
-                    Image(systemName: handsFreeIconName)
-                        .foregroundStyle(handsFreeIconColor)
-                }
-
-                Button {
-                    toggleCamera()
-                } label: {
-                    Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
-                        .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
-                }
+        HStack(spacing: 7) {
+            Button {
+                toggleHandsFree()
+            } label: {
+                Image(systemName: handsFreeIconName)
+                    .font(.title3)
+                    .frame(width: 30, height: 38)
+                    .foregroundStyle(handsFreeIconColor)
             }
+            .buttonStyle(.plain)
+
+            Button {
+                toggleCamera()
+            } label: {
+                Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
+                    .font(.title3)
+                    .frame(width: 30, height: 38)
+                    .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
+            }
+            .buttonStyle(.plain)
 
             messageField
 
             sendButton
+                .font(.title3)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, 86)
+        .padding(.leading, 12)
+        .padding(.trailing, 10)
+        .padding(.vertical, 5)
         .frame(maxWidth: .infinity)
-        .background(.bar)
+        .glassEffect(.regular.interactive(), in: Capsule())
+        .padding(.horizontal, 14)
+        .padding(.bottom, 38)
     }
 
     private var isBusy: Bool {
