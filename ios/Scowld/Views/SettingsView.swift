@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var hasChanges = false
     @State private var showAPIKey = false
+    @State private var showOpenAITTSKey = false
     @State private var showElevenLabsKey = false
     @State private var showSTTAPIKey = false
 
@@ -88,7 +89,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // MARK: - AI Provider (LLM)
+                // MARK: - AI Provider
                 Section {
                     Picker("Provider", selection: $selectedProvider) {
                         ForEach(AIProvider.allCases, id: \.self) { provider in
@@ -97,6 +98,7 @@ struct SettingsView: View {
                     }
                     .onChange(of: selectedProvider) {
                         selectedModel = selectedProvider.defaultModel
+                        showAPIKey = false
                         loadAPIKey()
                         hasChanges = true
                     }
@@ -107,15 +109,8 @@ struct SettingsView: View {
                         }
                     }
                     .onChange(of: selectedModel) { hasChanges = true }
-                } header: {
-                    Label("AI Provider (LLM)", systemImage: "cpu")
-                } footer: {
-                    Text("Powers the AI responses in conversations.")
-                }
 
-                // MARK: - LLM API Key
-                if selectedProvider.requiresAPIKey {
-                    Section {
+                    if selectedProvider.requiresAPIKey {
                         HStack {
                             if showAPIKey {
                                 TextField("API Key", text: $apiKeyInput)
@@ -136,21 +131,19 @@ struct SettingsView: View {
                         Text("Stored securely in iOS Keychain.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } header: {
-                        Label("API Key", systemImage: "key")
                     }
-                }
 
-                // MARK: - Ollama Settings
-                if selectedProvider == .ollama {
-                    Section {
+                    if selectedProvider == .ollama {
                         TextField("Server URL", text: $ollamaURL)
                             .textContentType(.URL)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
-                    } header: {
-                        Label("Ollama", systemImage: "server.rack")
+                            .onChange(of: ollamaURL) { hasChanges = true }
                     }
+                } header: {
+                    Label("AI Provider", systemImage: "cpu")
+                } footer: {
+                    Text("Powers the AI responses in conversations.")
                 }
 
                 // MARK: - TTS (Text-to-Speech)
@@ -161,84 +154,13 @@ struct SettingsView: View {
                         Text("Native iOS").tag("native_ios")
                         Text("None").tag("none")
                     }
-                    .onChange(of: ttsBackend) { hasChanges = true }
-
-                    if ttsBackend == "native_ios" {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Speech Rate: \(String(format: "%.1f", speechRate))")
-                                .font(.subheadline)
-                            Slider(value: $speechRate, in: 0.5...1.5)
-                                .tint(.amicaBlue)
-                        }
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Pitch: \(String(format: "%.1f", speechPitch))")
-                                .font(.subheadline)
-                            Slider(value: $speechPitch, in: 0.5...2.0)
-                                .tint(.amicaBlue)
-                        }
+                    .onChange(of: ttsBackend) {
+                        showElevenLabsKey = false
+                        showOpenAITTSKey = false
+                        hasChanges = true
                     }
-                } header: {
-                    Label("Text-to-Speech", systemImage: "speaker.wave.3")
-                } footer: {
-                    switch ttsBackend {
-                    case "elevenlabs": Text("High-quality voices. Free: 10K chars/mo. Starter: $5/mo for 30K chars.")
-                    case "openai_tts": Text("Uses your OpenAI API key. Natural sounding voices.")
-                    case "native_ios": Text("Built-in iOS speech. Free, no API needed. No lip sync.")
-                    default: Text("No voice output.")
-                    }
-                }
 
-                // MARK: - OpenAI TTS Note
-                if ttsBackend == "openai_tts" {
-                    Section {
-                        Picker("Model", selection: $openAITTSModel) {
-                            ForEach(Self.openAITTSModels, id: \.self) { model in
-                                Text(model).tag(model)
-                            }
-                        }
-                        .onChange(of: openAITTSModel) {
-                            if !supportedOpenAITTSVoices.contains(openAITTSVoice) {
-                                openAITTSVoice = supportedOpenAITTSVoices.first ?? Self.defaultOpenAITTSVoice
-                            }
-                            hasChanges = true
-                        }
-
-                        Picker("Voice", selection: $openAITTSVoice) {
-                            ForEach(supportedOpenAITTSVoices, id: \.self) { voice in
-                                Text(voice).tag(voice)
-                            }
-                        }
-                        .onChange(of: openAITTSVoice) { hasChanges = true }
-
-                        Text("Uses the OpenAI API key from your AI Provider settings (if OpenAI is selected), or enter one below.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        if selectedProvider != .openai {
-                            HStack {
-                                SecureField("OpenAI API Key for TTS", text: Binding(
-                                    get: { KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "" },
-                                    set: {
-                                        if $0.isEmpty {
-                                            KeychainManager.delete(key: AIProvider.openai.keychainKey)
-                                        } else {
-                                            KeychainManager.save(key: AIProvider.openai.keychainKey, value: $0)
-                                        }
-                                        hasChanges = true
-                                    }
-                                ))
-                                .textContentType(.password)
-                                .autocorrectionDisabled()
-                            }
-                        }
-                    } header: {
-                        Label("OpenAI TTS", systemImage: "speaker.wave.2.circle")
-                    }
-                }
-
-                // MARK: - ElevenLabs Settings
-                if ttsBackend == "elevenlabs" {
-                    Section {
+                    if ttsBackend == "elevenlabs" {
                         Picker("Model", selection: $elevenLabsModel) {
                             ForEach(Self.elevenLabsModels, id: \.self) { model in
                                 Text(model).tag(model)
@@ -268,11 +190,98 @@ struct SettingsView: View {
                             .textInputAutocapitalization(.never)
                             .onChange(of: elevenLabsVoiceId) { hasChanges = true }
 
-                        Text("Get your API key at elevenlabs.io. Default voice: Sarah.")
+                        Text("Default voice: Sarah.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } header: {
-                        Label("ElevenLabs", systemImage: "waveform.circle")
+                    } else if ttsBackend == "openai_tts" {
+                        Picker("Model", selection: $openAITTSModel) {
+                            ForEach(Self.openAITTSModels, id: \.self) { model in
+                                Text(model).tag(model)
+                            }
+                        }
+                        .onChange(of: openAITTSModel) {
+                            if !supportedOpenAITTSVoices.contains(openAITTSVoice) {
+                                openAITTSVoice = supportedOpenAITTSVoices.first ?? Self.defaultOpenAITTSVoice
+                            }
+                            hasChanges = true
+                        }
+
+                        Picker("Voice", selection: $openAITTSVoice) {
+                            ForEach(supportedOpenAITTSVoices, id: \.self) { voice in
+                                Text(voice).tag(voice)
+                            }
+                        }
+                        .onChange(of: openAITTSVoice) { hasChanges = true }
+
+                        if selectedProvider == .openai {
+                            Text("Uses the OpenAI API key above.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            HStack {
+                                if showOpenAITTSKey {
+                                    TextField("OpenAI API Key", text: Binding(
+                                        get: { KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "" },
+                                        set: {
+                                            if $0.isEmpty {
+                                                KeychainManager.delete(key: AIProvider.openai.keychainKey)
+                                            } else {
+                                                KeychainManager.save(key: AIProvider.openai.keychainKey, value: $0)
+                                            }
+                                            hasChanges = true
+                                        }
+                                    ))
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                                } else {
+                                    SecureField("OpenAI API Key", text: Binding(
+                                        get: { KeychainManager.load(key: AIProvider.openai.keychainKey) ?? "" },
+                                        set: {
+                                            if $0.isEmpty {
+                                                KeychainManager.delete(key: AIProvider.openai.keychainKey)
+                                            } else {
+                                                KeychainManager.save(key: AIProvider.openai.keychainKey, value: $0)
+                                            }
+                                            hasChanges = true
+                                        }
+                                    ))
+                                    .textContentType(.password)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                                }
+
+                                Button { showOpenAITTSKey.toggle() } label: {
+                                    Image(systemName: showOpenAITTSKey ? "eye.slash" : "eye")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Text("Stored securely in iOS Keychain.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if ttsBackend == "native_ios" {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Speech Rate: \(String(format: "%.1f", speechRate))")
+                                .font(.subheadline)
+                            Slider(value: $speechRate, in: 0.5...1.5)
+                                .tint(.amicaBlue)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Pitch: \(String(format: "%.1f", speechPitch))")
+                                .font(.subheadline)
+                            Slider(value: $speechPitch, in: 0.5...2.0)
+                                .tint(.amicaBlue)
+                        }
+                    }
+                } header: {
+                    Label("Text-to-Speech", systemImage: "speaker.wave.3")
+                } footer: {
+                    switch ttsBackend {
+                    case "elevenlabs": Text("High-quality voices. Free: 10K chars/mo. Starter: $5/mo for 30K chars.")
+                    case "openai_tts": Text("Uses your OpenAI API key. Natural sounding voices.")
+                    case "native_ios": Text("Built-in iOS speech. Free, no API needed. No lip sync.")
+                    default: Text("No voice output.")
                     }
                 }
 
@@ -312,15 +321,8 @@ struct SettingsView: View {
                         }
                         .onChange(of: selectedSTTModel) { hasChanges = true }
                     }
-                } header: {
-                    Label("Speech-to-Text", systemImage: "mic")
-                } footer: {
-                    Text((STTBackend(rawValue: sttBackend) ?? .nativeIOS).footerText)
-                }
 
-                // MARK: - Cloud STT API Key
-                if let backend = STTBackend(rawValue: sttBackend), backend.requiresAPIKey {
-                    Section {
+                    if let backend = STTBackend(rawValue: sttBackend), backend.requiresAPIKey {
                         HStack {
                             if showSTTAPIKey {
                                 TextField("API Key", text: Binding(
@@ -365,9 +367,11 @@ struct SettingsView: View {
                         Text("Stored securely in iOS Keychain.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } header: {
-                        Label("\(backend.displayName) API Key", systemImage: "key")
                     }
+                } header: {
+                    Label("Speech-to-Text", systemImage: "mic")
+                } footer: {
+                    Text((STTBackend(rawValue: sttBackend) ?? .nativeIOS).footerText)
                 }
 
                 // MARK: - Character
@@ -525,7 +529,9 @@ struct SettingsView: View {
     }
 
     private func loadAPIKey() {
-        hasAPIKey = KeychainManager.exists(key: selectedProvider.keychainKey)
+        let existingKey = KeychainManager.load(key: selectedProvider.keychainKey) ?? ""
+        apiKeyInput = selectedProvider.requiresAPIKey ? existingKey : ""
+        hasAPIKey = !existingKey.isEmpty
     }
 
     private var selectedSTTBackend: STTBackend {
