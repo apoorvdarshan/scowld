@@ -328,12 +328,7 @@ struct SettingsView: View {
                                 TextField("API Key", text: Binding(
                                     get: { KeychainManager.load(key: backend.keychainKey) ?? "" },
                                     set: {
-                                        if $0.isEmpty {
-                                            KeychainManager.delete(key: backend.keychainKey)
-                                        } else {
-                                            KeychainManager.save(key: backend.keychainKey, value: $0)
-                                        }
-                                        hasChanges = true
+                                        saveSTTAPIKey($0, for: backend)
                                     }
                                 ))
                                 .autocorrectionDisabled()
@@ -342,12 +337,7 @@ struct SettingsView: View {
                                 SecureField("API Key", text: Binding(
                                     get: { KeychainManager.load(key: backend.keychainKey) ?? "" },
                                     set: {
-                                        if $0.isEmpty {
-                                            KeychainManager.delete(key: backend.keychainKey)
-                                        } else {
-                                            KeychainManager.save(key: backend.keychainKey, value: $0)
-                                        }
-                                        hasChanges = true
+                                        saveSTTAPIKey($0, for: backend)
                                     }
                                 ))
                                 .textContentType(.password)
@@ -541,6 +531,21 @@ struct SettingsView: View {
     private func setSTTBackend(_ backend: STTBackend) {
         sttBackend = backend.rawValue
         selectedSTTModel = STTBackend.selectedModel(for: backend)
+        hasChanges = true
+    }
+
+    private func saveSTTAPIKey(_ rawValue: String, for backend: STTBackend) {
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if value.isEmpty {
+            KeychainManager.delete(key: backend.keychainKey)
+        } else {
+            for otherBackend in STTBackend.allCases where otherBackend != backend {
+                KeychainManager.delete(key: otherBackend.keychainKey)
+            }
+            _ = KeychainManager.save(key: backend.keychainKey, value: value)
+        }
+
         hasChanges = true
     }
 }
