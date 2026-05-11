@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var hasChanges = false
     @State private var showAPIKey = false
     @State private var showElevenLabsKey = false
+    @State private var showSTTAPIKey = false
 
     // MARK: - LLM Settings
     @State private var selectedProvider: AIProvider = .gemini
@@ -320,20 +321,46 @@ struct SettingsView: View {
                 // MARK: - Cloud STT API Key
                 if let backend = STTBackend(rawValue: sttBackend), backend.requiresAPIKey {
                     Section {
-                        SecureField("API Key", text: Binding(
-                            get: { KeychainManager.load(key: backend.keychainKey) ?? "" },
-                            set: {
-                                if $0.isEmpty {
-                                    KeychainManager.delete(key: backend.keychainKey)
-                                } else {
-                                    KeychainManager.save(key: backend.keychainKey, value: $0)
-                                }
-                                hasChanges = true
+                        HStack {
+                            if showSTTAPIKey {
+                                TextField("API Key", text: Binding(
+                                    get: { KeychainManager.load(key: backend.keychainKey) ?? "" },
+                                    set: {
+                                        if $0.isEmpty {
+                                            KeychainManager.delete(key: backend.keychainKey)
+                                        } else {
+                                            KeychainManager.save(key: backend.keychainKey, value: $0)
+                                        }
+                                        hasChanges = true
+                                    }
+                                ))
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                            } else {
+                                SecureField("API Key", text: Binding(
+                                    get: { KeychainManager.load(key: backend.keychainKey) ?? "" },
+                                    set: {
+                                        if $0.isEmpty {
+                                            KeychainManager.delete(key: backend.keychainKey)
+                                        } else {
+                                            KeychainManager.save(key: backend.keychainKey, value: $0)
+                                        }
+                                        hasChanges = true
+                                    }
+                                ))
+                                .textContentType(.password)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
                             }
-                        ))
-                        .textContentType(.password)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+
+                            Button { showSTTAPIKey.toggle() } label: {
+                                Image(systemName: showSTTAPIKey ? "eye.slash" : "eye")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .onChange(of: sttBackend) {
+                            showSTTAPIKey = false
+                        }
 
                         Text("Stored securely in iOS Keychain.")
                             .font(.caption)
