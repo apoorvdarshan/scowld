@@ -13,12 +13,22 @@ enum VoiceState {
     case transcribing // Cloud STT is processing
 }
 
+private struct VoiceAudioLevel: Sendable {
+    let peak: Float
+    let rms: Float
+
+    var decibels: Float {
+        20 * log10(max(rms, 0.000_001))
+    }
+}
+
 @Observable
 @MainActor
 final class VoiceManager: NSObject {
     // MARK: - Public State
     var state: VoiceState = .idle
     var transcriptText: String = ""
+    var speechStatusText: String = ""
     var readyCommand: String? = nil
     var isEnabled: Bool = false {
         didSet {
@@ -38,9 +48,12 @@ final class VoiceManager: NSObject {
     private var restartTimer: Timer?
     private var isRestarting = false
     private var silenceWorkItem: DispatchWorkItem?
+    private var speechStartWorkItem: DispatchWorkItem?
+    private var speechEndWorkItem: DispatchWorkItem?
     private var lastNormalizedText: String = ""
     private var commandText: String = ""
     private var isTTSPlaying = false
+    private var isSpeechStatusLatched = false
 
     // Cloud STT audio buffer storage
     private var audioBuffers: [AVAudioPCMBuffer] = []
@@ -50,6 +63,10 @@ final class VoiceManager: NSObject {
     private var speechBufferCount = 0
 
     private static let silenceTimeout: TimeInterval = 1.2
+    private static let speechStartConfirmDuration: TimeInterval = 0.2
+    private static let speechStatusReleaseDuration: TimeInterval = 1.4
+    private static let speechRMSDecibelThreshold: Float = -42
+    private static let speechPeakThreshold: Float = 0.035
     private static let maxRecognitionDuration: TimeInterval = 55.0
 
     /// Current STT backend from settings
@@ -75,6 +92,7 @@ final class VoiceManager: NSObject {
         audioBuffers = []
         hasDetectedSpeech = false
         speechBufferCount = 0
+        resetSpeechStatus()
 
         state = .listening
 
@@ -95,6 +113,7 @@ final class VoiceManager: NSObject {
         state = .waitingForTTS
         isTTSPlaying = true
         transcriptText = ""
+        resetSpeechStatus()
         // Switch to playback so TTS plays through speaker
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
@@ -125,6 +144,7 @@ final class VoiceManager: NSObject {
         state = .idle
         commandText = ""
         transcriptText = ""
+        resetSpeechStatus()
         isTTSPlaying = false
         audioBuffers = []
         logger.info("[Voice] Stopped")
@@ -176,6 +196,10 @@ final class VoiceManager: NSObject {
             let recordingFormat = inputNode.outputFormat(forBus: 0)
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
                 self?.recognitionRequest?.append(buffer)
+                let level = Self.audioLevel(for: buffer)
+                Task { @MainActor in
+                    self?.handleSpeechActivity(level)
+                }
             }
 
             audioEngine.prepare()
@@ -247,17 +271,10 @@ final class VoiceManager: NSObject {
     }
 
     private func handleCloudAudioBuffer(_ buffer: AVAudioPCMBuffer) {
-        // Detect speech by checking audio amplitude
-        guard let floatData = buffer.floatChannelData else { return }
-        let frameCount = Int(buffer.frameLength)
-        var maxAmplitude: Float = 0
-        for i in 0..<frameCount {
-            maxAmplitude = max(maxAmplitude, abs(floatData[0][i]))
-        }
+        let level = Self.audioLevel(for: buffer)
+        handleSpeechActivity(level)
 
-        let speechThreshold: Float = 0.08
-
-        if maxAmplitude > speechThreshold {
+        if isSpeechLike(level) {
             hasDetectedSpeech = true
             speechBufferCount += 1
             // Copy the buffer since we need to keep it
@@ -301,6 +318,7 @@ final class VoiceManager: NSObject {
         // Need at least 5 speech buffers (~0.5s of actual speech) to avoid noise
         guard !audioBuffers.isEmpty, let format = audioFormat, speechBufferCount >= 5 else {
             logger.info("[Voice] Not enough speech detected (\(self.speechBufferCount) buffers), restarting")
+            resetSpeechStatus()
             if isEnabled { startListening() }
             return
         }
@@ -309,7 +327,8 @@ final class VoiceManager: NSObject {
         audioBuffers = []
 
         state = .transcribing
-        transcriptText = "Transcribing..."
+        resetSpeechStatus()
+        speechStatusText = "Transcribing..."
         logger.info("[Voice] Sending \(buffers.count) buffers to cloud STT")
 
         let backend = currentBackend
@@ -331,11 +350,13 @@ final class VoiceManager: NSObject {
                 transcriptText = clean
                 try? await Task.sleep(for: .milliseconds(500))
                 transcriptText = ""
+                speechStatusText = ""
                 readyCommand = clean
                 pauseForTTS()
             } catch {
                 logger.error("[Voice] Cloud STT error: \(error.localizedDescription)")
                 transcriptText = ""
+                speechStatusText = ""
                 if isEnabled { startListening() }
             }
         }
@@ -413,8 +434,100 @@ final class VoiceManager: NSObject {
 
         logger.info("[Voice] Command ready: \(text)")
         transcriptText = ""
+        speechStatusText = ""
         readyCommand = text
         pauseForTTS()
+    }
+
+    // MARK: - Local Speech Activity
+
+    nonisolated private static func audioLevel(for buffer: AVAudioPCMBuffer) -> VoiceAudioLevel {
+        guard let channelData = buffer.floatChannelData else {
+            return VoiceAudioLevel(peak: 0, rms: 0)
+        }
+
+        let frameCount = Int(buffer.frameLength)
+        guard frameCount > 0 else {
+            return VoiceAudioLevel(peak: 0, rms: 0)
+        }
+
+        let channelCount = max(1, Int(buffer.format.channelCount))
+        var peak: Float = 0
+        var sumSquares: Float = 0
+        var sampleCount: Float = 0
+
+        for channel in 0..<channelCount {
+            let samples = channelData[channel]
+            for index in 0..<frameCount {
+                let sample = samples[index]
+                let absolute = abs(sample)
+                peak = max(peak, absolute)
+                sumSquares += sample * sample
+                sampleCount += 1
+            }
+        }
+
+        let rms = sqrt(sumSquares / max(sampleCount, 1))
+        return VoiceAudioLevel(peak: peak, rms: rms)
+    }
+
+    private func isSpeechLike(_ level: VoiceAudioLevel) -> Bool {
+        level.decibels >= Self.speechRMSDecibelThreshold && level.peak >= Self.speechPeakThreshold
+    }
+
+    private func handleSpeechActivity(_ level: VoiceAudioLevel) {
+        guard state == .listening, !isTTSPlaying else { return }
+
+        if isSpeechLike(level) {
+            speechEndWorkItem?.cancel()
+            speechEndWorkItem = nil
+
+            guard !isSpeechStatusLatched else {
+                speechStatusText = "Listening..."
+                return
+            }
+
+            guard speechStartWorkItem == nil else { return }
+
+            let workItem = DispatchWorkItem { [weak self] in
+                Task { @MainActor in
+                    guard let self, self.state == .listening, !self.isTTSPlaying else { return }
+                    self.isSpeechStatusLatched = true
+                    self.speechStatusText = "Listening..."
+                    self.speechStartWorkItem = nil
+                }
+            }
+            speechStartWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.speechStartConfirmDuration, execute: workItem)
+        } else {
+            speechStartWorkItem?.cancel()
+            speechStartWorkItem = nil
+            scheduleSpeechStatusRelease()
+        }
+    }
+
+    private func scheduleSpeechStatusRelease() {
+        guard isSpeechStatusLatched, speechEndWorkItem == nil else { return }
+
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                guard let self, self.state == .listening else { return }
+                self.isSpeechStatusLatched = false
+                self.speechStatusText = ""
+                self.speechEndWorkItem = nil
+            }
+        }
+        speechEndWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.speechStatusReleaseDuration, execute: workItem)
+    }
+
+    private func resetSpeechStatus() {
+        speechStartWorkItem?.cancel()
+        speechStartWorkItem = nil
+        speechEndWorkItem?.cancel()
+        speechEndWorkItem = nil
+        isSpeechStatusLatched = false
+        speechStatusText = ""
     }
 }
 

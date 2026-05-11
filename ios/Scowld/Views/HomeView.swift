@@ -51,8 +51,8 @@ struct HomeView: View {
                             .background(.black.opacity(0.5))
                             .cornerRadius(16)
                     }
-                    if voiceManager.state == .listening && !voiceManager.transcriptText.isEmpty {
-                        Text(voiceManager.transcriptText)
+                    if !voiceManager.speechStatusText.isEmpty {
+                        Text(voiceManager.speechStatusText)
                             .font(.subheadline)
                             .foregroundStyle(.white)
                             .multilineTextAlignment(.center)
