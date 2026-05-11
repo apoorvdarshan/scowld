@@ -54,6 +54,8 @@ final class VoiceManager: NSObject {
     private var commandText: String = ""
     private var isTTSPlaying = false
     private var isSpeechStatusLatched = false
+    private var ambientNoiseDecibels: Float = -55
+    private var speechActivityReadyAt = Date.distantPast
 
     // Cloud STT audio buffer storage
     private var audioBuffers: [AVAudioPCMBuffer] = []
@@ -64,9 +66,13 @@ final class VoiceManager: NSObject {
 
     private static let silenceTimeout: TimeInterval = 1.2
     private static let speechStartConfirmDuration: TimeInterval = 0.2
-    private static let speechStatusReleaseDuration: TimeInterval = 1.4
-    private static let speechRMSDecibelThreshold: Float = -42
-    private static let speechPeakThreshold: Float = 0.035
+    private static let speechStatusReleaseDuration: TimeInterval = 0.75
+    private static let speechActivityCalibrationDuration: TimeInterval = 0.35
+    private static let initialAmbientNoiseDecibels: Float = -55
+    private static let speechMinimumDecibels: Float = -35
+    private static let speechNoiseMarginDecibels: Float = 10
+    private static let speechPeakThreshold: Float = 0.08
+    private static let ambientNoiseSmoothing: Float = 0.18
     private static let maxRecognitionDuration: TimeInterval = 55.0
 
     /// Current STT backend from settings
@@ -96,6 +102,8 @@ final class VoiceManager: NSObject {
         audioBuffers = []
         hasDetectedSpeech = false
         speechBufferCount = 0
+        ambientNoiseDecibels = Self.initialAmbientNoiseDecibels
+        speechActivityReadyAt = Date().addingTimeInterval(Self.speechActivityCalibrationDuration)
         resetSpeechStatus()
 
         state = .listening
@@ -481,11 +489,17 @@ final class VoiceManager: NSObject {
     }
 
     private func isSpeechLike(_ level: VoiceAudioLevel) -> Bool {
-        level.decibels >= Self.speechRMSDecibelThreshold && level.peak >= Self.speechPeakThreshold
+        let threshold = max(Self.speechMinimumDecibels, ambientNoiseDecibels + Self.speechNoiseMarginDecibels)
+        return level.decibels >= threshold && level.peak >= Self.speechPeakThreshold
     }
 
     private func handleSpeechActivity(_ level: VoiceAudioLevel) {
         guard state == .listening, !isTTSPlaying else { return }
+
+        if Date() < speechActivityReadyAt {
+            updateAmbientNoiseFloor(with: level)
+            return
+        }
 
         if isSpeechLike(level) {
             speechEndWorkItem?.cancel()
@@ -509,6 +523,7 @@ final class VoiceManager: NSObject {
             speechStartWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.speechStartConfirmDuration, execute: workItem)
         } else {
+            updateAmbientNoiseFloor(with: level)
             speechStartWorkItem?.cancel()
             speechStartWorkItem = nil
             scheduleSpeechStatusRelease()
@@ -537,6 +552,12 @@ final class VoiceManager: NSObject {
         speechEndWorkItem = nil
         isSpeechStatusLatched = false
         speechStatusText = ""
+    }
+
+    private func updateAmbientNoiseFloor(with level: VoiceAudioLevel) {
+        guard !isSpeechStatusLatched else { return }
+        let measured = min(max(level.decibels, -80), -20)
+        ambientNoiseDecibels += (measured - ambientNoiseDecibels) * Self.ambientNoiseSmoothing
     }
 }
 
