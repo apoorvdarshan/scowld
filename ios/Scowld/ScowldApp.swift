@@ -16,6 +16,7 @@ private enum ScowldTab: Hashable {
     case chat
     case memories
     case settings
+    case about
 }
 
 struct ScowldRootView: View {
@@ -38,11 +39,54 @@ struct ScowldRootView: View {
             }
             .tag(ScowldTab.memories)
 
-            SettingsView(memoryStore: memoryStore, showsDismissControls: false)
+            SettingsView(showsDismissControls: false)
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
                 .tag(ScowldTab.settings)
+
+            AboutView()
+                .tabItem {
+                    Label("About", systemImage: "info.circle.fill")
+                }
+                .tag(ScowldTab.about)
+        }
+    }
+}
+
+struct AboutView: View {
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    HStack {
+                        Text("Scowld")
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text("v1.0")
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Link(destination: URL(string: "https://scowld.vercel.app/privacy")!) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
+                    }
+
+                    Link(destination: URL(string: "https://scowld.vercel.app/terms")!) {
+                        Label("Terms of Service", systemImage: "doc.text")
+                    }
+                }
+
+                Section {
+                    Text("Open Source AI Assistant - MIT License")
+                        .foregroundStyle(.secondary)
+                    Text("Character model: Arbius AI (MIT)")
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Label("Credits", systemImage: "doc.plaintext")
+                }
+            }
+            .navigationTitle("About")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

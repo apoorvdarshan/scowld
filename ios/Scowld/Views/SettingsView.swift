@@ -5,7 +5,6 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var hasChanges = false
-    @State private var showClearConfirmation = false
     @State private var showAPIKey = false
     @State private var showElevenLabsKey = false
 
@@ -83,7 +82,6 @@ struct SettingsView: View {
 
     // Vision is handled automatically by the selected LLM provider
 
-    var memoryStore: MemoryStore
     var showsDismissControls = true
 
     var body: some View {
@@ -374,67 +372,6 @@ struct SettingsView: View {
                     Text("Each avatar uses its own name by default. Set a custom name to override it.")
                 }
 
-                // MARK: - Memory Management
-                Section {
-                    HStack {
-                        Text("Stored Memories")
-                        Spacer()
-                        Text("\(memoryStore.totalMemoryCount)")
-                            .foregroundStyle(.amicaBlue)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 3)
-                            .background(.amicaBlue.opacity(0.15), in: Capsule())
-                    }
-
-                    NavigationLink {
-                        MemoryView(memoryStore: memoryStore)
-                    } label: {
-                        Label("Browse Memories", systemImage: "brain.head.profile.fill")
-                    }
-
-                    Button(role: .destructive) {
-                        showClearConfirmation = true
-                    } label: {
-                        Label("Clear All Memories", systemImage: "trash")
-                            .foregroundStyle(.red)
-                    }
-                    .alert("Clear All Memories?", isPresented: $showClearConfirmation) {
-                        Button("Cancel", role: .cancel) {}
-                        Button("Clear All", role: .destructive) {
-                            memoryStore.clearAllMemories()
-                        }
-                    } message: {
-                        Text("This will permanently delete all stored memories. This cannot be undone.")
-                    }
-                } header: {
-                    Label("Memory", systemImage: "brain")
-                }
-
-                // MARK: - About
-                Section {
-                    HStack {
-                        Text("Scowld")
-                            .fontWeight(.medium)
-                        Spacer()
-                        Text("v1.0")
-                            .foregroundStyle(.secondary)
-                    }
-                    Link(destination: URL(string: "https://scowld.vercel.app/privacy")!) {
-                        Label("Privacy Policy", systemImage: "hand.raised")
-                    }
-                    Link(destination: URL(string: "https://scowld.vercel.app/terms")!) {
-                        Label("Terms of Service", systemImage: "doc.text")
-                    }
-                    Text("Open Source AI Assistant — MIT License")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("Character model: Arbius AI (MIT)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Label("About", systemImage: "info.circle")
-                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
