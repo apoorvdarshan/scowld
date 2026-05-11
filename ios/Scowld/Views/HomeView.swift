@@ -216,12 +216,16 @@ struct HomeView: View {
         amicaCoordinator?.webView?.evaluateJavaScript(
             """
             (function() {
+                window.__scowldCameraEnabled = \(enabled);
                 if (window.__toggleWebcam) {
                     window.__toggleWebcam(\(enabled));
                 }
                 if (\(enabled) && window.__hideWebcamPreview) {
                     setTimeout(window.__hideWebcamPreview, 0);
                     setTimeout(window.__hideWebcamPreview, 250);
+                }
+                if (\(enabled) && window.__captureNativeVisionFrame) {
+                    setTimeout(window.__captureNativeVisionFrame, 300);
                 }
             })();
             """
@@ -664,6 +668,7 @@ struct AmicaFullView: UIViewRepresentable {
         let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
         let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
         let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
+        let visionEnabledJS = visionEnabled ? "true" : "false"
         let visionBackend = visionEnabled ? "native_ios" : "none"
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
         let elevenLabsModel = defaults.string(forKey: "amica_elevenlabs_model") ?? "eleven_flash_v2_5"
@@ -701,6 +706,7 @@ struct AmicaFullView: UIViewRepresentable {
                 system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.',
                 vrm_url: '/vrm/\(selectedAvatar).vrm'
             };
+            window.__scowldVisionEnabled = \(visionEnabledJS);
             // Force full screen coverage
             var meta = document.createElement('meta');
             meta.name = 'viewport';
@@ -766,9 +772,78 @@ struct AmicaFullView: UIViewRepresentable {
                 }
 
                 window.__hideWebcamPreview = hideWebcamPreview;
+                window.__scowldCameraEnabled = window.__scowldCameraEnabled !== false;
+
+                function findCameraVideo() {
+                    var videos = Array.prototype.slice.call(document.querySelectorAll('video'));
+                    return videos.find(function(video) {
+                        return video &&
+                            video.srcObject &&
+                            video.readyState >= 2 &&
+                            video.videoWidth > 0 &&
+                            video.videoHeight > 0;
+                    }) || null;
+                }
+
+                window.__captureNativeVisionFrame = function() {
+                    try {
+                        if (window.__scowldCameraEnabled === false) return null;
+                        var video = findCameraVideo();
+                        if (!video) return window.__latestWebcamFrame || null;
+                        var canvas = window.__nativeVisionCanvas || document.createElement('canvas');
+                        window.__nativeVisionCanvas = canvas;
+                        var maxSide = 512;
+                        var scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
+                        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+                        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        var frame = canvas.toDataURL('image/jpeg', 0.65).replace(/^data:image\\/jpeg;base64,/, '');
+                        window.__latestWebcamFrame = frame;
+                        window.__lastNativeVisionFrameAt = Date.now();
+                        return frame;
+                    } catch (e) {
+                        return window.__latestWebcamFrame || null;
+                    }
+                };
+
+                function patchNativeAIForVision() {
+                    try {
+                        if (window.__nativeAIVisionPatchInstalled) return true;
+                        var nativeAI = window.webkit &&
+                            window.webkit.messageHandlers &&
+                            window.webkit.messageHandlers.nativeAI;
+                        if (!nativeAI || !nativeAI.postMessage) return false;
+                        var originalPostMessage = nativeAI.postMessage.bind(nativeAI);
+                        nativeAI.postMessage = function(payload) {
+                            try {
+                                var body = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                                if (body &&
+                                    body.type === 'chat' &&
+                                    !body.imageData &&
+                                    window.__scowldVisionEnabled !== false &&
+                                    window.__scowldCameraEnabled !== false) {
+                                    var frame = window.__captureNativeVisionFrame
+                                        ? window.__captureNativeVisionFrame()
+                                        : window.__latestWebcamFrame;
+                                    if (frame) {
+                                        body.imageData = frame;
+                                        return originalPostMessage(JSON.stringify(body));
+                                    }
+                                }
+                            } catch (e) {}
+                            return originalPostMessage(payload);
+                        };
+                        window.__nativeAIVisionPatchInstalled = true;
+                        return true;
+                    } catch (e) {
+                        return false;
+                    }
+                }
 
                 function startPreviewHider() {
                     hideWebcamPreview();
+                    window.__captureNativeVisionFrame && window.__captureNativeVisionFrame();
                     if (window.__webcamPreviewObserver) return;
                     var root = document.documentElement || document.body;
                     if (!root || !window.MutationObserver) return;
@@ -780,6 +855,13 @@ struct AmicaFullView: UIViewRepresentable {
 
                 startPreviewHider();
                 document.addEventListener('DOMContentLoaded', startPreviewHider);
+                patchNativeAIForVision();
+                setTimeout(patchNativeAIForVision, 500);
+                setInterval(function() {
+                    if (window.__scowldCameraEnabled !== false && window.__captureNativeVisionFrame) {
+                        window.__captureNativeVisionFrame();
+                    }
+                }, 1000);
 
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
                 var origGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -793,6 +875,7 @@ struct AmicaFullView: UIViewRepresentable {
                     }
                     return origGetUserMedia(constraints).then(function(stream) {
                         setTimeout(hideWebcamPreview, 0);
+                        setTimeout(function() { window.__captureNativeVisionFrame && window.__captureNativeVisionFrame(); }, 100);
                         setTimeout(hideWebcamPreview, 100);
                         setTimeout(hideWebcamPreview, 500);
                         return stream;
@@ -968,6 +1051,7 @@ struct AmicaFullView: UIViewRepresentable {
             let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
             let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
             let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
+            let visionEnabledJS = visionEnabled ? "true" : "false"
             let visionBackend = visionEnabled ? "native_ios" : "none"
             let characterName = CharacterPack.resolveCharacterName()
             let selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
@@ -986,13 +1070,14 @@ struct AmicaFullView: UIViewRepresentable {
                     openai_tts_model: '\(openAITTSModel)',
                     openai_tts_voice: '\(openAITTSVoice)',
                     name: '\(characterName)',
+                    system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.',
                     vrm_url: '/vrm/\(selectedAvatar).vrm'
                 };
+                window.__scowldVisionEnabled = \(visionEnabledJS);
             """
             // Update the user script with new config, then reload
             if let webView {
                 let contentController = webView.configuration.userContentController
-                contentController.removeAllUserScripts()
                 let newScript = WKUserScript(
                     source: js,
                     injectionTime: .atDocumentStart,
@@ -1019,10 +1104,14 @@ struct AmicaFullView: UIViewRepresentable {
                 webView.evaluateJavaScript("""
                     (function enableCam() {
                         if (window.__toggleWebcam) {
+                            window.__scowldCameraEnabled = true;
                             window.__toggleWebcam(true);
                             // Hide preview but keep the camera stream alive.
                             (function hidePreview() {
                                 var hiddenCount = window.__hideWebcamPreview ? window.__hideWebcamPreview() : 0;
+                                if (window.__captureNativeVisionFrame) {
+                                    window.__captureNativeVisionFrame();
+                                }
                                 if (hiddenCount > 0) {
                                     // Notify native that app is ready (preview hidden) after 1s buffer
                                     setTimeout(function() {
