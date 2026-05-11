@@ -28,6 +28,7 @@ struct HomeView: View {
     @State private var cameraOn = true
     @State private var voiceManager = VoiceManager()
     @State private var aiResponseText = ""
+    @State private var isAwaitingAssistantResponse = false
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var messageFieldFocused: Bool
 
@@ -98,6 +99,7 @@ struct HomeView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
             aiResponseText = ""
+            isAwaitingAssistantResponse = false
             voiceManager.onTTSDone()
         }
         .onReceive(NotificationCenter.default.publisher(for: .aiResponseReady)) { notification in
@@ -185,7 +187,10 @@ struct HomeView: View {
     }
 
     private var isBusy: Bool {
-        !aiResponseText.isEmpty
+        isAwaitingAssistantResponse ||
+            !aiResponseText.isEmpty ||
+            voiceManager.state == .transcribing ||
+            voiceManager.state == .waitingForTTS
     }
 
     private var handsFreeIconName: String {
@@ -231,6 +236,7 @@ struct HomeView: View {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         messageText = ""
+        isAwaitingAssistantResponse = true
 
         // Pause listening so TTS plays through speaker
         if voiceManager.isEnabled {
