@@ -332,8 +332,7 @@ final class VoiceManager: NSObject {
         guard !audioBuffers.isEmpty, let format = audioFormat, speechBufferCount >= 5 else {
             logger.info("[Voice] Not enough speech detected (\(self.speechBufferCount) buffers), restarting")
             resetSpeechStatus()
-            state = .idle
-            if isEnabled { startListening() }
+            restartListening(afterShowing: "No speech detected")
             return
         }
 
@@ -355,8 +354,7 @@ final class VoiceManager: NSObject {
                 let clean = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !clean.isEmpty else {
                     logger.info("[Voice] Cloud STT returned empty transcript")
-                    state = .idle
-                    if isEnabled { startListening() }
+                    restartListening(afterShowing: "Didn't catch that")
                     return
                 }
 
@@ -371,9 +369,7 @@ final class VoiceManager: NSObject {
             } catch {
                 logger.error("[Voice] Cloud STT error: \(error.localizedDescription)")
                 transcriptText = ""
-                speechStatusText = ""
-                state = .idle
-                if isEnabled { startListening() }
+                restartListening(afterShowing: sttFailureMessage(for: error))
             }
         }
     }
@@ -558,6 +554,36 @@ final class VoiceManager: NSObject {
         guard !isSpeechStatusLatched else { return }
         let measured = min(max(level.decibels, -80), -20)
         ambientNoiseDecibels += (measured - ambientNoiseDecibels) * Self.ambientNoiseSmoothing
+    }
+
+    private func restartListening(afterShowing message: String) {
+        resetSpeechStatus()
+        speechStatusText = message
+        state = .idle
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard self.state == .idle else { return }
+            self.speechStatusText = ""
+            if self.isEnabled {
+                self.startListening()
+            }
+        }
+    }
+
+    private func sttFailureMessage(for error: Error) -> String {
+        guard let sttError = error as? CloudSTTError else {
+            return "STT failed"
+        }
+
+        switch sttError {
+        case .noAPIKey:
+            return "STT API key missing"
+        case .timeout:
+            return "STT timed out"
+        default:
+            return "STT failed"
+        }
     }
 }
 
