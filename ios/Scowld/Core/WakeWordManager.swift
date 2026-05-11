@@ -70,13 +70,13 @@ final class VoiceManager: NSObject {
     private static let speechStatusReleaseDuration: TimeInterval = 0.75
     private static let speechActivityCalibrationDuration: TimeInterval = 0.35
     private static let initialAmbientNoiseDecibels: Float = -55
-    private static let speechMinimumDecibels: Float = -40
-    private static let speechNoiseMarginDecibels: Float = 10
-    private static let speechPeakThreshold: Float = 0.05
+    private static let speechMinimumDecibels: Float = -38
+    private static let speechNoiseMarginDecibels: Float = 12
+    private static let speechPeakThreshold: Float = 0.065
     private static let ambientNoiseSmoothing: Float = 0.18
     private static let maxRecognitionDuration: TimeInterval = 55.0
     private static let cloudPreSpeechBufferLimit = 10
-    private static let cloudMinimumSpeechBufferCount = 2
+    private static let cloudMinimumSpeechBufferCount = 4
 
     /// Current STT backend from settings
     private var currentBackend: STTBackend {
