@@ -59,6 +59,7 @@ final class VoiceManager: NSObject {
 
     // Cloud STT audio buffer storage
     private var audioBuffers: [AVAudioPCMBuffer] = []
+    private var preSpeechAudioBuffers: [AVAudioPCMBuffer] = []
     private var audioFormat: AVAudioFormat?
     private var cloudSilenceTimer: Timer?
     private var hasDetectedSpeech = false
@@ -69,11 +70,13 @@ final class VoiceManager: NSObject {
     private static let speechStatusReleaseDuration: TimeInterval = 0.75
     private static let speechActivityCalibrationDuration: TimeInterval = 0.35
     private static let initialAmbientNoiseDecibels: Float = -55
-    private static let speechMinimumDecibels: Float = -35
+    private static let speechMinimumDecibels: Float = -40
     private static let speechNoiseMarginDecibels: Float = 10
-    private static let speechPeakThreshold: Float = 0.08
+    private static let speechPeakThreshold: Float = 0.05
     private static let ambientNoiseSmoothing: Float = 0.18
     private static let maxRecognitionDuration: TimeInterval = 55.0
+    private static let cloudPreSpeechBufferLimit = 10
+    private static let cloudMinimumSpeechBufferCount = 2
 
     /// Current STT backend from settings
     private var currentBackend: STTBackend {
@@ -100,6 +103,7 @@ final class VoiceManager: NSObject {
         transcriptText = ""
         isTTSPlaying = false
         audioBuffers = []
+        preSpeechAudioBuffers = []
         hasDetectedSpeech = false
         speechBufferCount = 0
         ambientNoiseDecibels = Self.initialAmbientNoiseDecibels
@@ -160,6 +164,7 @@ final class VoiceManager: NSObject {
         resetSpeechStatus()
         isTTSPlaying = false
         audioBuffers = []
+        preSpeechAudioBuffers = []
         logger.info("[Voice] Stopped")
     }
 
@@ -243,6 +248,7 @@ final class VoiceManager: NSObject {
     private func startCloudRecording() {
         stopRecognitionInternal()
         audioBuffers = []
+        preSpeechAudioBuffers = []
         hasDetectedSpeech = false
 
         do {
@@ -286,30 +292,25 @@ final class VoiceManager: NSObject {
     private func handleCloudAudioBuffer(_ buffer: AVAudioPCMBuffer) {
         let level = Self.audioLevel(for: buffer)
         handleSpeechActivity(level)
+        guard let copy = copyAudioBuffer(buffer) else { return }
 
         if isSpeechLike(level) {
+            if !hasDetectedSpeech {
+                audioBuffers.append(contentsOf: preSpeechAudioBuffers)
+                preSpeechAudioBuffers = []
+            }
             hasDetectedSpeech = true
             speechBufferCount += 1
-            // Copy the buffer since we need to keep it
-            let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameCapacity)!
-            copy.frameLength = buffer.frameLength
-            if let srcData = buffer.floatChannelData, let dstData = copy.floatChannelData {
-                for ch in 0..<Int(buffer.format.channelCount) {
-                    memcpy(dstData[ch], srcData[ch], Int(buffer.frameLength) * MemoryLayout<Float>.size)
-                }
-            }
             audioBuffers.append(copy)
             resetCloudSilenceTimer()
         } else if hasDetectedSpeech {
             // Still capture silence buffers (for natural speech gaps)
-            let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameCapacity)!
-            copy.frameLength = buffer.frameLength
-            if let srcData = buffer.floatChannelData, let dstData = copy.floatChannelData {
-                for ch in 0..<Int(buffer.format.channelCount) {
-                    memcpy(dstData[ch], srcData[ch], Int(buffer.frameLength) * MemoryLayout<Float>.size)
-                }
-            }
             audioBuffers.append(copy)
+        } else {
+            preSpeechAudioBuffers.append(copy)
+            if preSpeechAudioBuffers.count > Self.cloudPreSpeechBufferLimit {
+                preSpeechAudioBuffers.removeFirst(preSpeechAudioBuffers.count - Self.cloudPreSpeechBufferLimit)
+            }
         }
     }
 
@@ -328,8 +329,8 @@ final class VoiceManager: NSObject {
         cloudSilenceTimer = nil
         stopRecognitionInternal()
 
-        // Need at least 5 speech buffers (~0.5s of actual speech) to avoid noise
-        guard !audioBuffers.isEmpty, let format = audioFormat, speechBufferCount >= 5 else {
+        // Need a few confirmed speech buffers to avoid sending background noise.
+        guard !audioBuffers.isEmpty, let format = audioFormat, speechBufferCount >= Self.cloudMinimumSpeechBufferCount else {
             logger.info("[Voice] Not enough speech detected (\(self.speechBufferCount) buffers), restarting")
             resetSpeechStatus()
             restartListening(afterShowing: "No speech detected")
@@ -488,6 +489,21 @@ final class VoiceManager: NSObject {
     private func isSpeechLike(_ level: VoiceAudioLevel) -> Bool {
         let threshold = max(Self.speechMinimumDecibels, ambientNoiseDecibels + Self.speechNoiseMarginDecibels)
         return level.decibels >= threshold && level.peak >= Self.speechPeakThreshold
+    }
+
+    private func copyAudioBuffer(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        guard let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameCapacity) else {
+            return nil
+        }
+
+        copy.frameLength = buffer.frameLength
+        if let srcData = buffer.floatChannelData, let dstData = copy.floatChannelData {
+            for ch in 0..<Int(buffer.format.channelCount) {
+                memcpy(dstData[ch], srcData[ch], Int(buffer.frameLength) * MemoryLayout<Float>.size)
+            }
+        }
+
+        return copy
     }
 
     private func handleSpeechActivity(_ level: VoiceAudioLevel) {
