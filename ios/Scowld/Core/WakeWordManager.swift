@@ -349,6 +349,7 @@ final class VoiceManager: NSObject {
         Task {
             do {
                 let wavData = CloudSTTManager.createWAV(from: buffers, format: format)
+                logger.info("[Voice] Cloud STT upload: backend=\(backend.rawValue) model=\(STTBackend.selectedModel(for: backend)) wavBytes=\(wavData.count)")
                 let transcript = try await CloudSTTManager.transcribe(audioData: wavData, backend: backend)
 
                 let clean = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -573,7 +574,7 @@ final class VoiceManager: NSObject {
 
     private func sttFailureMessage(for error: Error) -> String {
         guard let sttError = error as? CloudSTTError else {
-            return "STT failed"
+            return "STT failed: \(shortErrorMessage(error.localizedDescription))"
         }
 
         switch sttError {
@@ -581,9 +582,30 @@ final class VoiceManager: NSObject {
             return "STT API key missing"
         case .timeout:
             return "STT timed out"
-        default:
-            return "STT failed"
+        case .apiError(let message):
+            return "STT API: \(shortErrorMessage(message))"
+        case .parseError:
+            return "STT response parse failed"
+        case .unsupportedBackend:
+            return "STT backend unsupported"
         }
+    }
+
+    private func shortErrorMessage(_ message: String) -> String {
+        let singleLine = message
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if singleLine.isEmpty {
+            return "unknown error"
+        }
+
+        if singleLine.count > 90 {
+            return String(singleLine.prefix(90)) + "..."
+        }
+
+        return singleLine
     }
 }
 
