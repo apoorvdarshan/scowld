@@ -279,16 +279,31 @@ struct SettingsView: View {
 
                 // MARK: - STT (Speech-to-Text)
                 Section {
-                    Picker("Backend", selection: $sttBackend) {
+                    Menu {
                         ForEach(STTBackend.allCases, id: \.self) { backend in
-                            Text(backend.displayName).tag(backend.rawValue)
+                            Button {
+                                setSTTBackend(backend)
+                            } label: {
+                                if backend == selectedSTTBackend {
+                                    Label(backend.displayName, systemImage: "checkmark")
+                                } else {
+                                    Text(backend.displayName)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text("Backend")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text(selectedSTTBackend.displayName)
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .onChange(of: sttBackend) {
-                        let backend = STTBackend(rawValue: sttBackend) ?? .nativeIOS
-                        selectedSTTModel = STTBackend.selectedModel(for: backend)
-                        hasChanges = true
-                    }
+                    .buttonStyle(.plain)
 
                     if let backend = STTBackend(rawValue: sttBackend), !backend.availableModels.isEmpty {
                         Picker("Model", selection: $selectedSTTModel) {
@@ -547,5 +562,15 @@ struct SettingsView: View {
 
     private func loadAPIKey() {
         hasAPIKey = KeychainManager.exists(key: selectedProvider.keychainKey)
+    }
+
+    private var selectedSTTBackend: STTBackend {
+        STTBackend(rawValue: sttBackend) ?? .nativeIOS
+    }
+
+    private func setSTTBackend(_ backend: STTBackend) {
+        sttBackend = backend.rawValue
+        selectedSTTModel = STTBackend.selectedModel(for: backend)
+        hasChanges = true
     }
 }
