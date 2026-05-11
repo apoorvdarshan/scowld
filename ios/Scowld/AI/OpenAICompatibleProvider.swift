@@ -9,12 +9,20 @@ struct OpenAICompatibleProvider: LLMProvider {
     let apiKey: String
     let model: String
     let extraHeaders: [String: String]
+    let includeTemperature: Bool
 
-    init(baseURL: String, apiKey: String, model: String, extraHeaders: [String: String] = [:]) {
+    init(
+        baseURL: String,
+        apiKey: String,
+        model: String,
+        extraHeaders: [String: String] = [:],
+        includeTemperature: Bool = true
+    ) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.model = model
         self.extraHeaders = extraHeaders
+        self.includeTemperature = includeTemperature
     }
 
     func generate(messages: [ChatMessage], systemPrompt: String) async throws -> String {
@@ -29,12 +37,14 @@ struct OpenAICompatibleProvider: LLMProvider {
             ])
         }
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": model,
             "messages": apiMessages,
-            "temperature": 0.8,
             "max_tokens": 1024,
         ]
+        if includeTemperature {
+            body["temperature"] = 0.8
+        }
 
         let data = try await performRequest(body: body)
         return try parseResponse(data: data)
@@ -67,12 +77,14 @@ struct OpenAICompatibleProvider: LLMProvider {
             }
         }
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": model,
             "messages": apiMessages,
-            "temperature": 0.8,
             "max_tokens": 1024,
         ]
+        if includeTemperature {
+            body["temperature"] = 0.8
+        }
 
         let data = try await performRequest(body: body)
         return try parseResponse(data: data)

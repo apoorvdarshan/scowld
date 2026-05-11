@@ -20,11 +20,15 @@ struct SettingsView: View {
     @State private var ttsBackend: String = "native_ios"
     @State private var elevenLabsAPIKey: String = ""
     @State private var elevenLabsVoiceId: String = "mHX7OoPk2G45VMAuinIt"
+    @State private var elevenLabsModel: String = Self.defaultElevenLabsModel
+    @State private var openAITTSModel: String = Self.defaultOpenAITTSModel
+    @State private var openAITTSVoice: String = Self.defaultOpenAITTSVoice
     @State private var speechRate: Float = 0.95
     @State private var speechPitch: Float = 1.2
 
     // MARK: - STT Settings
     @State private var sttBackend: String = "native_ios"
+    @State private var selectedSTTModel: String = STTBackend.nativeIOS.defaultModel
 
     // MARK: - Character Settings
     @State private var characterName: String = "Stella"
@@ -32,6 +36,50 @@ struct SettingsView: View {
     @State private var systemPrompt: String = ""
 
     private static let defaultSystemPrompt = "You are a warm, cheerful, and expressive AI companion. You're friendly, playful, and genuinely care about the person you're talking to. You speak naturally and conversationally — like a close friend. Keep responses concise (1-3 sentences). Be expressive and show personality."
+    private static let defaultElevenLabsModel = "eleven_flash_v2_5"
+    private static let defaultOpenAITTSModel = "gpt-4o-mini-tts"
+    private static let defaultOpenAITTSVoice = "nova"
+    private static let elevenLabsModels = [
+        "eleven_flash_v2_5",
+        "eleven_turbo_v2_5",
+        "eleven_multilingual_v2",
+        "eleven_v3",
+    ]
+    private static let openAITTSModels = [
+        "gpt-4o-mini-tts",
+        "tts-1",
+        "tts-1-hd",
+    ]
+    private static let openAIGPT4oVoices = [
+        "alloy",
+        "ash",
+        "ballad",
+        "cedar",
+        "coral",
+        "echo",
+        "fable",
+        "marin",
+        "nova",
+        "onyx",
+        "sage",
+        "shimmer",
+        "verse",
+    ]
+    private static let openAILegacyVoices = [
+        "alloy",
+        "ash",
+        "coral",
+        "echo",
+        "fable",
+        "nova",
+        "onyx",
+        "sage",
+        "shimmer",
+    ]
+
+    private var supportedOpenAITTSVoices: [String] {
+        openAITTSModel == Self.defaultOpenAITTSModel ? Self.openAIGPT4oVoices : Self.openAILegacyVoices
+    }
 
     // Vision is handled automatically by the selected LLM provider
 
@@ -144,6 +192,25 @@ struct SettingsView: View {
                 // MARK: - OpenAI TTS Note
                 if ttsBackend == "openai_tts" {
                     Section {
+                        Picker("Model", selection: $openAITTSModel) {
+                            ForEach(Self.openAITTSModels, id: \.self) { model in
+                                Text(model).tag(model)
+                            }
+                        }
+                        .onChange(of: openAITTSModel) {
+                            if !supportedOpenAITTSVoices.contains(openAITTSVoice) {
+                                openAITTSVoice = supportedOpenAITTSVoices.first ?? Self.defaultOpenAITTSVoice
+                            }
+                            hasChanges = true
+                        }
+
+                        Picker("Voice", selection: $openAITTSVoice) {
+                            ForEach(supportedOpenAITTSVoices, id: \.self) { voice in
+                                Text(voice).tag(voice)
+                            }
+                        }
+                        .onChange(of: openAITTSVoice) { hasChanges = true }
+
                         Text("Uses the OpenAI API key from your AI Provider settings (if OpenAI is selected), or enter one below.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -173,6 +240,13 @@ struct SettingsView: View {
                 // MARK: - ElevenLabs Settings
                 if ttsBackend == "elevenlabs" {
                     Section {
+                        Picker("Model", selection: $elevenLabsModel) {
+                            ForEach(Self.elevenLabsModels, id: \.self) { model in
+                                Text(model).tag(model)
+                            }
+                        }
+                        .onChange(of: elevenLabsModel) { hasChanges = true }
+
                         HStack {
                             if showElevenLabsKey {
                                 TextField("API Key", text: $elevenLabsAPIKey)
@@ -210,7 +284,20 @@ struct SettingsView: View {
                             Text(backend.displayName).tag(backend.rawValue)
                         }
                     }
-                    .onChange(of: sttBackend) { hasChanges = true }
+                    .onChange(of: sttBackend) {
+                        let backend = STTBackend(rawValue: sttBackend) ?? .nativeIOS
+                        selectedSTTModel = STTBackend.selectedModel(for: backend)
+                        hasChanges = true
+                    }
+
+                    if let backend = STTBackend(rawValue: sttBackend), !backend.availableModels.isEmpty {
+                        Picker("Model", selection: $selectedSTTModel) {
+                            ForEach(backend.availableModels, id: \.self) { model in
+                                Text(model).tag(model)
+                            }
+                        }
+                        .onChange(of: selectedSTTModel) { hasChanges = true }
+                    }
                 } header: {
                     Label("Speech-to-Text", systemImage: "mic")
                 } footer: {
@@ -371,6 +458,9 @@ struct SettingsView: View {
             selectedProvider = provider
         }
         selectedModel = defaults.string(forKey: "selectedModel") ?? selectedProvider.defaultModel
+        if !selectedProvider.availableModels.contains(selectedModel) {
+            selectedModel = selectedProvider.defaultModel
+        }
         ollamaURL = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
         speechRate = defaults.float(forKey: "speechRate")
         if speechRate == 0 { speechRate = 0.95 }
@@ -379,10 +469,24 @@ struct SettingsView: View {
         // Amica backend settings
         ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
+        let stt = STTBackend(rawValue: sttBackend) ?? .nativeIOS
+        selectedSTTModel = STTBackend.selectedModel(for: stt)
         characterName = defaults.string(forKey: "character_name") ?? ""
         selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
+        elevenLabsModel = defaults.string(forKey: "amica_elevenlabs_model") ?? Self.defaultElevenLabsModel
+        if !Self.elevenLabsModels.contains(elevenLabsModel) {
+            elevenLabsModel = Self.defaultElevenLabsModel
+        }
+        openAITTSModel = defaults.string(forKey: "amica_openai_tts_model") ?? Self.defaultOpenAITTSModel
+        if !Self.openAITTSModels.contains(openAITTSModel) {
+            openAITTSModel = Self.defaultOpenAITTSModel
+        }
+        openAITTSVoice = defaults.string(forKey: "amica_openai_tts_voice") ?? Self.defaultOpenAITTSVoice
+        if !supportedOpenAITTSVoices.contains(openAITTSVoice) {
+            openAITTSVoice = Self.defaultOpenAITTSVoice
+        }
 
         // Load existing keys into fields
         if let existingKey = KeychainManager.load(key: selectedProvider.keychainKey) {
@@ -410,6 +514,12 @@ struct SettingsView: View {
         defaults.set(ttsBackend, forKey: "amica_tts_backend")
         defaults.set(sttBackend, forKey: "amica_stt_backend")
         defaults.set(elevenLabsVoiceId, forKey: "amica_elevenlabs_voiceid")
+        defaults.set(elevenLabsModel, forKey: "amica_elevenlabs_model")
+        defaults.set(openAITTSModel, forKey: "amica_openai_tts_model")
+        defaults.set(openAITTSVoice, forKey: "amica_openai_tts_voice")
+        if let backend = STTBackend(rawValue: sttBackend), !backend.availableModels.isEmpty {
+            defaults.set(selectedSTTModel, forKey: backend.modelDefaultsKey)
+        }
         defaults.set(characterName, forKey: "character_name")
         defaults.set(selectedAvatar, forKey: "selected_avatar")
         defaults.set(systemPrompt, forKey: "system_prompt")

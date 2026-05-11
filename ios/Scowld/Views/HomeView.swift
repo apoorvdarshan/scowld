@@ -654,12 +654,15 @@ struct AmicaFullView: UIViewRepresentable {
 
         // Inject native config before page loads
         let defaults = UserDefaults.standard
-        let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "elevenlabs"
+        let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
         let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
         let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
         let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
         let visionBackend = visionEnabled ? "native_ios" : "none"
         let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
+        let elevenLabsModel = defaults.string(forKey: "amica_elevenlabs_model") ?? "eleven_flash_v2_5"
+        let openAITTSModel = defaults.string(forKey: "amica_openai_tts_model") ?? "gpt-4o-mini-tts"
+        let openAITTSVoice = defaults.string(forKey: "amica_openai_tts_voice") ?? "nova"
         let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
         let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
         let characterName = CharacterPack.resolveCharacterName()
@@ -683,8 +686,11 @@ struct AmicaFullView: UIViewRepresentable {
                 vision_backend: '\(visionBackend)',
                 elevenlabs_apikey: '\(elevenLabsKey)',
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
-                elevenlabs_model: 'eleven_flash_v2_5',
+                elevenlabs_model: '\(elevenLabsModel)',
                 openai_tts_apikey: '\(openaiKey)',
+                openai_tts_url: 'https://api.openai.com/v1',
+                openai_tts_model: '\(openAITTSModel)',
+                openai_tts_voice: '\(openAITTSVoice)',
                 name: '\(characterName)',
                 system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.',
                 vrm_url: '/vrm/\(selectedAvatar).vrm'
@@ -946,10 +952,13 @@ struct AmicaFullView: UIViewRepresentable {
 
         private func pushUpdatedConfig() {
             let defaults = UserDefaults.standard
-            let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "elevenlabs"
+            let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
             let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
             let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
             let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
+            let elevenLabsModel = defaults.string(forKey: "amica_elevenlabs_model") ?? "eleven_flash_v2_5"
+            let openAITTSModel = defaults.string(forKey: "amica_openai_tts_model") ?? "gpt-4o-mini-tts"
+            let openAITTSVoice = defaults.string(forKey: "amica_openai_tts_voice") ?? "nova"
             let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
             let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
             let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
@@ -965,8 +974,11 @@ struct AmicaFullView: UIViewRepresentable {
                     vision_backend: '\(visionBackend)',
                     elevenlabs_apikey: '\(elevenLabsKey)',
                     elevenlabs_voiceid: '\(elevenLabsVoiceId)',
-                    elevenlabs_model: 'eleven_flash_v2_5',
+                    elevenlabs_model: '\(elevenLabsModel)',
                     openai_tts_apikey: '\(openaiKey)',
+                    openai_tts_url: 'https://api.openai.com/v1',
+                    openai_tts_model: '\(openAITTSModel)',
+                    openai_tts_voice: '\(openAITTSVoice)',
                     name: '\(characterName)',
                     vrm_url: '/vrm/\(selectedAvatar).vrm'
                 };
@@ -1245,7 +1257,12 @@ struct AmicaFullView: UIViewRepresentable {
             // OpenAI-compatible providers (OpenRouter, xAI, Together AI, etc.)
             if let baseURL = provider.baseURL {
                 guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
-                return OpenAICompatibleProvider(baseURL: baseURL, apiKey: apiKey, model: model)
+                return OpenAICompatibleProvider(
+                    baseURL: baseURL,
+                    apiKey: apiKey,
+                    model: model,
+                    includeTemperature: provider.includesSamplingTemperature
+                )
             }
 
             switch provider {

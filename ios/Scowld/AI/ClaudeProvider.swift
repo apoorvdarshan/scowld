@@ -7,7 +7,7 @@ struct ClaudeProvider: LLMProvider {
     let apiKey: String
     let model: String
 
-    init(apiKey: String, model: String = "claude-haiku-4-5-20251001") {
+    init(apiKey: String, model: String = "claude-sonnet-4-6") {
         self.apiKey = apiKey
         self.model = model
     }

@@ -2,12 +2,12 @@ import UIKit
 
 // MARK: - OpenAI Provider
 
-/// OpenAI API provider (GPT-4o, GPT-4o-mini).
+/// OpenAI API provider.
 struct OpenAIProvider: LLMProvider {
     let apiKey: String
     let model: String
 
-    init(apiKey: String, model: String = "gpt-4o-mini") {
+    init(apiKey: String, model: String = "gpt-5.4-mini") {
         self.apiKey = apiKey
         self.model = model
     }
@@ -27,8 +27,7 @@ struct OpenAIProvider: LLMProvider {
         let body: [String: Any] = [
             "model": model,
             "messages": apiMessages,
-            "temperature": 0.8,
-            "max_tokens": 1024,
+            "max_completion_tokens": 1024,
         ]
 
         let data = try await performRequest(body: body)
@@ -66,8 +65,7 @@ struct OpenAIProvider: LLMProvider {
         let body: [String: Any] = [
             "model": model,
             "messages": apiMessages,
-            "temperature": 0.8,
-            "max_tokens": 1024,
+            "max_completion_tokens": 1024,
         ]
 
         let data = try await performRequest(body: body)

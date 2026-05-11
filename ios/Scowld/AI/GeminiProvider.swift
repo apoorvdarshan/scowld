@@ -2,13 +2,13 @@ import UIKit
 
 // MARK: - Gemini Provider
 
-/// Google Gemini API provider. Uses the free tier (gemini-2.0-flash) by default.
+/// Google Gemini API provider.
 /// API docs: https://ai.google.dev/api
 struct GeminiProvider: LLMProvider {
     let apiKey: String
     let model: String
 
-    init(apiKey: String, model: String = "gemini-2.0-flash") {
+    init(apiKey: String, model: String = "gemini-3.1-flash-lite") {
         self.apiKey = apiKey
         self.model = model
     }

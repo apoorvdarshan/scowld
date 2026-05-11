@@ -7,6 +7,7 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
     case openai
     case claude
     case ollama
+    case groq
     case openRouter
     case xai
     case togetherAI
@@ -20,6 +21,7 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
         case .openai: "OpenAI"
         case .claude: "Anthropic Claude"
         case .ollama: "Ollama (Local)"
+        case .groq: "Groq"
         case .openRouter: "OpenRouter"
         case .xai: "xAI (Grok)"
         case .togetherAI: "Together AI"
@@ -31,31 +33,133 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
 
     var availableModels: [String] {
         switch self {
-        case .gemini: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash-001"]
-        case .openai: ["gpt-4.1-nano", "gpt-4.1-mini", "gpt-4o-mini", "gpt-4o"]
-        case .claude: ["claude-haiku-4-5-20251001", "claude-sonnet-4-6-20250514"]
-        case .ollama: ["llama3.2", "mistral", "gemma2", "phi3"]
-        case .openRouter: ["openai/gpt-4o", "anthropic/claude-sonnet-4-6", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"]
-        case .xai: ["grok-3-mini", "grok-3"]
-        case .togetherAI: ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "mistralai/Mixtral-8x7B-Instruct-v0.1", "Qwen/Qwen2.5-72B-Instruct-Turbo"]
-        case .huggingFace: ["meta-llama/Llama-3.3-70B-Instruct", "mistralai/Mixtral-8x7B-Instruct-v0.1", "Qwen/Qwen2.5-72B-Instruct"]
-        case .veniceAI: ["llama-3.3-70b", "deepseek-r1-671b"]
-        case .moonshot: ["kimi-k2.5", "moonshot-v1-8k"]
+        case .gemini:
+            [
+                "gemini-3.1-pro-preview",
+                "gemini-3.1-flash-lite",
+                "gemini-3.1-flash-lite-preview",
+                "gemini-3-flash-preview",
+                "gemini-2.5-pro",
+                "gemini-2.5-flash",
+                "gemini-2.5-flash-lite",
+                "gemini-2.0-flash",
+            ]
+        case .openai:
+            [
+                "gpt-5.5",
+                "gpt-5.4",
+                "gpt-5.4-mini",
+                "gpt-5.4-nano",
+                "gpt-4.1",
+                "gpt-4.1-mini",
+                "gpt-4.1-nano",
+                "gpt-4o",
+                "gpt-4o-mini",
+            ]
+        case .claude:
+            [
+                "claude-opus-4-7",
+                "claude-sonnet-4-6",
+                "claude-haiku-4-5-20251001",
+                "claude-opus-4-1-20250805",
+                "claude-sonnet-4-20250514",
+            ]
+        case .ollama:
+            ["llama3.3", "llama3.2", "qwen3", "gemma3", "phi4", "mistral", "deepseek-r1"]
+        case .groq:
+            [
+                "llama-3.1-8b-instant",
+                "llama-3.3-70b-versatile",
+                "openai/gpt-oss-20b",
+                "openai/gpt-oss-120b",
+                "meta-llama/llama-4-scout-17b-16e-instruct",
+                "meta-llama/llama-4-maverick-17b-128e-instruct",
+                "qwen/qwen3-32b",
+                "moonshotai/kimi-k2-instruct-0905",
+                "groq/compound-mini",
+                "groq/compound",
+            ]
+        case .openRouter:
+            [
+                "openrouter/auto",
+                "google/gemini-3.1-pro-preview",
+                "google/gemini-3.1-flash-lite",
+                "openai/gpt-5.5",
+                "openai/gpt-5.4-mini",
+                "anthropic/claude-sonnet-4.6",
+                "x-ai/grok-4.3",
+                "deepseek/deepseek-v4-flash",
+                "qwen/qwen3.6-flash",
+                "moonshotai/kimi-k2.6",
+            ]
+        case .xai:
+            [
+                "grok-4.3",
+                "grok-4.20",
+                "grok-4.20-multi-agent",
+                "grok-4-1-fast-reasoning",
+                "grok-4-1-fast-non-reasoning",
+            ]
+        case .togetherAI:
+            [
+                "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                "Qwen/Qwen3.6-Plus",
+                "moonshotai/Kimi-K2.6",
+                "moonshotai/Kimi-K2.5",
+                "openai/gpt-oss-120b",
+                "openai/gpt-oss-20b",
+                "deepseek-ai/DeepSeek-V4-Pro",
+                "zai-org/GLM-5.1",
+            ]
+        case .huggingFace:
+            [
+                "openai/gpt-oss-20b:fireworks-ai",
+                "openai/gpt-oss-120b:fireworks-ai",
+                "Qwen/Qwen3-Coder-30B-A3B-Instruct:novita",
+                "deepseek-ai/DeepSeek-R1:novita",
+                "meta-llama/Llama-3.3-70B-Instruct:novita",
+            ]
+        case .veniceAI:
+            [
+                "qwen-3-6-plus",
+                "venice-uncensored-1-2",
+                "gemini-3-1-pro-preview",
+                "grok-4-3",
+                "claude-sonnet-4-6",
+                "openai-gpt-55",
+                "openai-gpt-54-mini",
+                "kimi-k2-6",
+                "deepseek-v4-flash",
+                "llama-3.3-70b",
+            ]
+        case .moonshot:
+            [
+                "kimi-k2.6",
+                "kimi-k2.5",
+                "kimi-k2-thinking",
+                "kimi-k2-thinking-turbo",
+                "kimi-k2-turbo-preview",
+                "kimi-k2-0905-preview",
+                "moonshot-v1-8k",
+                "moonshot-v1-32k",
+                "moonshot-v1-128k",
+            ]
         }
     }
 
     var defaultModel: String {
         switch self {
-        case .gemini: "gemini-2.5-flash"
-        case .openai: "gpt-4.1-nano"
-        case .claude: "claude-haiku-4-5-20251001"
+        case .gemini: "gemini-3.1-flash-lite"
+        case .openai: "gpt-5.4-mini"
+        case .claude: "claude-sonnet-4-6"
         case .ollama: "llama3.2"
-        case .openRouter: "openai/gpt-4o"
-        case .xai: "grok-3-mini"
+        case .groq: "llama-3.1-8b-instant"
+        case .openRouter: "openrouter/auto"
+        case .xai: "grok-4.3"
         case .togetherAI: "meta-llama/Llama-3.3-70B-Instruct-Turbo"
-        case .huggingFace: "meta-llama/Llama-3.3-70B-Instruct"
-        case .veniceAI: "llama-3.3-70b"
-        case .moonshot: "kimi-k2.5"
+        case .huggingFace: "openai/gpt-oss-20b:fireworks-ai"
+        case .veniceAI: "qwen-3-6-plus"
+        case .moonshot: "kimi-k2.6"
         }
     }
 
@@ -71,22 +175,31 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
     /// Whether this provider supports vision (image input)
     var supportsVision: Bool {
         switch self {
-        case .gemini, .openai, .claude, .openRouter, .xai, .togetherAI: true
+        case .gemini, .openai, .claude, .openRouter, .xai, .togetherAI, .moonshot: true
         case .huggingFace: true // some models
-        case .ollama, .veniceAI, .moonshot: false
+        case .ollama, .groq, .veniceAI: false
         }
     }
 
     /// Base URL for OpenAI-compatible providers
     var baseURL: String? {
         switch self {
+        case .groq: "https://api.groq.com/openai/v1"
         case .openRouter: "https://openrouter.ai/api/v1"
         case .xai: "https://api.x.ai/v1"
         case .togetherAI: "https://api.together.xyz/v1"
-        case .huggingFace: "https://api-inference.huggingface.co/v1"
+        case .huggingFace: "https://router.huggingface.co/v1"
         case .veniceAI: "https://api.venice.ai/api/v1"
-        case .moonshot: "https://api.moonshot.cn/v1"
+        case .moonshot: "https://api.moonshot.ai/v1"
         default: nil
+        }
+    }
+
+    /// Some providers reject custom sampling values for their newest models.
+    var includesSamplingTemperature: Bool {
+        switch self {
+        case .moonshot: false
+        default: true
         }
     }
 

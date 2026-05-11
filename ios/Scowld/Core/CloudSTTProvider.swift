@@ -40,6 +40,46 @@ enum STTBackend: String, CaseIterable {
         "com.scowld.stt.\(rawValue)"
     }
 
+    var modelDefaultsKey: String {
+        "com.scowld.stt.model.\(rawValue)"
+    }
+
+    var availableModels: [String] {
+        switch self {
+        case .openaiWhisper:
+            ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"]
+        case .groqWhisper:
+            ["whisper-large-v3-turbo", "whisper-large-v3"]
+        case .deepgram:
+            ["nova-3", "nova-3-general", "nova-2"]
+        case .assemblyAI:
+            ["universal-3-pro", "universal-2", "slam-1", "best"]
+        case .googleCloud:
+            ["latest_short", "latest_long", "telephony_short", "telephony", "command_and_search", "default"]
+        default:
+            []
+        }
+    }
+
+    var defaultModel: String {
+        switch self {
+        case .openaiWhisper: "gpt-4o-mini-transcribe"
+        case .groqWhisper: "whisper-large-v3-turbo"
+        case .deepgram: "nova-3"
+        case .assemblyAI: "universal-3-pro"
+        case .googleCloud: "latest_short"
+        default: ""
+        }
+    }
+
+    static func selectedModel(for backend: STTBackend) -> String {
+        let saved = UserDefaults.standard.string(forKey: backend.modelDefaultsKey)
+        if let saved, backend.availableModels.contains(saved) {
+            return saved
+        }
+        return backend.defaultModel
+    }
+
     var isCloudBased: Bool {
         switch self {
         case .openaiWhisper, .groqWhisper, .deepgram, .assemblyAI, .googleCloud: true
@@ -50,11 +90,11 @@ enum STTBackend: String, CaseIterable {
     var footerText: String {
         switch self {
         case .nativeIOS: "Built-in iOS speech recognition. Free, on-device, no API needed."
-        case .openaiWhisper: "High accuracy, cloud-based. $0.006/min."
-        case .groqWhisper: "Whisper large-v3 on Groq hardware. Free tier: 8 hours/day. Very fast."
-        case .deepgram: "Real-time transcription. $200 free credit on signup."
-        case .assemblyAI: "High accuracy. 100 hours free."
-        case .googleCloud: "Google Speech-to-Text. 60 min/month free."
+        case .openaiWhisper: "Cloud STT using OpenAI transcription models."
+        case .groqWhisper: "Fast Whisper models on Groq hardware."
+        case .deepgram: "Deepgram Nova speech models."
+        case .assemblyAI: "AssemblyAI Universal and Slam speech models."
+        case .googleCloud: "Google Cloud Speech-to-Text models."
         case .whisperBrowser: "Runs Whisper locally in the browser. Free, on-device."
         case .none: "Voice input disabled. Use text input only."
         }
@@ -71,17 +111,19 @@ enum CloudSTTManager {
             throw CloudSTTError.noAPIKey
         }
 
+        let model = STTBackend.selectedModel(for: backend)
+
         switch backend {
         case .openaiWhisper:
-            return try await transcribeOpenAI(audioData: audioData, apiKey: apiKey)
+            return try await transcribeOpenAI(audioData: audioData, apiKey: apiKey, model: model)
         case .groqWhisper:
-            return try await transcribeGroq(audioData: audioData, apiKey: apiKey)
+            return try await transcribeGroq(audioData: audioData, apiKey: apiKey, model: model)
         case .deepgram:
-            return try await transcribeDeepgram(audioData: audioData, apiKey: apiKey)
+            return try await transcribeDeepgram(audioData: audioData, apiKey: apiKey, model: model)
         case .assemblyAI:
-            return try await transcribeAssemblyAI(audioData: audioData, apiKey: apiKey)
+            return try await transcribeAssemblyAI(audioData: audioData, apiKey: apiKey, model: model)
         case .googleCloud:
-            return try await transcribeGoogle(audioData: audioData, apiKey: apiKey)
+            return try await transcribeGoogle(audioData: audioData, apiKey: apiKey, model: model)
         default:
             throw CloudSTTError.unsupportedBackend
         }
@@ -89,34 +131,39 @@ enum CloudSTTManager {
 
     // MARK: - OpenAI Whisper
 
-    private static func transcribeOpenAI(audioData: Data, apiKey: String) async throws -> String {
+    private static func transcribeOpenAI(audioData: Data, apiKey: String, model: String) async throws -> String {
         let url = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
         let (data, _) = try await uploadMultipart(
             url: url,
             audioData: audioData,
             headers: ["Authorization": "Bearer \(apiKey)"],
-            modelField: ("model", "whisper-1")
+            modelField: ("model", model)
         )
         return try parseJSONText(data)
     }
 
     // MARK: - Groq Whisper
 
-    private static func transcribeGroq(audioData: Data, apiKey: String) async throws -> String {
+    private static func transcribeGroq(audioData: Data, apiKey: String, model: String) async throws -> String {
         let url = URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!
         let (data, _) = try await uploadMultipart(
             url: url,
             audioData: audioData,
             headers: ["Authorization": "Bearer \(apiKey)"],
-            modelField: ("model", "whisper-large-v3")
+            modelField: ("model", model)
         )
         return try parseJSONText(data)
     }
 
     // MARK: - Deepgram
 
-    private static func transcribeDeepgram(audioData: Data, apiKey: String) async throws -> String {
-        let url = URL(string: "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true")!
+    private static func transcribeDeepgram(audioData: Data, apiKey: String, model: String) async throws -> String {
+        var components = URLComponents(string: "https://api.deepgram.com/v1/listen")!
+        components.queryItems = [
+            URLQueryItem(name: "model", value: model),
+            URLQueryItem(name: "smart_format", value: "true"),
+        ]
+        let url = components.url!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Token \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -143,7 +190,7 @@ enum CloudSTTManager {
 
     // MARK: - AssemblyAI
 
-    private static func transcribeAssemblyAI(audioData: Data, apiKey: String) async throws -> String {
+    private static func transcribeAssemblyAI(audioData: Data, apiKey: String, model: String) async throws -> String {
         // Step 1: Upload audio
         let uploadURL = URL(string: "https://api.assemblyai.com/v2/upload")!
         var uploadReq = URLRequest(url: uploadURL)
@@ -164,7 +211,10 @@ enum CloudSTTManager {
         transcriptReq.httpMethod = "POST"
         transcriptReq.setValue(apiKey, forHTTPHeaderField: "Authorization")
         transcriptReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        transcriptReq.httpBody = try JSONSerialization.data(withJSONObject: ["audio_url": uploadUrl])
+        transcriptReq.httpBody = try JSONSerialization.data(withJSONObject: [
+            "audio_url": uploadUrl,
+            "speech_models": [model],
+        ])
 
         let (transcriptData, _) = try await URLSession.shared.data(for: transcriptReq)
         guard let transcriptJSON = try? JSONSerialization.jsonObject(with: transcriptData) as? [String: Any],
@@ -193,7 +243,7 @@ enum CloudSTTManager {
 
     // MARK: - Google Cloud STT
 
-    private static func transcribeGoogle(audioData: Data, apiKey: String) async throws -> String {
+    private static func transcribeGoogle(audioData: Data, apiKey: String, model: String) async throws -> String {
         let url = URL(string: "https://speech.googleapis.com/v1/speech:recognize?key=\(apiKey)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -204,7 +254,8 @@ enum CloudSTTManager {
             "config": [
                 "encoding": "LINEAR16",
                 "sampleRateHertz": 16000,
-                "languageCode": "en-US"
+                "languageCode": "en-US",
+                "model": model,
             ],
             "audio": [
                 "content": base64Audio
