@@ -83,6 +83,10 @@ final class VoiceManager: NSObject {
 
     func startListening() {
         guard isEnabled else { return }
+        guard state == .idle else {
+            logger.info("[Voice] Ignoring listen start while state is locked")
+            return
+        }
         silenceWorkItem?.cancel()
         silenceWorkItem = nil
         commandText = ""
@@ -129,6 +133,7 @@ final class VoiceManager: NSObject {
         logger.info("[Voice] TTS done, resuming listening after delay")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             guard let self, self.isEnabled, self.state == .waitingForTTS else { return }
+            self.state = .idle
             self.startListening()
         }
     }
@@ -319,6 +324,7 @@ final class VoiceManager: NSObject {
         guard !audioBuffers.isEmpty, let format = audioFormat, speechBufferCount >= 5 else {
             logger.info("[Voice] Not enough speech detected (\(self.speechBufferCount) buffers), restarting")
             resetSpeechStatus()
+            state = .idle
             if isEnabled { startListening() }
             return
         }
@@ -341,6 +347,7 @@ final class VoiceManager: NSObject {
                 let clean = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !clean.isEmpty else {
                     logger.info("[Voice] Cloud STT returned empty transcript")
+                    state = .idle
                     if isEnabled { startListening() }
                     return
                 }
@@ -357,6 +364,7 @@ final class VoiceManager: NSObject {
                 logger.error("[Voice] Cloud STT error: \(error.localizedDescription)")
                 transcriptText = ""
                 speechStatusText = ""
+                state = .idle
                 if isEnabled { startListening() }
             }
         }
@@ -428,6 +436,7 @@ final class VoiceManager: NSObject {
         stopRecognitionInternal()
 
         guard !text.isEmpty else {
+            state = .idle
             if isEnabled { startListening() }
             return
         }
