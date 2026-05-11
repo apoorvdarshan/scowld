@@ -268,8 +268,10 @@ struct HomeView: View {
 
     private func setupVoice() {
         let defaults = UserDefaults.standard
-        defaults.set(false, forKey: "hands_free_mode")
-        voiceManager.isEnabled = false
+        if defaults.object(forKey: "hands_free_mode") == nil {
+            defaults.set(true, forKey: "hands_free_mode")
+        }
+        voiceManager.isEnabled = defaults.bool(forKey: "hands_free_mode")
     }
 
     private func stopTTS() {
