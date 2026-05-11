@@ -325,7 +325,7 @@ struct SettingsView: View {
                     if let backend = STTBackend(rawValue: sttBackend), backend.requiresAPIKey {
                         HStack {
                             if showSTTAPIKey {
-                                TextField("API Key", text: Binding(
+                                TextField("\(backend.displayName) API Key", text: Binding(
                                     get: { KeychainManager.load(key: backend.keychainKey) ?? "" },
                                     set: {
                                         saveSTTAPIKey($0, for: backend)
@@ -334,7 +334,7 @@ struct SettingsView: View {
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
                             } else {
-                                SecureField("API Key", text: Binding(
+                                SecureField("\(backend.displayName) API Key", text: Binding(
                                     get: { KeychainManager.load(key: backend.keychainKey) ?? "" },
                                     set: {
                                         saveSTTAPIKey($0, for: backend)

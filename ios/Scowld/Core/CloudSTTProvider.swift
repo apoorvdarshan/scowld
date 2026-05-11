@@ -172,7 +172,7 @@ enum CloudSTTManager {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw CloudSTTError.apiError(String(data: data, encoding: .utf8) ?? "Unknown error")
+            throw CloudSTTError.apiError(providerErrorMessage(from: data))
         }
 
         // Parse Deepgram response: {"results":{"channels":[{"alternatives":[{"transcript":"..."}]}]}}
@@ -265,7 +265,7 @@ enum CloudSTTManager {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw CloudSTTError.apiError(String(data: data, encoding: .utf8) ?? "Unknown error")
+            throw CloudSTTError.apiError(providerErrorMessage(from: data))
         }
 
         // Parse: {"results":[{"alternatives":[{"transcript":"..."}]}]}
@@ -314,9 +314,34 @@ enum CloudSTTManager {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw CloudSTTError.apiError(String(data: data, encoding: .utf8) ?? "Unknown error")
+            throw CloudSTTError.apiError(providerErrorMessage(from: data))
         }
         return (data, response)
+    }
+
+    private static func providerErrorMessage(from data: Data) -> String {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return String(data: data, encoding: .utf8) ?? "Unknown error"
+        }
+
+        if let error = json["error"] as? [String: Any] {
+            if let message = error["message"] as? String {
+                return message
+            }
+            if let message = error["error"] as? String {
+                return message
+            }
+        }
+
+        if let message = json["message"] as? String {
+            return message
+        }
+
+        if let error = json["error"] as? String {
+            return error
+        }
+
+        return String(data: data, encoding: .utf8) ?? "Unknown error"
     }
 
     /// Parse {"text":"..."} response
@@ -336,11 +361,35 @@ enum CloudSTTManager {
         let totalFrames = buffers.reduce(0) { $0 + Int($1.frameLength) }
         guard totalFrames > 0 else { return Data() }
 
-        let sampleRate = Int(format.sampleRate)
-        let channels = Int(format.channelCount)
+        let sourceSampleRate = max(format.sampleRate, 1)
+        let targetSampleRate = 16_000
+        let channels = max(1, Int(format.channelCount))
         let bitsPerSample = 16
         let bytesPerSample = bitsPerSample / 8
-        let dataSize = totalFrames * channels * bytesPerSample
+
+        var monoSamples: [Float] = []
+        monoSamples.reserveCapacity(totalFrames)
+
+        for buffer in buffers {
+            guard let floatData = buffer.floatChannelData else { continue }
+            let frameCount = Int(buffer.frameLength)
+            let bufferChannels = min(channels, Int(buffer.format.channelCount))
+
+            for frame in 0..<frameCount {
+                var mixedSample: Float = 0
+                for channel in 0..<bufferChannels {
+                    mixedSample += floatData[channel][frame]
+                }
+                monoSamples.append(mixedSample / Float(max(bufferChannels, 1)))
+            }
+        }
+
+        let pcmSamples = resampleMonoSamples(
+            monoSamples,
+            sourceSampleRate: sourceSampleRate,
+            targetSampleRate: Double(targetSampleRate)
+        )
+        let dataSize = pcmSamples.count * bytesPerSample
 
         var wavData = Data()
 
@@ -351,29 +400,49 @@ enum CloudSTTManager {
         wavData.append("fmt ".data(using: .ascii)!)
         wavData.append(UInt32(16).littleEndianData) // chunk size
         wavData.append(UInt16(1).littleEndianData) // PCM format
-        wavData.append(UInt16(channels).littleEndianData)
-        wavData.append(UInt32(sampleRate).littleEndianData)
-        wavData.append(UInt32(sampleRate * channels * bytesPerSample).littleEndianData) // byte rate
-        wavData.append(UInt16(channels * bytesPerSample).littleEndianData) // block align
+        wavData.append(UInt16(1).littleEndianData)
+        wavData.append(UInt32(targetSampleRate).littleEndianData)
+        wavData.append(UInt32(targetSampleRate * bytesPerSample).littleEndianData) // byte rate
+        wavData.append(UInt16(bytesPerSample).littleEndianData) // block align
         wavData.append(UInt16(bitsPerSample).littleEndianData)
         wavData.append("data".data(using: .ascii)!)
         wavData.append(UInt32(dataSize).littleEndianData)
 
         // Convert float samples to 16-bit PCM
-        for buffer in buffers {
-            guard let floatData = buffer.floatChannelData else { continue }
-            let frameCount = Int(buffer.frameLength)
-            for frame in 0..<frameCount {
-                for channel in 0..<channels {
-                    let sample = floatData[channel][frame]
-                    let clamped = max(-1.0, min(1.0, sample))
-                    let int16 = Int16(clamped * Float(Int16.max))
-                    wavData.append(int16.littleEndianData)
-                }
-            }
+        for sample in pcmSamples {
+            let clamped = max(-1.0, min(1.0, sample))
+            let int16 = Int16(clamped * Float(Int16.max))
+            wavData.append(int16.littleEndianData)
         }
 
         return wavData
+    }
+
+    private static func resampleMonoSamples(
+        _ samples: [Float],
+        sourceSampleRate: Double,
+        targetSampleRate: Double
+    ) -> [Float] {
+        guard !samples.isEmpty else { return [] }
+        guard sourceSampleRate > 0, targetSampleRate > 0, sourceSampleRate != targetSampleRate else {
+            return samples
+        }
+
+        let targetCount = max(1, Int((Double(samples.count) * targetSampleRate / sourceSampleRate).rounded()))
+        var output: [Float] = []
+        output.reserveCapacity(targetCount)
+
+        for index in 0..<targetCount {
+            let sourcePosition = Double(index) * sourceSampleRate / targetSampleRate
+            let lowerIndex = min(Int(sourcePosition), samples.count - 1)
+            let upperIndex = min(lowerIndex + 1, samples.count - 1)
+            let fraction = Float(sourcePosition - Double(lowerIndex))
+            let lowerSample = samples[lowerIndex]
+            let upperSample = samples[upperIndex]
+            output.append(lowerSample + ((upperSample - lowerSample) * fraction))
+        }
+
+        return output
     }
 }
 
