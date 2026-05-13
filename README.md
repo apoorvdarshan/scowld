@@ -30,7 +30,7 @@
 
 ## Repo Structure
 
-This is a monorepo containing both the iOS app and the marketing website ([scowld.vercel.app](https://scowld.vercel.app)).
+This is a monorepo containing both the iOS app and the marketing website ([scowld.xyz](https://scowld.xyz)).
 
 ```
 ios/             — iOS app (open ios/Scowld.xcodeproj in Xcode)
@@ -79,7 +79,7 @@ cd scowld
 2. Build and run on your iPhone
 3. In Settings, select your AI provider and enter your API key (stored in iOS Keychain)
 
-### Website ([scowld.vercel.app](https://scowld.vercel.app))
+### Website ([scowld.xyz](https://scowld.xyz))
 
 ```bash
 cd web

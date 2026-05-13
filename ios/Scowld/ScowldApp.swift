@@ -67,11 +67,11 @@ struct AboutView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Link(destination: URL(string: "https://scowld.vercel.app/privacy")!) {
+                    Link(destination: URL(string: "https://scowld.xyz/privacy")!) {
                         Label("Privacy Policy", systemImage: "hand.raised")
                     }
 
-                    Link(destination: URL(string: "https://scowld.vercel.app/terms")!) {
+                    Link(destination: URL(string: "https://scowld.xyz/terms")!) {
                         Label("Terms of Service", systemImage: "doc.text")
                     }
                 }

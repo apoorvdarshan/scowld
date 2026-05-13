@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://scowld.vercel.app"),
+  metadataBase: new URL("https://scowld.xyz"),
   title: {
     default: "Scowld — AI Companion with 3D Anime Avatar, Voice & Vision",
     template: "%s | Scowld",
@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   authors: [{ name: "Apoorv Darshan", url: "https://github.com/apoorvdarshan" }],
   creator: "Apoorv Darshan",
   icons: { icon: "/logo.png", apple: "/logo.png" },
-  alternates: { canonical: "https://scowld.vercel.app" },
+  alternates: { canonical: "https://scowld.xyz" },
   openGraph: {
     title: "Scowld — AI Companion with 3D Anime Avatar, Voice & Vision",
     description: "Open-source AI companion with a 3D anime avatar, hands-free voice, real-time vision, and persistent memory. Built in the open.",
-    url: "https://scowld.vercel.app",
+    url: "https://scowld.xyz",
     siteName: "Scowld",
     type: "website",
     locale: "en_US",
@@ -63,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               applicationCategory: "LifestyleApplication",
               operatingSystem: "iOS",
               description: "Open-source AI companion with a 3D anime avatar, hands-free voice, real-time vision, and persistent memory.",
-              url: "https://scowld.vercel.app",
+              url: "https://scowld.xyz",
               author: { "@type": "Person", name: "Apoorv Darshan", url: "https://github.com/apoorvdarshan" },
               offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
             }),
@@ -75,4 +75,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-
