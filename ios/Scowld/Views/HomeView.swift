@@ -85,9 +85,7 @@ struct HomeView: View {
             setupVoice()
         }
         .onDisappear {
-            if voiceManager.isEnabled {
-                voiceManager.stop()
-            }
+            voiceManager.cancelCommandCapture()
         }
         .onChange(of: voiceManager.readyCommand) {
             if let text = voiceManager.readyCommand {
@@ -110,13 +108,9 @@ struct HomeView: View {
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
-                if voiceManager.isEnabled {
-                    voiceManager.startListening()
-                }
+                break
             case .inactive, .background:
-                if voiceManager.isEnabled {
-                    voiceManager.stop()
-                }
+                voiceManager.cancelCommandCapture()
             @unknown default:
                 break
             }
@@ -150,18 +144,28 @@ struct HomeView: View {
         .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
     }
 
+    private var voiceButton: some View {
+        Image(systemName: voiceIconName)
+            .font(.title3)
+            .frame(width: 34, height: 38)
+            .foregroundStyle(voiceIconColor)
+            .contentShape(Rectangle())
+            .opacity(canBeginVoiceCapture || voiceManager.state == .listening ? 1 : 0.5)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        beginVoiceCapture()
+                    }
+                    .onEnded { _ in
+                        endVoiceCapture()
+                    }
+            )
+            .accessibilityLabel("Hold to speak")
+            .accessibilityHint("Hold to record voice, then release to send")
+    }
+
     private var composerBar: some View {
         HStack(spacing: 7) {
-            Button {
-                toggleHandsFree()
-            } label: {
-                Image(systemName: handsFreeIconName)
-                    .font(.title3)
-                    .frame(width: 30, height: 38)
-                    .foregroundStyle(handsFreeIconColor)
-            }
-            .buttonStyle(.plain)
-
             Button {
                 toggleCamera()
             } label: {
@@ -173,6 +177,8 @@ struct HomeView: View {
             .buttonStyle(.plain)
 
             messageField
+
+            voiceButton
 
             sendButton
                 .font(.title3)
@@ -189,25 +195,49 @@ struct HomeView: View {
     private var isBusy: Bool {
         isAwaitingAssistantResponse ||
             !aiResponseText.isEmpty ||
+            voiceManager.state == .listening ||
             voiceManager.state == .transcribing ||
             voiceManager.state == .waitingForTTS
     }
 
-    private var handsFreeIconName: String {
-        voiceManager.isEnabled ? "waveform" : "waveform.slash"
+    private var canBeginVoiceCapture: Bool {
+        !isAwaitingAssistantResponse &&
+            aiResponseText.isEmpty &&
+            voiceManager.state == .idle &&
+            messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private var handsFreeIconColor: Color {
-        voiceManager.isEnabled ? .amicaBlue : .secondary
-    }
-
-    private func toggleHandsFree() {
-        voiceManager.isEnabled.toggle()
-        UserDefaults.standard.set(voiceManager.isEnabled, forKey: "hands_free_mode")
-        if voiceManager.isEnabled {
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            generator.impactOccurred()
+    private var voiceIconName: String {
+        switch voiceManager.state {
+        case .listening:
+            "waveform.circle.fill"
+        case .transcribing:
+            "waveform.badge.magnifyingglass"
+        default:
+            "mic.circle.fill"
         }
+    }
+
+    private var voiceIconColor: Color {
+        switch voiceManager.state {
+        case .listening, .transcribing:
+            .amicaBlue
+        default:
+            canBeginVoiceCapture ? .amicaBlue : .secondary
+        }
+    }
+
+    private func beginVoiceCapture() {
+        guard canBeginVoiceCapture else { return }
+        messageFieldFocused = false
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        voiceManager.startCommandCapture()
+    }
+
+    private func endVoiceCapture() {
+        guard voiceManager.state == .listening else { return }
+        voiceManager.finishCommandCapture()
     }
 
     private func toggleCamera() {
@@ -242,13 +272,8 @@ struct HomeView: View {
         messageText = ""
         isAwaitingAssistantResponse = true
 
-        // Pause listening so TTS plays through speaker
-        if voiceManager.isEnabled {
-            voiceManager.pauseForTTS()
-        } else {
-            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try? AVAudioSession.sharedInstance().setActive(true)
-        }
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        try? AVAudioSession.sharedInstance().setActive(true)
 
         logger.info("[HomeView] Sending message: \(text)")
 
@@ -272,11 +297,7 @@ struct HomeView: View {
 
     private func setupVoice() {
         HostedServiceConfig.applyManagedDefaults()
-        let defaults = UserDefaults.standard
-        if defaults.object(forKey: "hands_free_mode") == nil {
-            defaults.set(true, forKey: "hands_free_mode")
-        }
-        voiceManager.isEnabled = defaults.bool(forKey: "hands_free_mode")
+        voiceManager.cancelCommandCapture()
     }
 
     private func stopTTS() {

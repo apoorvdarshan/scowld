@@ -30,15 +30,7 @@ final class VoiceManager: NSObject {
     var transcriptText: String = ""
     var speechStatusText: String = ""
     var readyCommand: String? = nil
-    var isEnabled: Bool = false {
-        didSet {
-            if isEnabled {
-                startListening()
-            } else {
-                stop()
-            }
-        }
-    }
+    var isEnabled: Bool = false
 
     // MARK: - Private
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
@@ -47,7 +39,6 @@ final class VoiceManager: NSObject {
     private let audioEngine = AVAudioEngine()
     private var restartTimer: Timer?
     private var isRestarting = false
-    private var silenceWorkItem: DispatchWorkItem?
     private var speechStartWorkItem: DispatchWorkItem?
     private var speechEndWorkItem: DispatchWorkItem?
     private var lastNormalizedText: String = ""
@@ -61,11 +52,9 @@ final class VoiceManager: NSObject {
     private var audioBuffers: [AVAudioPCMBuffer] = []
     private var preSpeechAudioBuffers: [AVAudioPCMBuffer] = []
     private var audioFormat: AVAudioFormat?
-    private var cloudSilenceTimer: Timer?
     private var hasDetectedSpeech = false
     private var speechBufferCount = 0
 
-    private static let silenceTimeout: TimeInterval = 1.2
     private static let speechStartConfirmDuration: TimeInterval = 0.2
     private static let speechStatusReleaseDuration: TimeInterval = 0.75
     private static let speechActivityCalibrationDuration: TimeInterval = 0.35
@@ -90,14 +79,33 @@ final class VoiceManager: NSObject {
 
     // MARK: - Public API
 
-    func startListening() {
+    func startCommandCapture() {
+        guard state == .idle else { return }
+        isEnabled = true
+        startListening()
+    }
+
+    func finishCommandCapture() {
+        guard state == .listening else { return }
+        isEnabled = false
+        if currentBackend.isCloudBased {
+            finishCloudRecording()
+        } else {
+            finishCommand()
+        }
+    }
+
+    func cancelCommandCapture() {
+        isEnabled = false
+        stop()
+    }
+
+    private func startListening() {
         guard isEnabled else { return }
         guard state == .idle else {
             logger.info("[Voice] Ignoring listen start while state is locked")
             return
         }
-        silenceWorkItem?.cancel()
-        silenceWorkItem = nil
         commandText = ""
         lastNormalizedText = ""
         transcriptText = ""
@@ -121,10 +129,6 @@ final class VoiceManager: NSObject {
     }
 
     func pauseForTTS() {
-        silenceWorkItem?.cancel()
-        silenceWorkItem = nil
-        cloudSilenceTimer?.invalidate()
-        cloudSilenceTimer = nil
         stopRecognitionInternal()
         state = .waitingForTTS
         isTTSPlaying = true
@@ -139,23 +143,16 @@ final class VoiceManager: NSObject {
     }
 
     func onTTSDone() {
-        guard isEnabled, state == .waitingForTTS else { return }
+        guard state == .waitingForTTS else { return }
         isTTSPlaying = false
-
-        logger.info("[Voice] TTS done, resuming listening after delay")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self, self.isEnabled, self.state == .waitingForTTS else { return }
-            self.state = .idle
-            self.startListening()
-        }
+        state = .idle
+        transcriptText = ""
+        resetSpeechStatus()
+        logger.info("[Voice] TTS done")
     }
 
     func stop() {
         stopRecognitionInternal()
-        silenceWorkItem?.cancel()
-        silenceWorkItem = nil
-        cloudSilenceTimer?.invalidate()
-        cloudSilenceTimer = nil
         restartTimer?.invalidate()
         restartTimer = nil
         state = .idle
@@ -197,15 +194,9 @@ final class VoiceManager: NSObject {
                     }
                     if let error {
                         let nsError = error as NSError
-                        logger.info("[Voice] Recognition ended (code \(nsError.code)), restarting...")
-                        self.scheduleRestart()
+                        logger.info("[Voice] Recognition ended (code \(nsError.code))")
                     } else if result?.isFinal == true {
-                        if !self.commandText.isEmpty {
-                            logger.info("[Voice] Recognition finalized, sending")
-                            self.finishCommand()
-                        } else {
-                            self.scheduleRestart()
-                        }
+                        logger.info("[Voice] Recognition finalized")
                     }
                 }
             }
@@ -278,9 +269,11 @@ final class VoiceManager: NSObject {
                 Task { @MainActor in
                     guard let self, self.state == .listening else { return }
                     if self.hasDetectedSpeech {
+                        self.isEnabled = false
                         self.finishCloudRecording()
                     } else {
-                        self.scheduleRestart()
+                        self.isEnabled = false
+                        self.restartListening(afterShowing: "No speech detected")
                     }
                 }
             }
@@ -302,7 +295,6 @@ final class VoiceManager: NSObject {
             hasDetectedSpeech = true
             speechBufferCount += 1
             audioBuffers.append(copy)
-            resetCloudSilenceTimer()
         } else if hasDetectedSpeech {
             // Still capture silence buffers (for natural speech gaps)
             audioBuffers.append(copy)
@@ -314,19 +306,8 @@ final class VoiceManager: NSObject {
         }
     }
 
-    private func resetCloudSilenceTimer() {
-        cloudSilenceTimer?.invalidate()
-        cloudSilenceTimer = Timer.scheduledTimer(withTimeInterval: Self.silenceTimeout, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.state == .listening, self.hasDetectedSpeech else { return }
-                self.finishCloudRecording()
-            }
-        }
-    }
-
     private func finishCloudRecording() {
-        cloudSilenceTimer?.invalidate()
-        cloudSilenceTimer = nil
+        isEnabled = false
         stopRecognitionInternal()
 
         // Need a few confirmed speech buffers to avoid sending background noise.
@@ -419,26 +400,12 @@ final class VoiceManager: NSObject {
         let normalized = clean.lowercased().filter { $0.isLetter || $0.isWhitespace }
         if normalized != lastNormalizedText {
             lastNormalizedText = normalized
-            scheduleSilenceCheck()
         }
-    }
-
-    private func scheduleSilenceCheck() {
-        silenceWorkItem?.cancel()
-        let workItem = DispatchWorkItem { [weak self] in
-            Task { @MainActor in
-                guard let self, self.state == .listening, !self.commandText.isEmpty else { return }
-                self.finishCommand()
-            }
-        }
-        silenceWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.silenceTimeout, execute: workItem)
     }
 
     private func finishCommand() {
+        isEnabled = false
         let text = commandText.trimmingCharacters(in: .whitespacesAndNewlines)
-        silenceWorkItem?.cancel()
-        silenceWorkItem = nil
         stopRecognitionInternal()
 
         guard !text.isEmpty else {
