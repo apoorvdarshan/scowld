@@ -271,6 +271,7 @@ struct HomeView: View {
     // MARK: - Wake Word
 
     private func setupVoice() {
+        HostedServiceConfig.applyManagedDefaults()
         let defaults = UserDefaults.standard
         if defaults.object(forKey: "hands_free_mode") == nil {
             defaults.set(true, forKey: "hands_free_mode")
@@ -522,34 +523,27 @@ class AmicaLocalServer {
     }
 
     private func handleElevenLabsProxy(client: Int32, method: String, elPath: String, body: Data?) {
-        let apiKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
-        guard !apiKey.isEmpty else {
-            sendResponse(client: client, data: Data("{\"error\":\"No ElevenLabs API key\"}".utf8), mimeType: "application/json", statusCode: 401)
-            return
-        }
-
-        // Build query string from original path
         let fullPath = elPath.hasPrefix("/") ? elPath : "/\(elPath)"
-        let urlStr = "https://api.elevenlabs.io/v1\(fullPath)"
-        guard let url = URL(string: urlStr) else {
-            sendResponse(client: client, data: Data("Bad URL".utf8), mimeType: "text/plain", statusCode: 400)
+        let pathOnly = fullPath.split(separator: "?", maxSplits: 1).first.map(String.init) ?? fullPath
+        let pathParts = pathOnly.split(separator: "/").map(String.init)
+
+        guard pathParts.count >= 2, pathParts[0] == "text-to-speech" else {
+            sendResponse(client: client, data: Data("{\"error\":\"Unsupported managed ElevenLabs proxy path\"}".utf8), mimeType: "application/json", statusCode: 404)
             return
         }
+        let voiceID = pathParts[1]
 
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = method
-        urlRequest.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
+        var urlRequest = URLRequest(url: HostedServiceConfig.elevenLabsTTSURL)
+        urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+        urlRequest.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "voiceId": voiceID,
+            "body": String(data: body ?? Data(), encoding: .utf8) ?? "{}",
+            "model": HostedServiceConfig.defaultElevenLabsModel,
+        ])
 
-        if method == "POST" {
-            urlRequest.httpBody = body
-        }
-
-        logger.info("[Proxy] ElevenLabs \(method) \(fullPath) bodyLen=\(body?.count ?? 0) keyLen=\(apiKey.count) keyPrefix=\(String(apiKey.prefix(4)))")
-        if let body, let bodyStr = String(data: body, encoding: .utf8) {
-            logger.info("[Proxy] ElevenLabs body: \(bodyStr.prefix(200))")
-        }
+        logger.info("[Proxy] Hosted ElevenLabs \(method) \(fullPath) bodyLen=\(body?.count ?? 0)")
 
         let semaphore = DispatchSemaphore(value: 0)
         var responseData = Data()
@@ -567,9 +561,9 @@ class AmicaLocalServer {
         task.resume()
         semaphore.wait()
 
-        logger.info("[Proxy] ElevenLabs \(method) \(fullPath) -> \(responseCode) (\(responseData.count) bytes)")
+        logger.info("[Proxy] Hosted ElevenLabs \(method) \(fullPath) -> \(responseCode) (\(responseData.count) bytes)")
         if responseCode != 200, let errStr = String(data: responseData, encoding: .utf8) {
-            logger.error("[Proxy] ElevenLabs error: \(errStr.prefix(300))")
+            logger.error("[Proxy] Hosted ElevenLabs error: \(errStr.prefix(300))")
         }
         sendResponse(client: client, data: responseData, mimeType: responseMime, statusCode: responseCode)
     }
@@ -664,18 +658,14 @@ struct AmicaFullView: UIViewRepresentable {
 
         // Inject native config before page loads
         let defaults = UserDefaults.standard
-        let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
-        let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
-        let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
-        let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
-        let visionEnabledJS = visionEnabled ? "true" : "false"
-        let visionBackend = visionEnabled ? "native_ios" : "none"
-        let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
-        let elevenLabsModel = defaults.string(forKey: "amica_elevenlabs_model") ?? "eleven_flash_v2_5"
-        let openAITTSModel = defaults.string(forKey: "amica_openai_tts_model") ?? "gpt-4o-mini-tts"
-        let openAITTSVoice = defaults.string(forKey: "amica_openai_tts_voice") ?? "nova"
-        let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
-        let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
+        HostedServiceConfig.applyManagedDefaults()
+        let ttsBackend = "elevenlabs"
+        let sttBackend = STTBackend.deepgram.rawValue
+        let visionEnabledJS = "true"
+        let visionBackend = "native_ios"
+        let elevenLabsVoiceId = HostedServiceConfig.selectedElevenLabsVoiceID()
+        let elevenLabsModel = HostedServiceConfig.defaultElevenLabsModel
+        let managedKeySentinel = "managed_by_scowld_backend"
         let characterName = CharacterPack.resolveCharacterName()
         let selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
 
@@ -695,13 +685,13 @@ struct AmicaFullView: UIViewRepresentable {
                 tts_backend: '\(ttsBackend)',
                 stt_backend: '\(sttBackend)',
                 vision_backend: '\(visionBackend)',
-                elevenlabs_apikey: '\(elevenLabsKey)',
+                elevenlabs_apikey: '\(managedKeySentinel)',
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                 elevenlabs_model: '\(elevenLabsModel)',
-                openai_tts_apikey: '\(openaiKey)',
+                openai_tts_apikey: '',
                 openai_tts_url: 'https://api.openai.com/v1',
-                openai_tts_model: '\(openAITTSModel)',
-                openai_tts_voice: '\(openAITTSVoice)',
+                openai_tts_model: '',
+                openai_tts_voice: '',
                 name: '\(characterName)',
                 system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.',
                 vrm_url: '/vrm/\(selectedAvatar).vrm'
@@ -1041,18 +1031,14 @@ struct AmicaFullView: UIViewRepresentable {
 
         private func pushUpdatedConfig() {
             let defaults = UserDefaults.standard
-            let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? "native_ios"
-            let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? "native_ios"
-            let elevenLabsKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
-            let elevenLabsVoiceId = defaults.string(forKey: "amica_elevenlabs_voiceid") ?? "mHX7OoPk2G45VMAuinIt"
-            let elevenLabsModel = defaults.string(forKey: "amica_elevenlabs_model") ?? "eleven_flash_v2_5"
-            let openAITTSModel = defaults.string(forKey: "amica_openai_tts_model") ?? "gpt-4o-mini-tts"
-            let openAITTSVoice = defaults.string(forKey: "amica_openai_tts_voice") ?? "nova"
-            let openaiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
-            let selectedProviderStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
-            let visionEnabled = AIProvider(rawValue: selectedProviderStr)?.supportsVision ?? false
-            let visionEnabledJS = visionEnabled ? "true" : "false"
-            let visionBackend = visionEnabled ? "native_ios" : "none"
+            HostedServiceConfig.applyManagedDefaults()
+            let ttsBackend = "elevenlabs"
+            let sttBackend = STTBackend.deepgram.rawValue
+            let elevenLabsVoiceId = HostedServiceConfig.selectedElevenLabsVoiceID()
+            let elevenLabsModel = HostedServiceConfig.defaultElevenLabsModel
+            let managedKeySentinel = "managed_by_scowld_backend"
+            let visionEnabledJS = "true"
+            let visionBackend = "native_ios"
             let characterName = CharacterPack.resolveCharacterName()
             let selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
 
@@ -1062,13 +1048,13 @@ struct AmicaFullView: UIViewRepresentable {
                     tts_backend: '\(ttsBackend)',
                     stt_backend: '\(sttBackend)',
                     vision_backend: '\(visionBackend)',
-                    elevenlabs_apikey: '\(elevenLabsKey)',
+                    elevenlabs_apikey: '\(managedKeySentinel)',
                     elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                     elevenlabs_model: '\(elevenLabsModel)',
-                    openai_tts_apikey: '\(openaiKey)',
+                    openai_tts_apikey: '',
                     openai_tts_url: 'https://api.openai.com/v1',
-                    openai_tts_model: '\(openAITTSModel)',
-                    openai_tts_voice: '\(openAITTSVoice)',
+                    openai_tts_model: '',
+                    openai_tts_voice: '',
                     name: '\(characterName)',
                     system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.',
                     vrm_url: '/vrm/\(selectedAvatar).vrm'
@@ -1210,12 +1196,7 @@ struct AmicaFullView: UIViewRepresentable {
         // MARK: Native AI
 
         private func handleChatRequest(callbackId: String, messages: [[String: String]], imageData: String? = nil) async {
-            guard let provider = buildCurrentProvider() else {
-                await MainActor.run {
-                    deliverError(callbackId: callbackId, error: "No API key configured")
-                }
-                return
-            }
+            let provider = buildCurrentProvider()
 
             let chatMessages = messages.compactMap { dict -> ChatMessage? in
                 guard let roleStr = dict["role"], let content = dict["content"] else { return nil }
@@ -1223,11 +1204,7 @@ struct AmicaFullView: UIViewRepresentable {
                 return ChatMessage(role: role, content: content)
             }
 
-            // Check if current provider supports vision
-            let defaults = UserDefaults.standard
-            let providerStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
-            let currentProvider = AIProvider(rawValue: providerStr)
-            let supportsVision = currentProvider?.supportsVision ?? false
+            let supportsVision = true
 
             // Build system prompt with memory log and character name
             let contextBuilder = ContextBuilder(memoryStore: memoryStore)
@@ -1277,26 +1254,17 @@ struct AmicaFullView: UIViewRepresentable {
         // MARK: - Native ElevenLabs TTS
 
         private func handleElevenLabsTTS(callbackId: String, voiceId: String, body: String) async {
-            let apiKey = KeychainManager.load(key: "com.scowld.elevenlabs.apikey") ?? ""
-            guard !apiKey.isEmpty else {
-                await MainActor.run {
-                    let escaped = "No ElevenLabs API key".replacingOccurrences(of: "'", with: "\\'")
-                    webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
-                }
-                return
-            }
-
-            let urlStr = "https://api.elevenlabs.io/v1/text-to-speech/\(voiceId)?output_format=mp3_44100_128"
-            guard let url = URL(string: urlStr) else { return }
-
-            var request = URLRequest(url: url)
+            var request = URLRequest(url: HostedServiceConfig.elevenLabsTTSURL)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-            request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
-            request.httpBody = body.data(using: .utf8)
+            request.httpBody = try? JSONSerialization.data(withJSONObject: [
+                "voiceId": voiceId.isEmpty ? HostedServiceConfig.selectedElevenLabsVoiceID() : voiceId,
+                "body": body,
+                "model": HostedServiceConfig.defaultElevenLabsModel,
+            ])
 
-            logger.info("[TTS] ElevenLabs request: voice=\(voiceId) bodyLen=\(body.count)")
+            logger.info("[TTS] Hosted ElevenLabs request: voice=\(voiceId) bodyLen=\(body.count)")
 
             do {
                 let (data, response) = try await URLSession.shared.data(for: request)
@@ -1304,21 +1272,20 @@ struct AmicaFullView: UIViewRepresentable {
 
                 if httpResponse.statusCode == 200 {
                     let base64 = data.base64EncodedString()
-                    logger.info("[TTS] ElevenLabs success: \(data.count) bytes")
+                    logger.info("[TTS] Hosted ElevenLabs success: \(data.count) bytes")
                     await MainActor.run {
                         webView?.evaluateJavaScript("window['__ttsCallback_\(callbackId)'] && window['__ttsCallback_\(callbackId)']('\(base64)')")
                     }
                 } else {
                     let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
-                    logger.error("[TTS] ElevenLabs error \(httpResponse.statusCode): \(errorBody)")
-                    logger.error("[TTS] Sent body: \(body.prefix(300))")
+                    logger.error("[TTS] Hosted ElevenLabs error \(httpResponse.statusCode): \(errorBody)")
                     await MainActor.run {
                         let detail = errorBody.replacingOccurrences(of: "'", with: "").replacingOccurrences(of: "\n", with: " ").prefix(200)
                         webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('ElevenLabs \(httpResponse.statusCode): \(detail)')")
                     }
                 }
             } catch {
-                logger.error("[TTS] ElevenLabs network error: \(error.localizedDescription)")
+                logger.error("[TTS] Hosted ElevenLabs network error: \(error.localizedDescription)")
                 await MainActor.run {
                     let escaped = error.localizedDescription.replacingOccurrences(of: "'", with: "\\'")
                     webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
@@ -1341,41 +1308,9 @@ struct AmicaFullView: UIViewRepresentable {
             webView?.evaluateJavaScript("window.nativeAIError && window.nativeAIError('\(callbackId)', '\(escaped)')")
         }
 
-        private func buildCurrentProvider() -> (any LLMProvider)? {
-            let defaults = UserDefaults.standard
-            let providerStr = defaults.string(forKey: "selectedProvider") ?? "gemini"
-            guard let provider = AIProvider(rawValue: providerStr) else { return nil }
-
-            let savedModel = defaults.string(forKey: "selectedModel") ?? provider.defaultModel
-            let model = provider.availableModels.contains(savedModel) ? savedModel : provider.defaultModel
-
-            // OpenAI-compatible providers (OpenRouter, xAI, Together AI, etc.)
-            if let baseURL = provider.baseURL {
-                guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
-                return OpenAICompatibleProvider(
-                    baseURL: baseURL,
-                    apiKey: apiKey,
-                    model: model,
-                    includeTemperature: provider.includesSamplingTemperature
-                )
-            }
-
-            switch provider {
-            case .gemini:
-                guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
-                return GeminiProvider(apiKey: apiKey, model: model)
-            case .openai:
-                guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
-                return OpenAIProvider(apiKey: apiKey, model: model)
-            case .claude:
-                guard let apiKey = KeychainManager.load(key: provider.keychainKey), !apiKey.isEmpty else { return nil }
-                return ClaudeProvider(apiKey: apiKey, model: model)
-            case .ollama:
-                let url = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
-                return OllamaProvider(baseURL: url, model: model)
-            default:
-                return nil
-            }
+        private func buildCurrentProvider() -> any LLMProvider {
+            HostedServiceConfig.applyManagedDefaults()
+            return HostedGeminiProvider(model: HostedServiceConfig.defaultGeminiModel)
         }
     }
 }

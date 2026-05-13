@@ -34,16 +34,7 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
     var availableModels: [String] {
         switch self {
         case .gemini:
-            [
-                "gemini-3.1-pro-preview",
-                "gemini-3.1-flash-lite",
-                "gemini-3.1-flash-lite-preview",
-                "gemini-3-flash-preview",
-                "gemini-2.5-pro",
-                "gemini-2.5-flash",
-                "gemini-2.5-flash-lite",
-                "gemini-2.0-flash",
-            ]
+            HostedServiceConfig.geminiFallbackModels
         case .openai:
             [
                 "gpt-5.5",
@@ -149,7 +140,7 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
 
     var defaultModel: String {
         switch self {
-        case .gemini: "gemini-3.1-flash-lite"
+        case .gemini: HostedServiceConfig.defaultGeminiModel
         case .openai: "gpt-5.4-mini"
         case .claude: "claude-sonnet-4-6"
         case .ollama: "llama3.2"

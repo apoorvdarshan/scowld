@@ -31,7 +31,7 @@ enum STTBackend: String, CaseIterable {
 
     var requiresAPIKey: Bool {
         switch self {
-        case .nativeIOS, .whisperBrowser, .none: false
+        case .nativeIOS, .deepgram, .whisperBrowser, .none: false
         default: true
         }
     }
@@ -107,11 +107,15 @@ enum CloudSTTManager {
 
     /// Transcribe audio data using the selected cloud STT provider
     static func transcribe(audioData: Data, backend: STTBackend) async throws -> String {
+        let model = STTBackend.selectedModel(for: backend)
+
+        if backend == .deepgram {
+            return try await transcribeHostedDeepgram(audioData: audioData, model: model)
+        }
+
         guard let apiKey = KeychainManager.load(key: backend.keychainKey), !apiKey.isEmpty else {
             throw CloudSTTError.noAPIKey
         }
-
-        let model = STTBackend.selectedModel(for: backend)
 
         switch backend {
         case .openaiWhisper:
@@ -156,6 +160,20 @@ enum CloudSTTManager {
     }
 
     // MARK: - Deepgram
+
+    private static func transcribeHostedDeepgram(audioData: Data, model: String) async throws -> String {
+        var request = URLRequest(url: HostedServiceConfig.deepgramSTTURL(model: model))
+        request.httpMethod = "POST"
+        request.setValue("audio/wav", forHTTPHeaderField: "Content-Type")
+        request.httpBody = audioData
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw CloudSTTError.apiError(providerErrorMessage(from: data))
+        }
+
+        return try parseJSONText(data)
+    }
 
     private static func transcribeDeepgram(audioData: Data, apiKey: String, model: String) async throws -> String {
         var components = URLComponents(string: "https://api.deepgram.com/v1/listen")!

@@ -15,25 +15,25 @@ export default function Privacy() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Privacy Policy</h1>
-        <p className="legal__date">Last updated: March 16, 2026</p>
+        <p className="legal__date">Last updated: May 13, 2026</p>
 
         <div className="legal__body">
 
           <div>
             <h2>1. Overview</h2>
-            <p>Scowld is an open-source AI companion application for iOS. It is designed with a privacy-first architecture — your personal data stays on your device unless you explicitly configure a third-party AI provider. Scowld does not operate any backend servers, does not collect analytics, and does not track users in any way.</p>
+            <p>Scowld is an AI companion application for iOS. It uses a hosted backend only to route AI, speech-to-text, and text-to-speech requests to configured providers without putting provider API keys inside the iOS app.</p>
             <p>The complete source code is publicly available at <a href="https://github.com/apoorvdarshan/scowld" target="_blank">github.com/apoorvdarshan/scowld</a> under the MIT License. You can audit exactly what the app does at any time.</p>
           </div>
 
           <div>
             <h2>2. Data Collection</h2>
-            <p>Scowld collects <strong>zero</strong> personal data. Specifically:</p>
+            <p>Scowld does not require an account and does not use advertising or analytics SDKs. Specifically:</p>
             <ul>
-              <li>We do not have servers, databases, or any cloud infrastructure.</li>
-              <li>We do not collect, store, or transmit your name, email, location, device ID, or any other personal identifier.</li>
+              <li>We do not ask for your name, email, location, or account credentials.</li>
               <li>We do not use analytics SDKs, crash reporting services, or advertising frameworks.</li>
               <li>We do not track your usage patterns, session duration, or feature engagement.</li>
-              <li>There is no account creation, login, or registration of any kind.</li>
+              <li>AI requests, speech audio, and generated speech text pass through the hosted backend only to provide the app features.</li>
+              <li>The hosted backend is not designed to store conversation content, audio, images, or API keys in a database.</li>
             </ul>
           </div>
 
@@ -41,7 +41,7 @@ export default function Privacy() {
             <h2>3. Camera Access</h2>
             <p>Scowld requests access to your device&apos;s front-facing camera for the Vision feature. When enabled:</p>
             <ul>
-              <li>Camera frames are captured on-device and sent to your configured AI provider <strong>only</strong> when you explicitly send a message.</li>
+              <li>Camera frames are captured on-device and sent through the hosted backend to Google Gemini <strong>only</strong> when you explicitly send a message.</li>
               <li>No images or video are stored on your device or transmitted anywhere else.</li>
               <li>No images are saved to your photo library.</li>
               <li>Camera data is never processed, cached, or buffered beyond the immediate frame capture.</li>
@@ -54,9 +54,9 @@ export default function Privacy() {
             <h2>4. Microphone Access</h2>
             <p>Scowld requests microphone access for the hands-free voice chat feature. When enabled:</p>
             <ul>
-              <li>Speech is processed entirely on-device using Apple&apos;s built-in Speech framework (SFSpeechRecognizer).</li>
-              <li>Audio is <strong>never</strong> recorded, stored, or transmitted to any server.</li>
-              <li>Speech-to-text conversion happens locally — the recognized text (not audio) is what gets sent to your AI provider when a message is sent.</li>
+              <li>Speech audio is sent through the hosted backend to Deepgram for speech-to-text conversion when voice mode detects speech.</li>
+              <li>Audio is not intentionally stored by the app or hosted backend after transcription completes.</li>
+              <li>The recognized text is sent to Gemini when a message is sent.</li>
               <li>The microphone automatically pauses during AI text-to-speech playback to prevent feedback loops.</li>
               <li>Voice mode can be toggled on/off at any time using the waveform icon.</li>
             </ul>
@@ -64,26 +64,22 @@ export default function Privacy() {
 
           <div>
             <h2>5. Third-Party AI Providers</h2>
-            <p>Scowld supports multiple AI providers. When you configure one, your text messages (and optionally camera frames) are sent to that provider&apos;s API for processing. This is the <strong>only</strong> network communication the app makes. Each provider has its own privacy policy:</p>
+            <p>Scowld uses managed third-party providers. Your text messages, optional camera frames, speech audio, and generated speech text may be sent to these services through the hosted backend. Each provider has its own privacy policy:</p>
             <ul>
               <li><strong className="legal__strong-dim">Google Gemini</strong> — <a href="https://ai.google.dev/terms" target="_blank">ai.google.dev/terms</a></li>
-              <li><strong className="legal__strong-dim">OpenAI</strong> — <a href="https://openai.com/policies/privacy-policy" target="_blank">openai.com/policies/privacy-policy</a></li>
-              <li><strong className="legal__strong-dim">Anthropic (Claude)</strong> — <a href="https://www.anthropic.com/privacy" target="_blank">anthropic.com/privacy</a></li>
               <li><strong className="legal__strong-dim">ElevenLabs</strong> (TTS) — <a href="https://elevenlabs.io/privacy" target="_blank">elevenlabs.io/privacy</a></li>
-              <li><strong className="legal__strong-dim">OpenRouter, xAI, Together AI</strong> — refer to their respective privacy policies.</li>
-              <li><strong className="legal__strong-dim">Ollama</strong> — runs locally on your own machine. No data leaves your network.</li>
+              <li><strong className="legal__strong-dim">Deepgram</strong> (STT) — <a href="https://deepgram.com/privacy" target="_blank">deepgram.com/privacy</a></li>
             </ul>
-            <p>You choose which provider to use. If you use Ollama, no data ever leaves your device/network. We have no relationship with, control over, or access to any of these third-party services.</p>
+            <p>We do not control these third-party services or their data handling practices.</p>
           </div>
 
           <div>
             <h2>6. API Keys</h2>
-            <p>Your API keys for AI providers are stored securely in the <strong>iOS Keychain</strong> — Apple&apos;s hardware-backed encrypted storage. API keys are:</p>
+            <p>Scowld does not ask users to enter provider API keys in the iOS app. Provider API keys are stored as hosted backend environment variables and are not included in the App Store binary. API keys are:</p>
             <ul>
-              <li>Never transmitted to us or any party other than the respective AI provider.</li>
-              <li>Never logged, cached, or stored in plain text.</li>
-              <li>Never included in crash reports or diagnostics (we don&apos;t collect those either).</li>
-              <li>Accessible only to the Scowld app on your device.</li>
+              <li>Not shown in the iOS app UI.</li>
+              <li>Not committed to the public source repository.</li>
+              <li>Rotatable from the hosted deployment without an App Store update.</li>
             </ul>
           </div>
 
@@ -94,14 +90,14 @@ export default function Privacy() {
               <li><strong className="legal__strong-dim">Chat history</strong> — your messages and AI responses.</li>
               <li><strong className="legal__strong-dim">Memory logs</strong> — AI-extracted summaries of key conversation details.</li>
               <li><strong className="legal__strong-dim">Memory slots</strong> — organizational containers for different conversation contexts.</li>
-              <li><strong className="legal__strong-dim">Settings</strong> — your preferences (provider, model, TTS backend, etc.).</li>
+              <li><strong className="legal__strong-dim">Settings</strong> — your preferences such as avatar, voice ID, and character prompt.</li>
             </ul>
             <p>All of this data lives exclusively on your iPhone. It is not synced to iCloud, not backed up to any server, and not accessible to anyone but you. You can clear all data at any time from Settings &rarr; Clear All Memories.</p>
           </div>
 
           <div>
             <h2>8. Text-to-Speech</h2>
-            <p>When using ElevenLabs or OpenAI TTS, the AI&apos;s response text is sent to the respective service to generate audio. When using Native iOS TTS, speech synthesis happens entirely on-device with no network requests.</p>
+            <p>The AI&apos;s response text is sent through the hosted backend to ElevenLabs to generate audio. Voice sample playback in Settings uses local iOS speech and does not call ElevenLabs.</p>
           </div>
 
           <div>
@@ -116,7 +112,7 @@ export default function Privacy() {
 
           <div>
             <h2>11. Changes to This Policy</h2>
-            <p>We may update this privacy policy from time to time. Changes will be reflected on this page with an updated date. Since the app has no server component, there is no way to push policy changes to users — you would need to check this page.</p>
+            <p>We may update this privacy policy from time to time. Changes will be reflected on this page with an updated date.</p>
           </div>
 
           <div>
