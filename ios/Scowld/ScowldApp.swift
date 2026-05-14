@@ -111,6 +111,10 @@ struct AboutView: View {
     private let websiteURL = URL(string: "https://scowld.xyz")!
     private let koFiURL = URL(string: "https://ko-fi.com/apoorvdarshan")!
     private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld")!
+    private let reportIssueURL = URL(string: "mailto:ad13dtu@gmail.com?subject=BUG%20Report%20-%20Scowld&body=What%20happened%3A%0A%0ASteps%20to%20reproduce%3A%0A%0ADevice%20and%20iOS%20version%3A")!
+    private let requestFeatureURL = URL(string: "mailto:ad13dtu@gmail.com?subject=Feature%20Request%20-%20Scowld&body=Feature%20idea%3A%0A%0AWhy%20it%20would%20help%3A")!
+    private let contactURL = URL(string: "mailto:ad13dtu@gmail.com?subject=Scowld%20Contact")!
+    private let developerXURL = URL(string: "https://x.com/apoorvdarshan")!
 
     var body: some View {
         NavigationStack {
@@ -171,12 +175,37 @@ struct AboutView: View {
                 }
 
                 Section {
+                    Link(destination: reportIssueURL) {
+                        Label("Report an Issue", systemImage: "exclamationmark.bubble.fill")
+                    }
+
+                    Link(destination: requestFeatureURL) {
+                        Label("Request a Feature", systemImage: "sparkles")
+                    }
+
+                    Link(destination: contactURL) {
+                        Label("Contact", systemImage: "envelope.fill")
+                    }
+                } header: {
+                    Label("Contact", systemImage: "envelope")
+                }
+
+                Section {
                     Link(destination: URL(string: "https://www.linkedin.com/company/scowld")!) {
                         Label("LinkedIn", systemImage: "person.2.fill")
                     }
 
                     Link(destination: URL(string: "https://www.instagram.com/scowld_/")!) {
                         Label("Instagram", systemImage: "camera.fill")
+                    }
+
+                    Link(destination: developerXURL) {
+                        HStack {
+                            Label("Meet the Developer on X", systemImage: "person.crop.circle.fill")
+                            Spacer()
+                            Text("@apoorvdarshan")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } header: {
                     Label("Social", systemImage: "link")
