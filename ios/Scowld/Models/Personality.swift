@@ -116,11 +116,33 @@ struct CharacterPack: Identifiable, Codable, Sendable {
 // MARK: - System Prompt Template
 
 enum SystemPromptTemplate {
+    private static func responseLanguageInstruction() -> String {
+        let fallback = "Reply in the same language as the user's latest message. If the language is unclear, use English."
+        let selectedLanguageID = HostedServiceConfig.selectedServiceLanguageID()
+
+        switch selectedLanguageID {
+        case HostedServiceConfig.autoLanguageID:
+            return fallback
+        case HostedServiceConfig.deviceLanguageID:
+            guard let code = HostedServiceConfig.currentDeviceLanguageCode(),
+                  let language = ScowldLanguageLibrary.option(for: code) else {
+                return fallback
+            }
+            return "Reply in \(language.name) unless the user explicitly asks for another language. Use older saved messages only for context; do not copy their language if it differs."
+        default:
+            guard let language = ScowldLanguageLibrary.option(for: selectedLanguageID) else {
+                return fallback
+            }
+            return "Reply in \(language.name) unless the user explicitly asks for another language. Use older saved messages only for context; do not copy their language if it differs."
+        }
+    }
+
     static func build(userName: String?, conversationContext: [String], visionDescription: String?, characterName: String = "Stella") -> String {
         let customPrompt = UserDefaults.standard.string(forKey: "system_prompt") ?? ""
         let personality = customPrompt.isEmpty
             ? "You are \(characterName), a friendly and expressive AI assistant with an anime avatar. You are warm, curious, and genuinely care about helping. You speak naturally and conversationally. You're cheerful and engaging, with a playful personality."
             : "You are \(characterName). \(customPrompt)"
+        let languageInstruction = responseLanguageInstruction()
 
         var prompt = """
         \(personality)
@@ -128,6 +150,7 @@ enum SystemPromptTemplate {
         IMPORTANT: Start every response with an emotion tag in brackets that reflects the emotional tone of your response.
         Valid emotions: [neutral], [happy], [sad], [angry], [surprised], [thinking], [concerned], [excited]
         Example: [happy] That's wonderful to hear! I'd love to help with that.
+        Response language: \(languageInstruction)
 
         """
 
@@ -158,6 +181,7 @@ enum SystemPromptTemplate {
         - Your name is \(characterName). Never say your name is Amica or anything else.
         - Keep responses concise but warm
         - Always start with an emotion tag
+        - Always follow the response language instruction, even when previous saved messages used a different language
         - Remember and reference things the user has told you
         - Be proactive in offering help based on what you know about them
         - If you can see the user through the camera, occasionally reference what you observe naturally

@@ -87,6 +87,10 @@ private final class VoiceTouchControl: UIControl {
     private var startPoint = CGPoint.zero
     private var startedAt: Date?
 
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: 48, height: 48)
+    }
+
     override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
         guard isCaptureEnabled else { return false }
         startPoint = touch.location(in: self)
@@ -271,6 +275,7 @@ struct HomeView: View {
                 onEnd: completeVoicePress,
                 onCancel: { cancelVoiceCapture(playFeedback: false) }
             )
+            .frame(width: 48, height: 48)
         }
         .frame(width: 48, height: 48)
         .contentShape(Rectangle())
