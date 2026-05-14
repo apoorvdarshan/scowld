@@ -116,11 +116,34 @@ export default function Home() {
             </p>
 
             <div className="sr sr-delay-3 hero__buttons">
-              <a href={links.productHunt} target="_blank" rel="noopener noreferrer" className="btn-primary">
+              <button
+                type="button"
+                className="btn-primary btn-appstore"
+                onClick={() => window.alert("Available soon")}
+              >
+                <i className="fa-brands fa-apple" aria-hidden="true" />
+                Download on App Store
+              </button>
+              <a href={links.productHunt} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 Vote on Product Hunt
               </a>
               <a href={links.koFi} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 Support on Ko-fi <span className="btn-secondary__arrow">&rarr;</span>
+              </a>
+            </div>
+
+            <div className="sr sr-delay-4 hero__socials" aria-label="Scowld social links">
+              <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="hero__social-link">
+                <i className="fa-brands fa-instagram" aria-hidden="true" />
+                Instagram
+              </a>
+              <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="hero__social-link">
+                <i className="fa-brands fa-linkedin-in" aria-hidden="true" />
+                LinkedIn
+              </a>
+              <a href={links.x} target="_blank" rel="noopener noreferrer" className="hero__social-link">
+                <i className="fa-brands fa-x-twitter" aria-hidden="true" />
+                @apoorvdarshan
               </a>
             </div>
           </div>
