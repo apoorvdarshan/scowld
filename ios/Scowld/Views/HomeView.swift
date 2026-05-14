@@ -1075,15 +1075,24 @@ struct AmicaFullView: UIViewRepresentable {
                         localStorage.removeItem(keys[i]);
                     }
                 }
+                localStorage.setItem('chatvrm_tts_muted', 'false');
+                localStorage.setItem('chatvrm_tts_backend', '\(ttsBackend)');
+                localStorage.setItem('chatvrm_elevenlabs_voiceid', '\(elevenLabsVoiceId)');
+                localStorage.setItem('chatvrm_elevenlabs_model', '\(elevenLabsModel)');
+                localStorage.setItem('chatvrm_rvc_enabled', 'false');
+                localStorage.setItem('chatvrm_amica_life_enabled', 'false');
             } catch(e) {}
             window.__nativeConfig = {
                 chatbot_backend: 'native_ios',
+                tts_muted: 'false',
                 tts_backend: '\(ttsBackend)',
                 stt_backend: '\(sttBackend)',
                 vision_backend: '\(visionBackend)',
                 elevenlabs_apikey: '\(managedKeySentinel)',
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                 elevenlabs_model: '\(elevenLabsModel)',
+                rvc_enabled: 'false',
+                amica_life_enabled: 'false',
                 openai_tts_apikey: '',
                 openai_tts_url: 'https://api.openai.com/v1',
                 openai_tts_model: '',
@@ -1516,14 +1525,25 @@ struct AmicaFullView: UIViewRepresentable {
             let selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
 
             let js = """
+                try {
+                    localStorage.setItem('chatvrm_tts_muted', 'false');
+                    localStorage.setItem('chatvrm_tts_backend', '\(ttsBackend)');
+                    localStorage.setItem('chatvrm_elevenlabs_voiceid', '\(elevenLabsVoiceId)');
+                    localStorage.setItem('chatvrm_elevenlabs_model', '\(elevenLabsModel)');
+                    localStorage.setItem('chatvrm_rvc_enabled', 'false');
+                    localStorage.setItem('chatvrm_amica_life_enabled', 'false');
+                } catch(e) {}
                 window.__nativeConfig = {
                     chatbot_backend: 'native_ios',
+                    tts_muted: 'false',
                     tts_backend: '\(ttsBackend)',
                     stt_backend: '\(sttBackend)',
                     vision_backend: '\(visionBackend)',
                     elevenlabs_apikey: '\(managedKeySentinel)',
                     elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                     elevenlabs_model: '\(elevenLabsModel)',
+                    rvc_enabled: 'false',
+                    amica_life_enabled: 'false',
                     openai_tts_apikey: '',
                     openai_tts_url: 'https://api.openai.com/v1',
                     openai_tts_model: '',
@@ -1763,9 +1783,25 @@ struct AmicaFullView: UIViewRepresentable {
                             notifyTTSFailed()
                             return
                         }
-                        notifyTTSPlaybackStarted(byteCount: data.count)
-                        webView.evaluateJavaScript("window['__ttsCallback_\(callbackId)'] && window['__ttsCallback_\(callbackId)']('\(base64)')") { _, error in
+                        let callbackScript = """
+                        (function() {
+                            var callback = window['__ttsCallback_\(callbackId)'];
+                            if (!callback) {
+                                console.error('[ScowldTTS] Missing callback \(callbackId)');
+                                return false;
+                            }
+                            callback('\(base64)');
+                            return true;
+                        })();
+                        """
+                        webView.evaluateJavaScript(callbackScript) { result, error in
                             if error != nil {
+                                self.notifyTTSFailed()
+                                return
+                            }
+                            if (result as? Bool) == true {
+                                self.notifyTTSPlaybackStarted(byteCount: data.count)
+                            } else {
                                 self.notifyTTSFailed()
                             }
                         }
