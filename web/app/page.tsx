@@ -35,14 +35,6 @@ const socialLinks = [
   { href: links.mail, label: "Email", icon: "fa-solid fa-envelope" },
 ];
 
-const screenshots = [
-  { src: "/screenshots/aria.webp", title: "Aria", caption: "Main companion view" },
-  { src: "/screenshots/bella.webp", title: "Bella", caption: "Character switching" },
-  { src: "/screenshots/ciel.webp", title: "Ciel", caption: "Voice-first chat" },
-  { src: "/screenshots/chats.webp", title: "Chats", caption: "Past conversations" },
-  { src: "/screenshots/customization.webp", title: "Settings", caption: "Voice and character controls" },
-];
-
 export default function Home() {
   const mainRef = useRef<HTMLDivElement>(null);
 
@@ -141,15 +133,15 @@ export default function Home() {
             </div>
 
             <div className="sr sr-delay-4 hero__socials" aria-label="Scowld social links">
-              <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="hero__social-link">
+              <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="hero__social-link hero__social-link--instagram">
                 <i className="fa-brands fa-instagram" aria-hidden="true" />
                 Instagram
               </a>
-              <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="hero__social-link">
+              <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="hero__social-link hero__social-link--linkedin">
                 <i className="fa-brands fa-linkedin-in" aria-hidden="true" />
                 LinkedIn
               </a>
-              <a href={links.x} target="_blank" rel="noopener noreferrer" className="hero__social-link">
+              <a href={links.x} target="_blank" rel="noopener noreferrer" className="hero__social-link hero__social-link--x">
                 <i className="fa-brands fa-x-twitter" aria-hidden="true" />
                 @apoorvdarshan
               </a>
@@ -185,37 +177,6 @@ export default function Home() {
           ))}
         </div>
       </div>
-
-      <section className="screenshots" aria-labelledby="screenshots-title">
-        <div className="screenshots__header">
-          <p className="sr sr-delay-1 screenshots__label">
-            <span className="screenshots__label-line" />
-            Screenshots
-          </p>
-          <h2 id="screenshots-title" className="sr sr-delay-2 screenshots__title">See Scowld in motion.</h2>
-          <p className="sr sr-delay-3 screenshots__subtitle">
-            Character views, saved chats, and settings built around fast voice conversation.
-          </p>
-        </div>
-
-        <div className="screenshots__rail" aria-label="Scowld app screenshots">
-          {screenshots.map((shot, i) => (
-            <figure key={shot.src} className={`sr sr-delay-${i + 3} screenshot-card`}>
-              <Image
-                src={shot.src}
-                alt={`${shot.title} screenshot`}
-                width={720}
-                height={1561}
-                className="screenshot-card__image"
-              />
-              <figcaption className="screenshot-card__caption">
-                <span className="screenshot-card__title">{shot.title}</span>
-                <span className="screenshot-card__text">{shot.caption}</span>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </section>
 
       <section id="features" className="features">
         <div className="features__header">
