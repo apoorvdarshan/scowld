@@ -155,8 +155,8 @@ struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var messageFieldFocused: Bool
 
-    private let voiceTapMaximumDuration: TimeInterval = 0.28
-    private let voiceTapMaximumMovement: CGFloat = 14
+    private let voiceTapMaximumDuration: TimeInterval = 0.65
+    private let voiceTapMaximumMovement: CGFloat = 24
     private let voiceCancelDragThreshold: CGFloat = -84
 
     var body: some View {
@@ -292,7 +292,7 @@ struct HomeView: View {
                 onStart: beginVoicePress,
                 onMove: updateVoicePress,
                 onEnd: completeVoicePress,
-                onCancel: { cancelVoiceCapture(playFeedback: false) }
+                onCancel: cancelVoiceTouchTracking
             )
             .frame(width: 48, height: 48)
         }
@@ -528,6 +528,18 @@ struct HomeView: View {
         voiceManager.cancelCommandCapture()
         if playFeedback {
             InteractionFeedback.cancel()
+        }
+    }
+
+    private func cancelVoiceTouchTracking() {
+        guard isVoicePressActive else { return }
+        voicePressStartedAt = nil
+        voicePressTranslation = .zero
+        isVoicePressActive = false
+        wasVoiceDragCancelArmed = false
+
+        if voiceManager.state == .listening {
+            isTapVoiceRecording = true
         }
     }
 

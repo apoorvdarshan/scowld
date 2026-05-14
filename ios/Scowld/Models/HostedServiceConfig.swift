@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Hosted Provider Configuration
 
 enum HostedServiceConfig {
-    static let baseURLString = "https://scowld.xyz"
+    static let baseURLString = "https://www.scowld.xyz"
     static let serviceLanguageDefaultsKey = "scowld_service_language"
     static let autoLanguageID = "__auto_language__"
     static let deviceLanguageID = "__device_language__"
