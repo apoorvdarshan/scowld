@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import UIKit
 
 // MARK: - Settings View
 
@@ -184,6 +185,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .background(KeyboardDismissInstaller())
             .toolbar {
                 if showsDismissControls {
                     ToolbarItem(placement: .topBarLeading) {
@@ -337,6 +339,97 @@ struct SettingsView: View {
             previewPlayer = player
         } catch {
             previewError = "Could not play sample: \(error.localizedDescription)"
+        }
+    }
+}
+
+private struct KeyboardDismissInstaller: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> InstallerView {
+        InstallerView { window in
+            context.coordinator.install(on: window)
+        }
+    }
+
+    func updateUIView(_ view: InstallerView, context: Context) {
+        view.onWindowChange = { window in
+            context.coordinator.install(on: window)
+        }
+        context.coordinator.install(on: view.window)
+    }
+
+    static func dismantleUIView(_ view: InstallerView, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
+    final class InstallerView: UIView {
+        var onWindowChange: (UIWindow?) -> Void
+
+        init(onWindowChange: @escaping (UIWindow?) -> Void) {
+            self.onWindowChange = onWindowChange
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            backgroundColor = .clear
+        }
+
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            onWindowChange(window)
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        private weak var window: UIWindow?
+        private var recognizer: UITapGestureRecognizer?
+
+        func install(on window: UIWindow?) {
+            guard self.window !== window else { return }
+            uninstall()
+            guard let window else { return }
+
+            let recognizer = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+            recognizer.cancelsTouchesInView = false
+            recognizer.delegate = self
+            window.addGestureRecognizer(recognizer)
+
+            self.window = window
+            self.recognizer = recognizer
+        }
+
+        func uninstall() {
+            if let recognizer, let window {
+                window.removeGestureRecognizer(recognizer)
+            }
+            recognizer = nil
+            window = nil
+        }
+
+        @objc private func dismissKeyboard() {
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            !isTextInput(touch.view)
+        }
+
+        private func isTextInput(_ view: UIView?) -> Bool {
+            guard let view else { return false }
+            if view is UITextField || view is UITextView {
+                return true
+            }
+            return isTextInput(view.superview)
         }
     }
 }
