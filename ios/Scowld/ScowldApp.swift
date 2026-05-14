@@ -371,6 +371,7 @@ struct AboutView: View {
             VStack(spacing: 0) {
                 content()
             }
+            .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .padding(16)
@@ -468,7 +469,12 @@ struct AboutView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.black.opacity(0.22))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(.white.opacity(0.08))
+                .frame(height: 0.5)
+                .padding(.leading, 62)
+        }
         .contentShape(Rectangle())
     }
 }

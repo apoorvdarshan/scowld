@@ -276,6 +276,7 @@ struct SettingsView: View {
             VStack(spacing: 0) {
                 content()
             }
+            .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             if let footer {
@@ -299,7 +300,9 @@ struct SettingsView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.black.opacity(0.22))
+        .overlay(alignment: .bottom) {
+            settingsRowDivider
+        }
     }
 
     private func settingsActionRow(
@@ -338,7 +341,9 @@ struct SettingsView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.black.opacity(0.22))
+            .overlay(alignment: .bottom) {
+                settingsRowDivider
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -365,7 +370,16 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(.black.opacity(0.22))
+        .overlay(alignment: .bottom) {
+            settingsRowDivider
+        }
+    }
+
+    private var settingsRowDivider: some View {
+        Rectangle()
+            .fill(.white.opacity(0.08))
+            .frame(height: 0.5)
+            .padding(.leading, 62)
     }
 
     private var selectedPreviewVoiceID: String {
