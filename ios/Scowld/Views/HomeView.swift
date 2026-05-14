@@ -54,6 +54,80 @@ class DebugLog {
     }
 }
 
+private struct VoiceTouchCaptureView: UIViewRepresentable {
+    var isEnabled: Bool
+    var onStart: () -> Void
+    var onMove: (CGSize) -> Void
+    var onEnd: (CGSize, TimeInterval) -> Void
+    var onCancel: () -> Void
+
+    func makeUIView(context: Context) -> VoiceTouchControl {
+        let control = VoiceTouchControl()
+        control.backgroundColor = .clear
+        return control
+    }
+
+    func updateUIView(_ control: VoiceTouchControl, context: Context) {
+        control.isCaptureEnabled = isEnabled
+        control.isUserInteractionEnabled = isEnabled
+        control.onStart = onStart
+        control.onMove = onMove
+        control.onEnd = onEnd
+        control.onCancel = onCancel
+    }
+}
+
+private final class VoiceTouchControl: UIControl {
+    var isCaptureEnabled = true
+    var onStart: (() -> Void)?
+    var onMove: ((CGSize) -> Void)?
+    var onEnd: ((CGSize, TimeInterval) -> Void)?
+    var onCancel: (() -> Void)?
+
+    private var startPoint = CGPoint.zero
+    private var startedAt: Date?
+
+    override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
+        guard isCaptureEnabled else { return false }
+        startPoint = touch.location(in: self)
+        startedAt = Date()
+        onStart?()
+        return true
+    }
+
+    override func continueTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
+        guard isCaptureEnabled else { return false }
+        onMove?(translationSize(for: touch))
+        return true
+    }
+
+    override func endTracking(_ touch: UITouch?, with event: UIEvent?) {
+        guard let startedAt else {
+            resetTracking()
+            return
+        }
+
+        let translation = touch.map { translationSize(for: $0) } ?? CGSize.zero
+        onEnd?(translation, Date().timeIntervalSince(startedAt))
+        resetTracking()
+    }
+
+    override func cancelTracking(with event: UIEvent?) {
+        onCancel?()
+        resetTracking()
+    }
+
+    private func translationSize(for touch: UITouch) -> CGSize {
+        let point = touch.location(in: self)
+        return CGSize(width: point.x - startPoint.x, height: point.y - startPoint.y)
+    }
+
+    private func resetTracking() {
+        startPoint = .zero
+        startedAt = nil
+    }
+}
+
 struct HomeView: View {
     var memoryStore: MemoryStore
     @State private var messageText = ""
@@ -185,29 +259,24 @@ struct HomeView: View {
     }
 
     private var voiceButton: some View {
-        Image(systemName: voiceIconName)
-            .font(.system(size: 30, weight: .semibold))
-            .frame(width: 48, height: 48)
-            .foregroundStyle(voiceIconColor)
-            .contentShape(Rectangle())
-            .opacity(canBeginVoiceCapture ? 1 : 0.5)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        updateVoicePress(value)
-                    }
-                    .onEnded { value in
-                        completeVoicePress(value)
-                    }
+        ZStack {
+            Image(systemName: voiceIconName)
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(voiceIconColor)
+
+            VoiceTouchCaptureView(
+                isEnabled: canBeginVoiceCapture || isVoicePressActive,
+                onStart: beginVoicePress,
+                onMove: updateVoicePress,
+                onEnd: completeVoicePress,
+                onCancel: { cancelVoiceCapture(playFeedback: false) }
             )
-            .simultaneousGesture(
-                TapGesture()
-                    .onEnded {
-                        startTapVoiceCapture()
-                    }
-            )
-            .accessibilityLabel("Record voice")
-            .accessibilityHint("Tap to start recording, or hold and release to send. Slide left while holding to cancel.")
+        }
+        .frame(width: 48, height: 48)
+        .contentShape(Rectangle())
+        .opacity(canBeginVoiceCapture ? 1 : 0.5)
+        .accessibilityLabel("Record voice")
+        .accessibilityHint("Tap to start recording, or hold and release to send. Slide left while holding to cancel.")
     }
 
     private var composerBar: some View {
@@ -218,7 +287,7 @@ struct HomeView: View {
 
             recordingComposerBar
                 .opacity(isVoiceCaptureActive ? 1 : 0)
-                .allowsHitTesting(isVoiceCaptureActive && !isVoicePressActive)
+                .allowsHitTesting(isVoiceCaptureActive)
         }
         .animation(.easeInOut(duration: 0.18), value: isVoiceCaptureActive)
         .padding(.horizontal, 14)
@@ -375,29 +444,27 @@ struct HomeView: View {
         }
     }
 
-    private func updateVoicePress(_ value: DragGesture.Value) {
-        guard canBeginVoiceCapture || isVoicePressActive else { return }
-
-        if voicePressStartedAt == nil {
-            voicePressStartedAt = Date()
-            isVoicePressActive = true
-            voicePressTranslation = .zero
-            wasVoiceDragCancelArmed = false
-            beginVoiceCapture()
-        } else {
-            voicePressTranslation = value.translation
-            updateSlideCancelFeedback()
-        }
+    private func beginVoicePress() {
+        guard canBeginVoiceCapture else { return }
+        voicePressStartedAt = Date()
+        isVoicePressActive = true
+        voicePressTranslation = .zero
+        wasVoiceDragCancelArmed = false
+        beginVoiceCapture()
     }
 
-    private func completeVoicePress(_ value: DragGesture.Value) {
+    private func updateVoicePress(_ translation: CGSize) {
+        guard isVoicePressActive else { return }
+        voicePressTranslation = translation
+        updateSlideCancelFeedback()
+    }
+
+    private func completeVoicePress(_ translation: CGSize, _ duration: TimeInterval) {
         guard isVoicePressActive else { return }
 
-        let startedAt = voicePressStartedAt ?? Date()
-        let pressDuration = Date().timeIntervalSince(startedAt)
-        let movement = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
-        let shouldCancel = value.translation.width <= voiceCancelDragThreshold
-        let shouldKeepRecording = pressDuration <= voiceTapMaximumDuration && movement <= voiceTapMaximumMovement
+        let movement = sqrt(pow(translation.width, 2) + pow(translation.height, 2))
+        let shouldCancel = translation.width <= voiceCancelDragThreshold
+        let shouldKeepRecording = duration <= voiceTapMaximumDuration && movement <= voiceTapMaximumMovement
 
         voicePressStartedAt = nil
         voicePressTranslation = .zero
@@ -418,12 +485,6 @@ struct HomeView: View {
         isTapVoiceRecording = false
         InteractionFeedback.recordStart()
         voiceManager.startCommandCapture()
-    }
-
-    private func startTapVoiceCapture() {
-        guard canBeginVoiceCapture else { return }
-        beginVoiceCapture()
-        isTapVoiceRecording = true
     }
 
     private func sendVoiceCapture() {

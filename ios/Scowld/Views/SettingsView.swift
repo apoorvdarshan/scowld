@@ -19,7 +19,6 @@ struct SettingsView: View {
     @State private var selectedAvatar: String = "AvatarSample_A"
     @State private var systemPrompt: String = ""
     @State private var savedCharacterName: String = "Stella"
-    @State private var savedSelectedAvatar: String = "AvatarSample_A"
     @State private var savedSystemPrompt: String = ""
 
     var showsDismissControls = true
@@ -127,7 +126,10 @@ struct SettingsView: View {
                             Text(pack.name).tag(pack.fileName)
                         }
                     }
-                    .onChange(of: selectedAvatar) { markCharacterChanged() }
+                    .onChange(of: selectedAvatar) {
+                        guard !isLoadingSettings else { return }
+                        saveAvatarSettings()
+                    }
 
                     TextField("Custom Name (optional)", text: $characterName)
                         .autocorrectionDisabled()
@@ -154,7 +156,7 @@ struct SettingsView: View {
                 } header: {
                     Label("Character", systemImage: "person.fill")
                 } footer: {
-                    Text("Use Save Character after changing the avatar, custom name, or system prompt.")
+                    Text("Avatar saves immediately. Use Save Character after changing the custom name or system prompt.")
                 }
 
                 Section {
@@ -239,7 +241,6 @@ struct SettingsView: View {
         selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         savedCharacterName = characterName
-        savedSelectedAvatar = selectedAvatar
         savedSystemPrompt = systemPrompt
         showAICaption = defaults.bool(forKey: "show_ai_caption")
 
@@ -273,19 +274,21 @@ struct SettingsView: View {
         guard !isLoadingSettings else { return }
         hasCharacterChanges =
             characterName != savedCharacterName ||
-            selectedAvatar != savedSelectedAvatar ||
             systemPrompt != savedSystemPrompt
+    }
+
+    private func saveAvatarSettings() {
+        UserDefaults.standard.set(selectedAvatar, forKey: "selected_avatar")
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 
     private func saveCharacterSettings() {
         let defaults = UserDefaults.standard
         HostedServiceConfig.applyManagedDefaults()
         defaults.set(characterName, forKey: "character_name")
-        defaults.set(selectedAvatar, forKey: "selected_avatar")
         defaults.set(systemPrompt, forKey: "system_prompt")
 
         savedCharacterName = characterName
-        savedSelectedAvatar = selectedAvatar
         savedSystemPrompt = systemPrompt
         hasCharacterChanges = false
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
