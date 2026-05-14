@@ -146,6 +146,7 @@ struct HomeView: View {
     @State private var voiceManager = VoiceManager()
     @State private var aiResponseText = ""
     @State private var isAwaitingAssistantResponse = false
+    @State private var assistantUnlockTask: Task<Void, Never>?
     @State private var voicePressStartedAt: Date?
     @State private var voicePressTranslation: CGSize = .zero
     @State private var isVoicePressActive = false
@@ -228,13 +229,19 @@ struct HomeView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
-            aiResponseText = ""
-            isAwaitingAssistantResponse = false
-            voiceManager.onTTSDone()
+            finishAssistantTurn()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ttsFailed)) { _ in
+            finishAssistantTurn()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ttsPlaybackStarted)) { notification in
+            let duration = notification.object as? TimeInterval ?? 20
+            scheduleAssistantUnlockFallback(after: duration)
         }
         .onReceive(NotificationCenter.default.publisher(for: .aiResponseReady)) { notification in
             if let text = notification.object as? String {
                 aiResponseText = text
+                scheduleAssistantUnlockFallback(after: estimatedFallbackDelay(for: text))
             }
         }
         .onChange(of: scenePhase) {
@@ -594,6 +601,7 @@ struct HomeView: View {
         guard !text.isEmpty else { return }
         messageText = ""
         isAwaitingAssistantResponse = true
+        scheduleAssistantUnlockFallback(after: 45)
 
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
@@ -625,12 +633,39 @@ struct HomeView: View {
 
     private func stopActiveConversation() {
         messageFieldFocused = false
+        assistantUnlockTask?.cancel()
+        assistantUnlockTask = nil
         resetVoiceInteractionState()
         voiceManager.cancelCommandCapture()
         isAwaitingAssistantResponse = false
         aiResponseText = ""
         stopTTS()
         amicaCoordinator?.cancelRuntimeWork()
+    }
+
+    private func finishAssistantTurn() {
+        assistantUnlockTask?.cancel()
+        assistantUnlockTask = nil
+        aiResponseText = ""
+        isAwaitingAssistantResponse = false
+        voiceManager.onTTSDone()
+    }
+
+    private func scheduleAssistantUnlockFallback(after delay: TimeInterval) {
+        assistantUnlockTask?.cancel()
+        assistantUnlockTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(max(1, delay)))
+            guard !Task.isCancelled else { return }
+            if isAwaitingAssistantResponse || !aiResponseText.isEmpty || voiceManager.state == .waitingForTTS {
+                finishAssistantTurn()
+            }
+        }
+    }
+
+    private func estimatedFallbackDelay(for text: String) -> TimeInterval {
+        let wordCount = text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+        let estimatedSpeechSeconds = Double(max(wordCount, 1)) / 2.4
+        return min(max(estimatedSpeechSeconds + 8, 12), 45)
     }
 
     private func stopTTS() {
@@ -1711,14 +1746,29 @@ struct AmicaFullView: UIViewRepresentable {
 
             do {
                 let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse else { return }
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    await MainActor.run {
+                        guard self.canDeliver(generation) else { return }
+                        notifyTTSFailed()
+                    }
+                    return
+                }
 
                 if httpResponse.statusCode == 200 {
                     let base64 = data.base64EncodedString()
                     logger.info("[TTS] Hosted ElevenLabs success: \(data.count) bytes")
                     await MainActor.run {
                         guard self.canDeliver(generation) else { return }
-                        webView?.evaluateJavaScript("window['__ttsCallback_\(callbackId)'] && window['__ttsCallback_\(callbackId)']('\(base64)')")
+                        guard let webView else {
+                            notifyTTSFailed()
+                            return
+                        }
+                        notifyTTSPlaybackStarted(byteCount: data.count)
+                        webView.evaluateJavaScript("window['__ttsCallback_\(callbackId)'] && window['__ttsCallback_\(callbackId)']('\(base64)')") { _, error in
+                            if error != nil {
+                                self.notifyTTSFailed()
+                            }
+                        }
                     }
                 } else {
                     let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
@@ -1727,6 +1777,7 @@ struct AmicaFullView: UIViewRepresentable {
                         guard self.canDeliver(generation) else { return }
                         let detail = errorBody.replacingOccurrences(of: "'", with: "").replacingOccurrences(of: "\n", with: " ").prefix(200)
                         webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('ElevenLabs \(httpResponse.statusCode): \(detail)')")
+                        notifyTTSFailed()
                     }
                 }
             } catch {
@@ -1735,8 +1786,26 @@ struct AmicaFullView: UIViewRepresentable {
                     guard self.canDeliver(generation) else { return }
                     let escaped = error.localizedDescription.replacingOccurrences(of: "'", with: "\\'")
                     webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
+                    notifyTTSFailed()
                 }
             }
+        }
+
+        private func notifyTTSPlaybackStarted(byteCount: Int) {
+            NotificationCenter.default.post(
+                name: .ttsPlaybackStarted,
+                object: estimatedTTSPlaybackDelay(byteCount: byteCount)
+            )
+        }
+
+        private func notifyTTSFailed() {
+            NotificationCenter.default.post(name: .ttsFailed, object: nil)
+        }
+
+        private func estimatedTTSPlaybackDelay(byteCount: Int) -> TimeInterval {
+            // Hosted ElevenLabs route requests mp3_44100_128, so 16 KB is roughly one second.
+            let estimatedAudioSeconds = Double(byteCount) / 16_000
+            return min(max(estimatedAudioSeconds + 2, 3), 60)
         }
 
         private func deliverResponse(callbackId: String, response: String) {
@@ -1766,6 +1835,8 @@ struct AmicaFullView: UIViewRepresentable {
 extension Notification.Name {
     static let amicaSettingsChanged = Notification.Name("amicaSettingsChanged")
     static let ttsDone = Notification.Name("ttsDone")
+    static let ttsPlaybackStarted = Notification.Name("ttsPlaybackStarted")
+    static let ttsFailed = Notification.Name("ttsFailed")
     static let aiResponseReady = Notification.Name("aiResponseReady")
     static let appReady = Notification.Name("appReady")
 }
