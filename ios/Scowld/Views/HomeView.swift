@@ -1291,56 +1291,52 @@ struct AmicaFullView: UIViewRepresentable {
         let audioResumeScript = WKUserScript(
             source: """
             (function() {
-                if (window.__scowldAudioPatchInstalled) return;
-                window.__scowldAudioPatchInstalled = true;
-
-                var OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
-                window.__allScowldAudioContexts = window.__allScowldAudioContexts || [];
-
-                function rememberContext(ctx) {
-                    if (ctx && window.__allScowldAudioContexts.indexOf(ctx) === -1) {
-                        window.__allScowldAudioContexts.push(ctx);
-                    }
-                    return ctx;
-                }
-
-                if (OriginalAudioContext) {
-                    window.AudioContext = function(opts) {
-                        var ctx = new OriginalAudioContext(opts);
-                        rememberContext(ctx);
-                        console.log('[Audio] New AudioContext created, state: ' + ctx.state);
-                        return ctx;
-                    };
-                    Object.keys(OriginalAudioContext).forEach(function(k) {
-                        try { window.AudioContext[k] = OriginalAudioContext[k]; } catch(e) {}
-                    });
-                    window.AudioContext.prototype = OriginalAudioContext.prototype;
-                    window.webkitAudioContext = window.AudioContext;
-                }
-
                 // Resume all AudioContexts periodically and on interaction
                 function resumeAll() {
                     try {
-                        rememberContext(window._audioContext);
-                        rememberContext(window.audioContext);
-                        (window.__allScowldAudioContexts || []).forEach(function(ctx) {
+                        var ctxs = [window._audioContext, window.audioContext];
+                        // Find AudioContexts in Amica's React state
+                        document.querySelectorAll('*').forEach(function() {});
+                        if (typeof AudioContext !== 'undefined' && !window.__scowldAudioContextResumeWrapped) {
+                            var origAC = AudioContext;
+                            window._allAudioContexts = window._allAudioContexts || [];
+                            window.AudioContext = function(opts) {
+                                var ctx = new origAC(opts);
+                                window._allAudioContexts.push(ctx);
+                                return ctx;
+                            };
+                            window.AudioContext.prototype = origAC.prototype;
+                            window.__scowldAudioContextResumeWrapped = true;
+                        }
+                        (window._allAudioContexts || []).forEach(function(ctx) {
                             if (ctx && ctx.state === 'suspended') {
                                 ctx.resume().then(function() {
                                     console.log('[Audio] Resumed AudioContext, state: ' + ctx.state);
                                 });
                             }
                         });
-                        window.__scowldLastAudioResumeAt = Date.now();
-                    } catch(e) {
-                        console.error('[Audio] resumeAll failed: ' + e);
-                    }
+                    } catch(e) {}
                 }
                 window.__resumeScowldAudioContexts = resumeAll;
+                // Track all created AudioContexts
+                var _OrigAC = window.AudioContext || window.webkitAudioContext;
+                window._allAudioContexts = [];
+                window.AudioContext = function(opts) {
+                    var ctx = new _OrigAC(opts);
+                    window._allAudioContexts.push(ctx);
+                    console.log('[Audio] New AudioContext created, state: ' + ctx.state);
+                    return ctx;
+                };
+                if (_OrigAC) {
+                    Object.keys(_OrigAC).forEach(function(k) { window.AudioContext[k] = _OrigAC[k]; });
+                    window.AudioContext.prototype = _OrigAC.prototype;
+                }
+                window.webkitAudioContext = window.AudioContext;
 
                 document.addEventListener('touchstart', resumeAll, {once: false});
                 document.addEventListener('click', resumeAll, {once: false});
                 setInterval(function() {
-                    (window.__allScowldAudioContexts || []).forEach(function(ctx) {
+                    (window._allAudioContexts || []).forEach(function(ctx) {
                         if (ctx && ctx.state === 'suspended') {
                             ctx.resume();
                         }
@@ -1402,9 +1398,9 @@ struct AmicaFullView: UIViewRepresentable {
                     return _origAudioPlay.apply(self, arguments);
                 };
                 // Hook AudioContext.decodeAudioData + createBufferSource
-                if (OriginalAudioContext) {
-                    var _origCreateBS = OriginalAudioContext.prototype.createBufferSource;
-                    OriginalAudioContext.prototype.createBufferSource = function() {
+                if (_OrigAC) {
+                    var _origCreateBS = _OrigAC.prototype.createBufferSource;
+                    _OrigAC.prototype.createBufferSource = function() {
                         var src = _origCreateBS.apply(this, arguments);
                         var _origStart = src.start.bind(src);
                         src.start = function() {
@@ -1419,7 +1415,6 @@ struct AmicaFullView: UIViewRepresentable {
                         return src;
                     };
                 }
-                setTimeout(resumeAll, 0);
             })();
             """,
             injectionTime: .atDocumentStart,
@@ -1798,8 +1793,14 @@ struct AmicaFullView: UIViewRepresentable {
                                 console.error('[ScowldTTS] Missing callback \(callbackId)');
                                 return false;
                             }
-                            callback('\(base64)');
-                            return true;
+                            try {
+                                callback('\(base64)');
+                                console.log('[ScowldTTS] Delivered ElevenLabs audio \(data.count) bytes');
+                                return true;
+                            } catch (e) {
+                                console.error('[ScowldTTS] Callback failed: ' + e);
+                                return false;
+                            }
                         })();
                         """
                         webView.evaluateJavaScript(callbackScript) { result, error in
@@ -1853,13 +1854,23 @@ struct AmicaFullView: UIViewRepresentable {
         }
 
         private func deliverResponse(callbackId: String, response: String) {
-            let escaped = response
+            let responseForAmica = ttsReadyResponse(response)
+            let escaped = responseForAmica
                 .replacingOccurrences(of: "\\", with: "\\\\")
                 .replacingOccurrences(of: "'", with: "\\'")
                 .replacingOccurrences(of: "\n", with: "\\n")
                 .replacingOccurrences(of: "\r", with: "")
             webView?.evaluateJavaScript("window.nativeAIResponse && window.nativeAIResponse('\(callbackId)', '\(escaped)')")
             NotificationCenter.default.post(name: .aiResponseReady, object: response)
+        }
+
+        private func ttsReadyResponse(_ response: String) -> String {
+            let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return response }
+            if trimmed.range(of: #"[.!?。！？]$"#, options: .regularExpression) != nil {
+                return response
+            }
+            return response + "."
         }
 
         private func deliverError(callbackId: String, error: String) {
