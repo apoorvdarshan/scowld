@@ -342,10 +342,6 @@ final class VoiceManager: NSObject {
                 }
 
                 logger.info("[Voice] Cloud STT result: \(clean)")
-                // Show transcript briefly so user sees what was recognized
-                transcriptText = clean
-                try? await Task.sleep(for: .milliseconds(500))
-                transcriptText = ""
                 speechStatusText = ""
                 readyCommand = clean
                 pauseForTTS()

@@ -1059,9 +1059,16 @@ struct AmicaFullView: UIViewRepresentable {
                         nativeAI.postMessage = function(payload) {
                             try {
                                 var body = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                                var lastText = '';
+                                if (body && Array.isArray(body.messages) && body.messages.length) {
+                                    var lastMessage = body.messages[body.messages.length - 1];
+                                    lastText = String((lastMessage && lastMessage.content) || '').toLowerCase();
+                                }
+                                var wantsVision = /(see|seeing|look|looking|camera|photo|picture|image|screen|wearing|holding|behind me|in front of me|around me|what am i|do i look)/.test(lastText);
                                 if (body &&
                                     body.type === 'chat' &&
                                     !body.imageData &&
+                                    wantsVision &&
                                     window.__scowldVisionEnabled !== false &&
                                     window.__scowldCameraEnabled !== false) {
                                     var frame = window.__captureNativeVisionFrame
@@ -1190,7 +1197,7 @@ struct AmicaFullView: UIViewRepresentable {
                     window.__activeAudioCount--;
                     if (window.__activeAudioCount <= 0) {
                         window.__activeAudioCount = 0;
-                        // Debounce: wait 1s to make sure no new audio chunks start
+                        // Short debounce so controls unlock quickly after speech finishes.
                         if (_ttsDoneTimer) clearTimeout(_ttsDoneTimer);
                         _ttsDoneTimer = setTimeout(function() {
                             if (window.__activeAudioCount <= 0) {
@@ -1198,7 +1205,7 @@ struct AmicaFullView: UIViewRepresentable {
                                     window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'tts_done'}));
                                 } catch(e) {}
                             }
-                        }, 1000);
+                        }, 250);
                     }
                 }
                 // Hook Audio elements

@@ -16,9 +16,9 @@ type ChatRequest = {
 };
 
 const DEFAULT_GEMINI_FALLBACKS = [
-  "gemini-3.1-pro-preview",
   "gemini-3-flash-preview",
   "gemini-3.1-flash-lite",
+  "gemini-3.1-pro-preview",
   "gemini-2.5-pro",
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
           systemInstruction: { parts: [{ text: systemPrompt }] },
           generationConfig: {
             temperature: 0.8,
-            maxOutputTokens: 1024,
+            maxOutputTokens: 512,
           },
         }),
       },
@@ -93,8 +93,8 @@ function modelFallbacks(requestedModel?: string) {
   const models = envModels?.length ? envModels : DEFAULT_GEMINI_FALLBACKS;
   const requested = requestedModel?.trim();
 
-  if (requested && !models.includes(requested)) {
-    return [requested, ...models];
+  if (requested) {
+    return [requested, ...models.filter((model) => model !== requested)];
   }
   return models;
 }

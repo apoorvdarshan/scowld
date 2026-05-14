@@ -8,11 +8,12 @@ enum HostedServiceConfig {
     static let autoLanguageID = "__auto_language__"
     static let deviceLanguageID = "__device_language__"
 
-    static let defaultGeminiModel = "gemini-3.1-pro-preview"
+    static let fastGeminiModel = "gemini-3-flash-preview"
+    static let defaultGeminiModel = fastGeminiModel
     static let geminiFallbackModels = [
-        "gemini-3.1-pro-preview",
         "gemini-3-flash-preview",
         "gemini-3.1-flash-lite",
+        "gemini-3.1-pro-preview",
         "gemini-2.5-pro",
         "gemini-2.5-flash",
         "gemini-2.5-flash-lite",

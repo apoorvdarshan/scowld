@@ -158,7 +158,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    labeledValue("AI", value: "Gemini 3.1 Pro")
+                    labeledValue("AI", value: "Gemini 3 Flash")
                     labeledValue("Speech-to-Text", value: "Deepgram Nova-3")
                     labeledValue("Text-to-Speech", value: "ElevenLabs")
                 } header: {

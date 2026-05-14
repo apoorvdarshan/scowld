@@ -10,7 +10,7 @@ const features = [
   { icon: "fa-wand-magic-sparkles", title: "3D Anime Avatar", desc: "VRM character with real-time lip sync, idle animations, and reactions." },
   { icon: "fa-eye", title: "Vision", desc: "Front camera feeds to AI. She sees what you see. Privacy-first." },
   { icon: "fa-brain", title: "Persistent Memory", desc: "Remembers details across every conversation. Context that compounds." },
-  { icon: "fa-bolt", title: "Managed Gemini AI", desc: "Gemini 3.1 Pro starts every response path with hosted fallbacks." },
+  { icon: "fa-bolt", title: "Managed Gemini AI", desc: "Gemini 3 Flash starts every response path with hosted fallbacks." },
   { icon: "fa-volume-high", title: "ElevenLabs Voice", desc: "Selectable voice IDs, custom voices, and expressive lip sync." },
 ];
 
