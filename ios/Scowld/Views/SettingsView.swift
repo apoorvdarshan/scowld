@@ -30,13 +30,34 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    labeledValue("AI", value: "Gemini 3.1 Pro")
-                    labeledValue("Speech-to-Text", value: "Deepgram Nova-3")
-                    labeledValue("Text-to-Speech", value: "ElevenLabs")
+                    Picker("Language", selection: $selectedLanguageID) {
+                        Text("Auto").tag(HostedServiceConfig.autoLanguageID)
+                        Text("iPhone Language (\(HostedServiceConfig.currentDeviceLanguageName()))")
+                            .tag(HostedServiceConfig.deviceLanguageID)
+                        ForEach(ScowldLanguageLibrary.options) { language in
+                            Text(language.name).tag(language.code)
+                        }
+                    }
+                    .onChange(of: selectedLanguageID) {
+                        guard !isLoadingSettings else { return }
+                        saveLanguageSettings()
+                    }
+
+                    if let selectedLanguageDescription {
+                        Text(selectedLanguageDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Toggle("Show AI captions", isOn: $showAICaption)
+                        .onChange(of: showAICaption) {
+                            guard !isLoadingSettings else { return }
+                            saveDisplaySettings()
+                        }
                 } header: {
-                    Label("Managed Services", systemImage: "cloud")
+                    Label("Conversation", systemImage: "bubble.left.and.bubble.right")
                 } footer: {
-                    Text("Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update.")
+                    Text("Language applies to both Deepgram speech recognition and ElevenLabs speech. Captions control the assistant's spoken response overlay.")
                 }
 
                 Section {
@@ -101,43 +122,6 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Picker("Language", selection: $selectedLanguageID) {
-                        Text("Auto").tag(HostedServiceConfig.autoLanguageID)
-                        Text("iPhone Language (\(HostedServiceConfig.currentDeviceLanguageName()))")
-                            .tag(HostedServiceConfig.deviceLanguageID)
-                        ForEach(ScowldLanguageLibrary.options) { language in
-                            Text(language.name).tag(language.code)
-                        }
-                    }
-                    .onChange(of: selectedLanguageID) {
-                        guard !isLoadingSettings else { return }
-                        saveLanguageSettings()
-                    }
-
-                    if let selectedLanguageDescription {
-                        Text(selectedLanguageDescription)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } header: {
-                    Label("Language", systemImage: "globe")
-                } footer: {
-                    Text("One setting is used for both Deepgram speech recognition and ElevenLabs speech.")
-                }
-
-                Section {
-                    Toggle("Show AI captions", isOn: $showAICaption)
-                        .onChange(of: showAICaption) {
-                            guard !isLoadingSettings else { return }
-                            saveDisplaySettings()
-                        }
-                } header: {
-                    Label("Display", systemImage: "captions.bubble")
-                } footer: {
-                    Text("Shows the assistant's spoken response as a caption over the character.")
-                }
-
-                Section {
                     Picker("Avatar", selection: $selectedAvatar) {
                         ForEach(CharacterPack.defaultPacks) { pack in
                             Text(pack.name).tag(pack.fileName)
@@ -171,6 +155,16 @@ struct SettingsView: View {
                     Label("Character", systemImage: "person.fill")
                 } footer: {
                     Text("Use Save Character after changing the avatar, custom name, or system prompt.")
+                }
+
+                Section {
+                    labeledValue("AI", value: "Gemini 3.1 Pro")
+                    labeledValue("Speech-to-Text", value: "Deepgram Nova-3")
+                    labeledValue("Text-to-Speech", value: "ElevenLabs")
+                } header: {
+                    Label("Managed Services", systemImage: "cloud")
+                } footer: {
+                    Text("Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update.")
                 }
             }
             .navigationTitle("Settings")
