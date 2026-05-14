@@ -134,11 +134,7 @@ final class VoiceManager: NSObject {
         isTTSPlaying = true
         transcriptText = ""
         resetSpeechStatus()
-        // Switch to playback so TTS plays through speaker
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-        try? AVAudioSession.sharedInstance().setActive(true)
-        try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+        ScowldAudioSession.configureAmicaWebAudioPlayback()
         logger.info("[Voice] Paused for TTS")
     }
 

@@ -193,9 +193,7 @@ struct HomeView: View {
             }
         }
         .onAppear {
-            // Start in playback mode so TTS works through speaker
-            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try? AVAudioSession.sharedInstance().setActive(true)
+            ScowldAudioSession.configureAmicaWebAudioPlayback()
 
             Task {
                 _ = await SpeechManager().requestPermissions()
@@ -603,8 +601,7 @@ struct HomeView: View {
         isAwaitingAssistantResponse = true
         scheduleAssistantUnlockFallback(after: 45)
 
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-        try? AVAudioSession.sharedInstance().setActive(true)
+        ScowldAudioSession.configureAmicaWebAudioPlayback()
 
         logger.info("[HomeView] Sending message: \(text)")
 
@@ -1102,7 +1099,6 @@ struct AmicaFullView: UIViewRepresentable {
                 vrm_url: '/vrm/\(selectedAvatar).vrm'
             };
             window.__scowldVisionEnabled = \(visionEnabledJS);
-            window.__scowldUseNativeAudioPlayback = true;
             // Force full screen coverage
             var meta = document.createElement('meta');
             meta.name = 'viewport';
@@ -1295,50 +1291,56 @@ struct AmicaFullView: UIViewRepresentable {
         let audioResumeScript = WKUserScript(
             source: """
             (function() {
+                if (window.__scowldAudioPatchInstalled) return;
+                window.__scowldAudioPatchInstalled = true;
+
+                var OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+                window.__allScowldAudioContexts = window.__allScowldAudioContexts || [];
+
+                function rememberContext(ctx) {
+                    if (ctx && window.__allScowldAudioContexts.indexOf(ctx) === -1) {
+                        window.__allScowldAudioContexts.push(ctx);
+                    }
+                    return ctx;
+                }
+
+                if (OriginalAudioContext) {
+                    window.AudioContext = function(opts) {
+                        var ctx = new OriginalAudioContext(opts);
+                        rememberContext(ctx);
+                        console.log('[Audio] New AudioContext created, state: ' + ctx.state);
+                        return ctx;
+                    };
+                    Object.keys(OriginalAudioContext).forEach(function(k) {
+                        try { window.AudioContext[k] = OriginalAudioContext[k]; } catch(e) {}
+                    });
+                    window.AudioContext.prototype = OriginalAudioContext.prototype;
+                    window.webkitAudioContext = window.AudioContext;
+                }
+
                 // Resume all AudioContexts periodically and on interaction
                 function resumeAll() {
                     try {
-                        var ctxs = [window._audioContext, window.audioContext];
-                        // Find AudioContexts in Amica's React state
-                        document.querySelectorAll('*').forEach(function() {});
-                        if (typeof AudioContext !== 'undefined') {
-                            var origAC = AudioContext;
-                            window._allAudioContexts = window._allAudioContexts || [];
-                            window.AudioContext = function(opts) {
-                                var ctx = new origAC(opts);
-                                window._allAudioContexts.push(ctx);
-                                return ctx;
-                            };
-                            window.AudioContext.prototype = origAC.prototype;
-                        }
-                        (window._allAudioContexts || []).forEach(function(ctx) {
+                        rememberContext(window._audioContext);
+                        rememberContext(window.audioContext);
+                        (window.__allScowldAudioContexts || []).forEach(function(ctx) {
                             if (ctx && ctx.state === 'suspended') {
                                 ctx.resume().then(function() {
                                     console.log('[Audio] Resumed AudioContext, state: ' + ctx.state);
                                 });
                             }
                         });
-                    } catch(e) {}
+                        window.__scowldLastAudioResumeAt = Date.now();
+                    } catch(e) {
+                        console.error('[Audio] resumeAll failed: ' + e);
+                    }
                 }
-                // Track all created AudioContexts
-                var _OrigAC = window.AudioContext || window.webkitAudioContext;
-                window._allAudioContexts = [];
-                window.AudioContext = function(opts) {
-                    var ctx = new _OrigAC(opts);
-                    window._allAudioContexts.push(ctx);
-                    console.log('[Audio] New AudioContext created, state: ' + ctx.state);
-                    return ctx;
-                };
-                if (_OrigAC) {
-                    Object.keys(_OrigAC).forEach(function(k) { window.AudioContext[k] = _OrigAC[k]; });
-                    window.AudioContext.prototype = _OrigAC.prototype;
-                }
-                window.webkitAudioContext = window.AudioContext;
+                window.__resumeScowldAudioContexts = resumeAll;
 
                 document.addEventListener('touchstart', resumeAll, {once: false});
                 document.addEventListener('click', resumeAll, {once: false});
                 setInterval(function() {
-                    (window._allAudioContexts || []).forEach(function(ctx) {
+                    (window.__allScowldAudioContexts || []).forEach(function(ctx) {
                         if (ctx && ctx.state === 'suspended') {
                             ctx.resume();
                         }
@@ -1400,24 +1402,11 @@ struct AmicaFullView: UIViewRepresentable {
                     return _origAudioPlay.apply(self, arguments);
                 };
                 // Hook AudioContext.decodeAudioData + createBufferSource
-                if (_OrigAC) {
-                    var _origCreateBS = _OrigAC.prototype.createBufferSource;
-                    _OrigAC.prototype.createBufferSource = function() {
+                if (OriginalAudioContext) {
+                    var _origCreateBS = OriginalAudioContext.prototype.createBufferSource;
+                    OriginalAudioContext.prototype.createBufferSource = function() {
                         var src = _origCreateBS.apply(this, arguments);
                         var _origStart = src.start.bind(src);
-                        var _origConnect = src.connect.bind(src);
-                        src.connect = function(destination) {
-                            try {
-                                var ctx = src.context || this.context;
-                                if (window.__scowldUseNativeAudioPlayback && ctx && destination === ctx.destination) {
-                                    var silentGain = ctx.createGain();
-                                    silentGain.gain.value = 0;
-                                    _origConnect(silentGain);
-                                    return silentGain.connect(destination);
-                                }
-                            } catch(e) {}
-                            return _origConnect.apply(src, arguments);
-                        };
                         src.start = function() {
                             window.__activeAudioCount++;
                             window.__activeScowldAudioSources.add(src);
@@ -1430,6 +1419,7 @@ struct AmicaFullView: UIViewRepresentable {
                         return src;
                     };
                 }
+                setTimeout(resumeAll, 0);
             })();
             """,
             injectionTime: .atDocumentStart,
@@ -1462,7 +1452,7 @@ struct AmicaFullView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, AVAudioPlayerDelegate {
+    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         weak var webView: WKWebView?
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
@@ -1470,7 +1460,6 @@ struct AmicaFullView: UIViewRepresentable {
         private var settingsObserver: NSObjectProtocol?
         private var isRuntimeActive = true
         private var runtimeGeneration = 0
-        private var nativeTTSPlayer: AVAudioPlayer?
 
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
@@ -1499,7 +1488,6 @@ struct AmicaFullView: UIViewRepresentable {
         func cancelRuntimeWork() {
             runtimeGeneration += 1
             isRuntimeActive = false
-            stopNativeTTS()
             speechManager.stopSpeaking()
             stopWebAudio()
         }
@@ -1569,7 +1557,6 @@ struct AmicaFullView: UIViewRepresentable {
                     vrm_url: '/vrm/\(selectedAvatar).vrm'
                 };
                 window.__scowldVisionEnabled = \(visionEnabledJS);
-                window.__scowldUseNativeAudioPlayback = true;
             """
             // Update the user script with new config, then reload
             if let webView {
@@ -1800,8 +1787,12 @@ struct AmicaFullView: UIViewRepresentable {
                             notifyTTSFailed()
                             return
                         }
+                        ScowldAudioSession.configureAmicaWebAudioPlayback()
                         let callbackScript = """
                         (function() {
+                            if (window.__resumeScowldAudioContexts) {
+                                window.__resumeScowldAudioContexts();
+                            }
                             var callback = window['__ttsCallback_\(callbackId)'];
                             if (!callback) {
                                 console.error('[ScowldTTS] Missing callback \(callbackId)');
@@ -1817,11 +1808,7 @@ struct AmicaFullView: UIViewRepresentable {
                                 return
                             }
                             if (result as? Bool) == true {
-                                if self.playNativeTTSAudio(data) {
-                                    self.notifyTTSPlaybackStarted(byteCount: data.count)
-                                } else {
-                                    self.notifyTTSFailed()
-                                }
+                                self.notifyTTSPlaybackStarted(byteCount: data.count)
                             } else {
                                 self.notifyTTSFailed()
                             }
@@ -1846,55 +1833,6 @@ struct AmicaFullView: UIViewRepresentable {
                     notifyTTSFailed()
                 }
             }
-        }
-
-        private func playNativeTTSAudio(_ data: Data) -> Bool {
-            stopNativeTTS()
-
-            do {
-                let audioSession = AVAudioSession.sharedInstance()
-                try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
-                try audioSession.setCategory(
-                    .playAndRecord,
-                    mode: .default,
-                    options: [.defaultToSpeaker, .allowBluetoothHFP, .allowBluetoothA2DP]
-                )
-                try audioSession.setActive(true)
-                try audioSession.overrideOutputAudioPort(.speaker)
-
-                let player = try AVAudioPlayer(data: data)
-                player.delegate = self
-                player.volume = 1
-                player.prepareToPlay()
-                nativeTTSPlayer = player
-
-                let didStart = player.play()
-                logger.info("[TTS] Native playback started: \(didStart)")
-                return didStart
-            } catch {
-                logger.error("[TTS] Native playback failed: \(error.localizedDescription)")
-                nativeTTSPlayer = nil
-                return false
-            }
-        }
-
-        private func stopNativeTTS() {
-            nativeTTSPlayer?.stop()
-            nativeTTSPlayer = nil
-        }
-
-        func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-            guard player === nativeTTSPlayer else { return }
-            nativeTTSPlayer = nil
-            logger.info("[TTS] Native playback finished")
-            NotificationCenter.default.post(name: .ttsDone, object: nil)
-        }
-
-        func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-            guard player === nativeTTSPlayer else { return }
-            nativeTTSPlayer = nil
-            logger.error("[TTS] Native playback decode error: \(error?.localizedDescription ?? "Unknown error")")
-            notifyTTSFailed()
         }
 
         private func notifyTTSPlaybackStarted(byteCount: Int) {
