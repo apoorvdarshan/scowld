@@ -109,6 +109,8 @@ struct AboutView: View {
     @State private var updateState: AppUpdateState = .idle
 
     private let websiteURL = URL(string: "https://scowld.xyz")!
+    private let privacyURL = URL(string: "https://scowld.xyz/privacy")!
+    private let termsURL = URL(string: "https://scowld.xyz/terms")!
     private let koFiURL = URL(string: "https://ko-fi.com/apoorvdarshan")!
     private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld")!
     private let reportIssueURL = URL(string: "mailto:ad13dtu@gmail.com?subject=BUG%20Report%20-%20Scowld&body=What%20happened%3A%0A%0ASteps%20to%20reproduce%3A%0A%0ADevice%20and%20iOS%20version%3A")!
@@ -118,106 +120,124 @@ struct AboutView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    HStack {
-                        Text("Scowld")
-                            .fontWeight(.medium)
-                        Spacer()
-                        Text(versionDisplay)
-                            .foregroundStyle(.secondary)
-                    }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    headerCard
 
-                    Link(destination: URL(string: "https://scowld.xyz/privacy")!) {
-                        Label("Privacy Policy", systemImage: "hand.raised")
-                    }
-
-                    Link(destination: URL(string: "https://scowld.xyz/terms")!) {
-                        Label("Terms of Service", systemImage: "doc.text")
-                    }
-                }
-
-                Section {
-                    Button {
-                        handleUpdateTap()
-                    } label: {
-                        HStack {
-                            Label(updateButtonTitle, systemImage: updateButtonIcon)
-                            Spacer()
-                            if updateState == .checking {
-                                ProgressView()
-                            } else if let updateStatusText {
-                                Text(updateStatusText)
-                                    .foregroundStyle(updateStatusColor)
-                            }
+                    aboutSection("App", icon: "app.badge") {
+                        aboutActionRow(
+                            title: updateButtonTitle,
+                            subtitle: updateStatusText,
+                            systemImage: updateButtonIcon,
+                            trailing: updateState == .checking ? .progress : .chevron,
+                            subtitleColor: updateStatusColor
+                        ) {
+                            handleUpdateTap()
                         }
-                    }
 
-                    Button {
-                        requestReview()
-                    } label: {
-                        Label("Rate Scowld", systemImage: "star.fill")
-                    }
-
-                    ShareLink(item: websiteURL) {
-                        Label("Share Scowld", systemImage: "square.and.arrow.up")
-                    }
-
-                    Link(destination: koFiURL) {
-                        Label("Support on Ko-fi", systemImage: "cup.and.saucer.fill")
-                    }
-
-                    Link(destination: productHuntURL) {
-                        Label("Vote on Product Hunt", systemImage: "arrow.up.circle.fill")
-                    }
-                } header: {
-                    Label("App", systemImage: "app.badge")
-                }
-
-                Section {
-                    Link(destination: reportIssueURL) {
-                        Label("Report an Issue", systemImage: "exclamationmark.bubble.fill")
-                    }
-
-                    Link(destination: requestFeatureURL) {
-                        Label("Request a Feature", systemImage: "sparkles")
-                    }
-
-                    Link(destination: contactURL) {
-                        Label("Contact", systemImage: "envelope.fill")
-                    }
-                } header: {
-                    Label("Contact", systemImage: "envelope")
-                }
-
-                Section {
-                    Link(destination: URL(string: "https://www.linkedin.com/company/scowld")!) {
-                        Label("LinkedIn", systemImage: "person.2.fill")
-                    }
-
-                    Link(destination: URL(string: "https://www.instagram.com/scowld_/")!) {
-                        Label("Instagram", systemImage: "camera.fill")
-                    }
-
-                    Link(destination: developerXURL) {
-                        HStack {
-                            Label("Meet the Developer on X", systemImage: "person.crop.circle.fill")
-                            Spacer()
-                            Text("@apoorvdarshan")
-                                .foregroundStyle(.secondary)
+                        aboutActionRow(title: "Rate Scowld", systemImage: "star.fill") {
+                            requestReview()
                         }
-                    }
-                } header: {
-                    Label("Social", systemImage: "link")
-                }
 
-                Section {
-                    Text("Character model: Arbius AI (MIT)")
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Label("Credits", systemImage: "doc.plaintext")
+                        ShareLink(item: websiteURL) {
+                            aboutRowContent(
+                                title: "Share Scowld",
+                                subtitle: "Send the app link",
+                                systemImage: "square.and.arrow.up",
+                                trailing: .chevron
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        linkRow(
+                            title: "Support on Ko-fi",
+                            subtitle: "ko-fi.com/apoorvdarshan",
+                            systemImage: "cup.and.saucer.fill",
+                            url: koFiURL
+                        )
+
+                        linkRow(
+                            title: "Vote on Product Hunt",
+                            subtitle: "producthunt.com/products/scowld",
+                            systemImage: "arrow.up.circle.fill",
+                            url: productHuntURL
+                        )
+                    }
+
+                    aboutSection("Contact", icon: "envelope") {
+                        linkRow(
+                            title: "Report an Issue",
+                            subtitle: "Opens a bug report email",
+                            systemImage: "exclamationmark.bubble.fill",
+                            url: reportIssueURL
+                        )
+
+                        linkRow(
+                            title: "Request a Feature",
+                            subtitle: "Opens a feature request email",
+                            systemImage: "sparkles",
+                            url: requestFeatureURL
+                        )
+
+                        linkRow(
+                            title: "Contact",
+                            subtitle: "ad13dtu@gmail.com",
+                            systemImage: "envelope.fill",
+                            url: contactURL
+                        )
+                    }
+
+                    aboutSection("Social", icon: "link") {
+                        linkRow(
+                            title: "LinkedIn",
+                            subtitle: "linkedin.com/company/scowld",
+                            systemImage: "person.2.fill",
+                            url: URL(string: "https://www.linkedin.com/company/scowld")!
+                        )
+
+                        linkRow(
+                            title: "Instagram",
+                            subtitle: "@scowld_",
+                            systemImage: "camera.fill",
+                            url: URL(string: "https://www.instagram.com/scowld_/")!
+                        )
+
+                        linkRow(
+                            title: "Meet the Developer on X",
+                            subtitle: "@apoorvdarshan",
+                            systemImage: "person.crop.circle.fill",
+                            url: developerXURL
+                        )
+                    }
+
+                    aboutSection("Credits", icon: "doc.plaintext") {
+                        aboutInfoRow(
+                            title: "Character model",
+                            subtitle: "Arbius AI (MIT)",
+                            systemImage: "cube.fill"
+                        )
+                    }
+
+                    aboutSection("Legal", icon: "checkmark.shield.fill") {
+                        linkRow(
+                            title: "Privacy Policy",
+                            subtitle: "scowld.xyz/privacy",
+                            systemImage: "hand.raised.fill",
+                            url: privacyURL
+                        )
+
+                        linkRow(
+                            title: "Terms of Service",
+                            subtitle: "scowld.xyz/terms",
+                            systemImage: "doc.text.fill",
+                            url: termsURL
+                        )
+                    }
                 }
+                .padding(20)
+                .padding(.bottom, 96)
             }
+            .background(Color.black.ignoresSafeArea())
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -296,6 +316,160 @@ struct AboutView: View {
         updateState = .checking
         updateState = await AppUpdateChecker.check(currentVersion: currentVersion)
     }
+
+    private var headerCard: some View {
+        HStack(spacing: 14) {
+            Image("ScowldLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(.white.opacity(0.16), lineWidth: 1)
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Scowld")
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
+                Text(versionDisplay)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("AI voice companion")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+        )
+    }
+
+    private func aboutSection<Content: View>(
+        _ title: String,
+        icon: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            VStack(spacing: 0) {
+                content()
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+        )
+    }
+
+    private func linkRow(
+        title: String,
+        subtitle: String? = nil,
+        systemImage: String,
+        url: URL
+    ) -> some View {
+        aboutActionRow(title: title, subtitle: subtitle, systemImage: systemImage) {
+            openURL(url)
+        }
+    }
+
+    private func aboutActionRow(
+        title: String,
+        subtitle: String? = nil,
+        systemImage: String,
+        trailing: AboutRowTrailing = .chevron,
+        subtitleColor: Color = .secondary,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            aboutRowContent(
+                title: title,
+                subtitle: subtitle,
+                systemImage: systemImage,
+                trailing: trailing,
+                subtitleColor: subtitleColor
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func aboutInfoRow(
+        title: String,
+        subtitle: String,
+        systemImage: String
+    ) -> some View {
+        aboutRowContent(
+            title: title,
+            subtitle: subtitle,
+            systemImage: systemImage,
+            trailing: .none
+        )
+    }
+
+    private func aboutRowContent(
+        title: String,
+        subtitle: String? = nil,
+        systemImage: String,
+        trailing: AboutRowTrailing = .chevron,
+        subtitleColor: Color = .secondary
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 34, height: 34)
+                .background(.white.opacity(0.08), in: Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(subtitleColor)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 10)
+
+            switch trailing {
+            case .chevron:
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            case .progress:
+                ProgressView()
+            case .none:
+                EmptyView()
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.black.opacity(0.22))
+        .contentShape(Rectangle())
+    }
+}
+
+private enum AboutRowTrailing {
+    case chevron
+    case progress
+    case none
 }
 
 private enum AppUpdateState: Equatable {
