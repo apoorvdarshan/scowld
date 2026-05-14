@@ -8,14 +8,14 @@ enum ScowldAudioSession {
         let session = AVAudioSession.sharedInstance()
 
         do {
+            try session.setActive(false, options: .notifyOthersOnDeactivation)
             try session.setCategory(
-                .playAndRecord,
+                .playback,
                 mode: .default,
-                options: [.defaultToSpeaker, .allowBluetoothHFP, .allowBluetoothA2DP]
+                options: [.allowBluetoothA2DP]
             )
             try session.setActive(true)
-            try session.overrideOutputAudioPort(.speaker)
-            audioSessionLogger.info("[Audio] Routed Amica WebAudio through speaker")
+            audioSessionLogger.info("[Audio] Routed Amica WebAudio through playback")
         } catch {
             audioSessionLogger.error("[Audio] Failed to route Amica WebAudio: \(error.localizedDescription)")
         }
