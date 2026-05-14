@@ -125,6 +125,18 @@ struct AboutView: View {
                 }
 
                 Section {
+                    Link(destination: URL(string: "https://www.linkedin.com/company/scowld")!) {
+                        Label("LinkedIn", systemImage: "person.2.fill")
+                    }
+
+                    Link(destination: URL(string: "https://www.instagram.com/scowld_/")!) {
+                        Label("Instagram", systemImage: "camera.fill")
+                    }
+                } header: {
+                    Label("Social", systemImage: "link")
+                }
+
+                Section {
                     Text("Open Source AI Assistant - MIT License")
                         .foregroundStyle(.secondary)
                     Text("Character model: Arbius AI (MIT)")
