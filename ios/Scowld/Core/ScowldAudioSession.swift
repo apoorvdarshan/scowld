@@ -8,7 +8,6 @@ enum ScowldAudioSession {
         let session = AVAudioSession.sharedInstance()
 
         do {
-            try session.setActive(false, options: .notifyOthersOnDeactivation)
             try session.setCategory(
                 .playback,
                 mode: .default,
