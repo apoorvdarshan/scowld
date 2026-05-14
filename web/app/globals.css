@@ -364,60 +364,6 @@ body::before {
   font-size: 11px;
 }
 
-.hero__socials {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-  width: 100%;
-  max-width: 440px;
-}
-
-.hero__social-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.105);
-  border-radius: 9999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
-  padding: 0 15px;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 11px;
-  font-weight: 700;
-  text-decoration: none;
-  white-space: nowrap;
-  flex: 1 1 128px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 14px 26px rgba(0, 0, 0, 0.18);
-  transition: border-color 0.25s ease, background 0.25s ease, color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.hero__social-link i {
-  font-size: 12px;
-}
-
-.hero__social-link--instagram i { color: #f472b6; }
-.hero__social-link--linkedin i { color: #60a5fa; }
-.hero__social-link--x i { color: #d4d4d8; }
-
-@media (max-width: 370px) {
-  .hero__social-link {
-    font-size: 11px;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-}
-
-.hero__social-link:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035));
-  color: rgba(255, 255, 255, 0.88);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 34px rgba(0, 0, 0, 0.26);
-  transform: translateY(-2px);
-}
-
 /* Phone mockup */
 .hero__phone-wrap {
   display: flex;

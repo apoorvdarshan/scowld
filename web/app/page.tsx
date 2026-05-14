@@ -131,21 +131,6 @@ export default function Home() {
                 Support on Ko-fi <span className="btn-secondary__arrow">&rarr;</span>
               </a>
             </div>
-
-            <div className="sr sr-delay-4 hero__socials" aria-label="Scowld social links">
-              <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="hero__social-link hero__social-link--instagram">
-                <i className="fa-brands fa-instagram" aria-hidden="true" />
-                Instagram
-              </a>
-              <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="hero__social-link hero__social-link--linkedin">
-                <i className="fa-brands fa-linkedin-in" aria-hidden="true" />
-                LinkedIn
-              </a>
-              <a href={links.x} target="_blank" rel="noopener noreferrer" className="hero__social-link hero__social-link--x">
-                <i className="fa-brands fa-x-twitter" aria-hidden="true" />
-                @apoorvdarshan
-              </a>
-            </div>
           </div>
 
           <div className="hero__phone-wrap">
