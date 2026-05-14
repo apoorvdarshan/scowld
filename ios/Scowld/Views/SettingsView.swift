@@ -9,7 +9,6 @@ struct SettingsView: View {
     @State private var selectedVoicePickerID = HostedServiceConfig.defaultElevenLabsVoiceID
     @State private var customVoiceID = ""
     @State private var previewPlayer: AVAudioPlayer?
-    @State private var isPreviewLoading = false
     @State private var previewError: String?
 
     // MARK: - Character Settings
@@ -63,15 +62,11 @@ struct SettingsView: View {
                     }
 
                     Button {
-                        playElevenLabsVoicePreview()
+                        playBundledVoicePreview()
                     } label: {
-                        if isPreviewLoading {
-                            Label("Downloading sample", systemImage: "arrow.down.circle")
-                        } else {
-                            Label(previewButtonTitle, systemImage: previewButtonIcon)
-                        }
+                        Label(previewButtonTitle, systemImage: previewButtonIcon)
                     }
-                    .disabled(isPreviewLoading)
+                    .disabled(!selectedVoiceHasBundledPreview)
 
                     if let previewError {
                         Text(previewError)
@@ -79,7 +74,7 @@ struct SettingsView: View {
                             .foregroundStyle(.red)
                     }
 
-                    Text("Samples download once from ElevenLabs through Scowld's backend, then play locally from this device.")
+                    Text("Preset samples are bundled in the app and play locally from this device.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } header: {
@@ -157,17 +152,16 @@ struct SettingsView: View {
         ScowldVoiceLibrary.voiceID(for: selectedVoicePickerID, customVoiceID: customVoiceID)
     }
 
-    private var selectedPreviewText: String {
-        ScowldVoiceLibrary.option(for: selectedVoicePickerID)?.previewText
-            ?? ScowldVoiceLibrary.defaultPreviewText
-    }
-
     private var previewButtonTitle: String {
-        ElevenLabsVoicePreviewCache.isCached(voiceID: selectedPreviewVoiceID) ? "Play sample" : "Download sample"
+        selectedVoiceHasBundledPreview ? "Play sample" : "Sample unavailable"
     }
 
     private var previewButtonIcon: String {
-        ElevenLabsVoicePreviewCache.isCached(voiceID: selectedPreviewVoiceID) ? "play.circle.fill" : "arrow.down.circle.fill"
+        selectedVoiceHasBundledPreview ? "play.circle.fill" : "exclamationmark.circle"
+    }
+
+    private var selectedVoiceHasBundledPreview: Bool {
+        BundledElevenLabsVoicePreviews.hasPreview(forVoiceID: selectedPreviewVoiceID)
     }
 
     // MARK: - Settings Persistence
@@ -203,28 +197,16 @@ struct SettingsView: View {
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 
-    private func playElevenLabsVoicePreview() {
+    private func playBundledVoicePreview() {
         previewError = nil
         previewPlayer?.stop()
-        isPreviewLoading = true
 
-        let voiceID = selectedPreviewVoiceID
-        let text = selectedPreviewText
-
-        Task {
-            do {
-                let url = try await ElevenLabsVoicePreviewCache.localAudioURL(voiceID: voiceID, text: text)
-                await MainActor.run {
-                    isPreviewLoading = false
-                    playPreviewAudio(from: url)
-                }
-            } catch {
-                await MainActor.run {
-                    isPreviewLoading = false
-                    previewError = error.localizedDescription
-                }
-            }
+        guard let url = BundledElevenLabsVoicePreviews.url(forVoiceID: selectedPreviewVoiceID) else {
+            previewError = "No bundled sample is available for this custom voice ID."
+            return
         }
+
+        playPreviewAudio(from: url)
     }
 
     private func resetPreviewState() {
