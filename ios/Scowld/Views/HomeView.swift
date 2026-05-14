@@ -1840,6 +1840,10 @@ struct AmicaFullView: UIViewRepresentable {
                             }
                             try {
                                 callback('\(base64)');
+                                if (window.__resumeScowldAudioContexts) {
+                                    setTimeout(window.__resumeScowldAudioContexts, 0);
+                                    setTimeout(window.__resumeScowldAudioContexts, 120);
+                                }
                                 console.log('[ScowldTTS] Delivered ElevenLabs audio \(data.count) bytes');
                                 return true;
                             } catch (e) {
