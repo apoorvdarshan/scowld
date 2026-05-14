@@ -7,7 +7,6 @@ struct MemoryView: View {
     var memoryStore: MemoryStore
     @State private var renameSlotId: UUID?
     @State private var renameText = ""
-    @State private var viewingSlot: MemorySlot?
 
     var body: some View {
         List {
@@ -54,11 +53,6 @@ struct MemoryView: View {
             }
             Button("Cancel", role: .cancel) { renameSlotId = nil }
         }
-        .sheet(item: $viewingSlot) { slot in
-            NavigationStack {
-                PastChatDetailView(memoryStore: memoryStore, slot: slot)
-            }
-        }
     }
 
     // MARK: - Slot Row
@@ -69,8 +63,8 @@ struct MemoryView: View {
         let messages = memoryStore.fetchMessages(slotId: slot.id)
         let lastMessage = messages.last
 
-        Button {
-            viewingSlot = slot
+        NavigationLink {
+            PastChatDetailView(memoryStore: memoryStore, slot: slot)
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
@@ -106,10 +100,6 @@ struct MemoryView: View {
                         .padding(.vertical, 3)
                         .background(.amicaBlue.opacity(0.15), in: Capsule())
                 }
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
         }
         .swipeActions(edge: .trailing) {
@@ -175,9 +165,6 @@ struct PastChatDetailView: View {
         .navigationTitle(slot.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Done") { dismiss() }
-            }
             if memoryStore.activeSlotId != slot.id {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Use") {
