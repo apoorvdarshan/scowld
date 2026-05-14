@@ -114,9 +114,11 @@ struct ScowldLanguageOption: Identifiable, Hashable {
 enum ScowldLanguageLibrary {
     static let options: [ScowldLanguageOption] = [
         ScowldLanguageOption(name: "Arabic", code: "ar"),
-        ScowldLanguageOption(name: "Chinese", code: "zh"),
+        ScowldLanguageOption(name: "Chinese Simplified", code: "zh"),
+        ScowldLanguageOption(name: "Chinese Traditional", code: "zh-TW"),
         ScowldLanguageOption(name: "Dutch", code: "nl"),
         ScowldLanguageOption(name: "English", code: "en"),
+        ScowldLanguageOption(name: "Filipino", code: "tl"),
         ScowldLanguageOption(name: "French", code: "fr"),
         ScowldLanguageOption(name: "German", code: "de"),
         ScowldLanguageOption(name: "Hindi", code: "hi"),
