@@ -199,14 +199,16 @@ struct PaywallView: View {
                 .foregroundStyle(.secondary)
             }
             .padding(16)
-            .background(planCardBackground(isFeatured: isSelected || plan.id == "monthly"))
+            .background(planCardBackground(isSelected: isSelected))
             .overlay(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .strokeBorder(isSelected ? Color.amicaBlue.opacity(0.8) : Color.white.opacity(0.08), lineWidth: 1.2)
             )
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(isActive)
+        .padding(.horizontal, 1)
     }
 
     private var creditBalance: some View {
@@ -282,8 +284,8 @@ struct PaywallView: View {
         }
     }
 
-    private func planCardBackground(isFeatured: Bool) -> some ShapeStyle {
-        if isFeatured {
+    private func planCardBackground(isSelected: Bool) -> some ShapeStyle {
+        if isSelected {
             return AnyShapeStyle(Color.amicaBlue.opacity(0.14))
         }
 
