@@ -13,6 +13,8 @@ struct SettingsView: View {
     @State private var selectedLanguageID = HostedServiceConfig.autoLanguageID
     @State private var showAICaption = false
     @State private var isLoadingSettings = false
+    @State private var showPaywall = false
+    @Environment(BillingStore.self) private var billingStore
 
     // MARK: - Character Settings
     @State private var hasCharacterChanges = false
@@ -63,6 +65,24 @@ struct SettingsView: View {
                     Label("Conversation", systemImage: "bubble.left.and.bubble.right")
                 } footer: {
                     Text("Language applies to both Deepgram speech recognition and ElevenLabs speech. Captions control the assistant's spoken response overlay.")
+                }
+
+                Section {
+                    Button {
+                        showPaywall = true
+                    } label: {
+                        HStack {
+                            Label("Manage Billing", systemImage: "creditcard")
+                            Spacer()
+                            Text("\(billingStore.totalCreditsRemaining) credits")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                } header: {
+                    Label("Billing", systemImage: "bolt.circle")
+                } footer: {
+                    Text("Subscriptions refill weekly. Extra credits can be used after subscription credits run out.")
                 }
 
                 Section {
@@ -202,6 +222,9 @@ struct SettingsView: View {
             }
         }
         .onAppear { loadSettings() }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(reason: "Manage subscription and extra voice credits.")
+        }
     }
 
     private func labeledValue(_ label: String, value: String) -> some View {

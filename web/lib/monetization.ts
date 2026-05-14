@@ -8,6 +8,7 @@ export const scowldMonetization = {
       title: "Weekly",
       priceUSD: 9.99,
       includedCredits: 40,
+      weeklyRefillCredits: 40,
       refill: "40 credits/week",
     },
     {
@@ -16,6 +17,7 @@ export const scowldMonetization = {
       title: "Monthly",
       priceUSD: 34.99,
       includedCredits: 180,
+      weeklyRefillCredits: 45,
       refill: "45 credits/week",
     },
     {
@@ -24,6 +26,7 @@ export const scowldMonetization = {
       title: "Yearly",
       priceUSD: 299.99,
       includedCredits: 2340,
+      weeklyRefillCredits: 45,
       refill: "45 credits/week",
     },
   ],

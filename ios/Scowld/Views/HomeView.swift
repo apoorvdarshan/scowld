@@ -155,8 +155,11 @@ struct HomeView: View {
     @State private var isAssistantSpeaking = false
     @State private var assistantSpeechUnlockTask: Task<Void, Never>?
     @State private var assistantSpeechEarliestEndAt: Date?
+    @State private var showPaywall = false
+    @State private var paywallReason = ""
     @AppStorage("show_ai_caption") private var showAICaption = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(BillingStore.self) private var billingStore
     @FocusState private var messageFieldFocused: Bool
 
     private let voiceTapMaximumDuration: TimeInterval = 0.95
@@ -204,6 +207,9 @@ struct HomeView: View {
 
             setupVoice()
             amicaCoordinator?.setRuntimeActive(isActive)
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(reason: paywallReason)
         }
         .onDisappear {
             stopActiveConversation()
@@ -282,7 +288,7 @@ struct HomeView: View {
         } label: {
             Image(systemName: "arrow.up.circle.fill")
                 .font(.system(size: 32, weight: .semibold))
-                .foregroundColor(canSendText ? .amicaBlue : .secondary)
+                .foregroundColor(canSendText && billingStore.canSpendVoiceCredit ? .amicaBlue : .secondary)
                 .frame(width: 48, height: 48)
         }
         .buttonStyle(.plain)
@@ -296,7 +302,7 @@ struct HomeView: View {
                 .foregroundStyle(voiceIconColor)
 
             VoiceTouchCaptureView(
-                isEnabled: canBeginVoiceCapture || isVoicePressActive,
+                isEnabled: canAttemptVoiceCapture || isVoicePressActive,
                 onStart: beginVoicePress,
                 onMove: updateVoicePress,
                 onEnd: completeVoicePress,
@@ -306,7 +312,7 @@ struct HomeView: View {
         }
         .frame(width: 48, height: 48)
         .contentShape(Rectangle())
-        .opacity(canBeginVoiceCapture ? 1 : 0.5)
+        .opacity(canAttemptVoiceCapture ? 1 : 0.5)
         .accessibilityLabel("Record voice")
         .accessibilityHint("Tap to start recording, or hold and release to send. Slide left while holding to cancel.")
     }
@@ -415,6 +421,10 @@ struct HomeView: View {
     }
 
     private var canBeginVoiceCapture: Bool {
+        canAttemptVoiceCapture && billingStore.canSpendVoiceCredit
+    }
+
+    private var canAttemptVoiceCapture: Bool {
         !isAwaitingAssistantResponse &&
             !isAssistantSpeaking &&
             aiResponseText.isEmpty &&
@@ -443,7 +453,13 @@ struct HomeView: View {
     }
 
     private var voiceIconName: String {
-        canBeginVoiceCapture ? "mic.circle.fill" : "mic.slash.circle.fill"
+        if canBeginVoiceCapture {
+            return "mic.circle.fill"
+        }
+        if canAttemptVoiceCapture {
+            return "lock.circle.fill"
+        }
+        return "mic.slash.circle.fill"
     }
 
     private var voiceIconColor: Color {
@@ -483,7 +499,12 @@ struct HomeView: View {
     }
 
     private func beginVoicePress() {
-        guard canBeginVoiceCapture else { return }
+        guard canAttemptVoiceCapture else { return }
+        guard billingStore.canSpendVoiceCredit else {
+            presentPaywall(reason: "You need voice credits to start a conversation.")
+            InteractionFeedback.tap()
+            return
+        }
         voicePressStartedAt = Date()
         isVoicePressActive = true
         voicePressTranslation = .zero
@@ -601,14 +622,18 @@ struct HomeView: View {
     private func stopAndSend() {
         guard canSendText else { return }
         messageFieldFocused = false
-        InteractionFeedback.send()
         sendMessage()
     }
 
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
+        guard billingStore.spendVoiceCredit() else {
+            presentPaywall(reason: "You are out of voice credits. Subscribe or add extra credits to continue.")
+            return
+        }
         messageText = ""
+        InteractionFeedback.send()
         isAwaitingAssistantResponse = true
         scheduleAssistantUnlockFallback(after: 45)
 
@@ -629,6 +654,11 @@ struct HomeView: View {
                 logger.info("[HomeView] Message sent OK")
             }
         }
+    }
+
+    private func presentPaywall(reason: String) {
+        paywallReason = reason
+        showPaywall = true
     }
 
 

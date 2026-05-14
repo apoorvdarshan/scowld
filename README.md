@@ -81,6 +81,17 @@ Voice usage is modeled as one simple unit: **1 voice credit = 1 full voice turn*
 
 Extra credits can be used after the weekly subscription refill is consumed. They do not bypass safety limits such as one active voice reply at a time, capped audio input length, and capped TTS reply length.
 
+StoreKit product IDs are defined in the app and mirrored by the Vercel billing config route at `/api/billing/config`:
+
+- `scowld.sub.weekly`
+- `scowld.sub.monthly`
+- `scowld.sub.yearly`
+- `scowld.credits.10`
+- `scowld.credits.50`
+- `scowld.credits.100`
+- `scowld.credits.200`
+- `scowld.credits.500`
+
 ## Setup
 
 Clone the repo first:

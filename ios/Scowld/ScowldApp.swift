@@ -3,11 +3,16 @@ import SwiftUI
 @main
 struct ScowldApp: App {
     @State private var memoryStore = MemoryStore()
+    @State private var billingStore = BillingStore()
 
     var body: some Scene {
         WindowGroup {
             ScowldRootView(memoryStore: memoryStore)
+                .environment(billingStore)
                 .preferredColorScheme(.dark)
+                .task {
+                    await billingStore.start()
+                }
         }
     }
 }
@@ -55,6 +60,9 @@ struct ScowldRootView: View {
 }
 
 struct AboutView: View {
+    @Environment(BillingStore.self) private var billingStore
+    @State private var showPaywall = false
+
     var body: some View {
         NavigationStack {
             List {
@@ -74,6 +82,24 @@ struct AboutView: View {
                     Link(destination: URL(string: "https://scowld.xyz/terms")!) {
                         Label("Terms of Service", systemImage: "doc.text")
                     }
+                }
+
+                Section {
+                    Button {
+                        showPaywall = true
+                    } label: {
+                        Label("Manage Billing", systemImage: "creditcard")
+                    }
+
+                    HStack {
+                        Text("Credits Available")
+                        Spacer()
+                        Text("\(billingStore.totalCreditsRemaining)")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                } header: {
+                    Label("Billing", systemImage: "bolt.circle")
                 }
 
                 Section {
@@ -129,6 +155,9 @@ struct AboutView: View {
             }
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(reason: "Manage subscription and extra voice credits.")
+            }
         }
     }
 }

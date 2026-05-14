@@ -11,6 +11,7 @@ enum ScowldMonetization {
             title: "Weekly",
             displayPrice: "$9.99",
             includedCredits: 40,
+            weeklyRefillCredits: 40,
             refillDescription: "40 credits/week"
         ),
         ScowldSubscriptionPlan(
@@ -19,6 +20,7 @@ enum ScowldMonetization {
             title: "Monthly",
             displayPrice: "$34.99",
             includedCredits: 180,
+            weeklyRefillCredits: 45,
             refillDescription: "45 credits/week"
         ),
         ScowldSubscriptionPlan(
@@ -27,6 +29,7 @@ enum ScowldMonetization {
             title: "Yearly",
             displayPrice: "$299.99",
             includedCredits: 2_340,
+            weeklyRefillCredits: 45,
             refillDescription: "45 credits/week"
         ),
     ]
@@ -58,6 +61,7 @@ struct ScowldSubscriptionPlan: Identifiable, Hashable {
     let title: String
     let displayPrice: String
     let includedCredits: Int
+    let weeklyRefillCredits: Int
     let refillDescription: String
 }
 
