@@ -31,6 +31,11 @@ final class VoiceManager: NSObject {
     var speechStatusText: String = ""
     var readyCommand: String? = nil
     var isEnabled: Bool = false
+    var hasCapturedSpeech: Bool {
+        hasDetectedSpeech ||
+            !commandText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !transcriptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     // MARK: - Private
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))

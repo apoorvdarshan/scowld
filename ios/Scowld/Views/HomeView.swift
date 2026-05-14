@@ -152,12 +152,15 @@ struct HomeView: View {
     @State private var isVoicePressActive = false
     @State private var isTapVoiceRecording = false
     @State private var wasVoiceDragCancelArmed = false
+    @State private var isAssistantSpeaking = false
+    @State private var assistantSpeechUnlockTask: Task<Void, Never>?
+    @State private var assistantSpeechEarliestEndAt: Date?
     @AppStorage("show_ai_caption") private var showAICaption = false
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var messageFieldFocused: Bool
 
-    private let voiceTapMaximumDuration: TimeInterval = 0.65
-    private let voiceTapMaximumMovement: CGFloat = 24
+    private let voiceTapMaximumDuration: TimeInterval = 0.95
+    private let voiceTapMaximumMovement: CGFloat = 32
     private let voiceCancelDragThreshold: CGFloat = -84
 
     var body: some View {
@@ -234,7 +237,7 @@ struct HomeView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsPlaybackStarted)) { notification in
             let duration = notification.object as? TimeInterval ?? 20
-            scheduleAssistantUnlockFallback(after: duration)
+            markAssistantSpeechStarted(estimatedDuration: duration)
         }
         .onReceive(NotificationCenter.default.publisher(for: .aiResponseReady)) { notification in
             if let text = notification.object as? String {
@@ -400,6 +403,7 @@ struct HomeView: View {
 
     private var isBusy: Bool {
         isAwaitingAssistantResponse ||
+            isAssistantSpeaking ||
             !aiResponseText.isEmpty ||
             voiceManager.state == .listening ||
             voiceManager.state == .transcribing ||
@@ -412,6 +416,7 @@ struct HomeView: View {
 
     private var canBeginVoiceCapture: Bool {
         !isAwaitingAssistantResponse &&
+            !isAssistantSpeaking &&
             aiResponseText.isEmpty &&
             voiceManager.state == .idle &&
             messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -422,7 +427,7 @@ struct HomeView: View {
     }
 
     private var canSendVoiceCapture: Bool {
-        voiceManager.state == .listening
+        voiceManager.state == .listening && voiceManager.hasCapturedSpeech
     }
 
     private var canCancelVoiceCapture: Bool {
@@ -493,7 +498,8 @@ struct HomeView: View {
 
         let movement = sqrt(pow(translation.width, 2) + pow(translation.height, 2))
         let shouldCancel = translation.width <= voiceCancelDragThreshold
-        let shouldKeepRecording = duration <= voiceTapMaximumDuration && movement <= voiceTapMaximumMovement
+        let shouldKeepRecording = (duration <= voiceTapMaximumDuration && movement <= voiceTapMaximumMovement) ||
+            !voiceManager.hasCapturedSpeech
 
         voicePressStartedAt = nil
         voicePressTranslation = .zero
@@ -632,20 +638,59 @@ struct HomeView: View {
         messageFieldFocused = false
         assistantUnlockTask?.cancel()
         assistantUnlockTask = nil
+        assistantSpeechUnlockTask?.cancel()
+        assistantSpeechUnlockTask = nil
+        assistantSpeechEarliestEndAt = nil
         resetVoiceInteractionState()
         voiceManager.cancelCommandCapture()
         isAwaitingAssistantResponse = false
+        isAssistantSpeaking = false
         aiResponseText = ""
         stopTTS()
         amicaCoordinator?.cancelRuntimeWork()
     }
 
     private func finishAssistantTurn() {
+        if isAssistantSpeaking,
+           let earliestEnd = assistantSpeechEarliestEndAt,
+           Date() < earliestEnd {
+            scheduleAssistantSpeechUnlock(at: earliestEnd)
+            return
+        }
+        completeAssistantTurn()
+    }
+
+    private func completeAssistantTurn() {
         assistantUnlockTask?.cancel()
         assistantUnlockTask = nil
+        assistantSpeechUnlockTask?.cancel()
+        assistantSpeechUnlockTask = nil
+        assistantSpeechEarliestEndAt = nil
         aiResponseText = ""
         isAwaitingAssistantResponse = false
+        isAssistantSpeaking = false
         voiceManager.onTTSDone()
+    }
+
+    private func markAssistantSpeechStarted(estimatedDuration: TimeInterval) {
+        assistantUnlockTask?.cancel()
+        assistantUnlockTask = nil
+        isAwaitingAssistantResponse = true
+        isAssistantSpeaking = true
+        let lockedDuration = max(estimatedDuration + 0.75, 1.5)
+        let earliestEnd = Date().addingTimeInterval(lockedDuration)
+        assistantSpeechEarliestEndAt = earliestEnd
+        scheduleAssistantSpeechUnlock(at: earliestEnd)
+    }
+
+    private func scheduleAssistantSpeechUnlock(at date: Date) {
+        assistantSpeechUnlockTask?.cancel()
+        assistantSpeechUnlockTask = Task { @MainActor in
+            let delay = max(0.1, date.timeIntervalSinceNow)
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            completeAssistantTurn()
+        }
     }
 
     private func scheduleAssistantUnlockFallback(after delay: TimeInterval) {
