@@ -134,6 +134,16 @@ body::before {
   color: rgba(255, 255, 255, 0.6);
 }
 
+.nav__link-handle {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .nav__link-handle {
+    display: inline;
+  }
+}
+
 .nav__link::after {
   content: "";
   position: absolute;

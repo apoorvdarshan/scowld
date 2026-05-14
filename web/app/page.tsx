@@ -91,6 +91,9 @@ export default function Home() {
           <Link href="/terms" className="nav__link">Terms</Link>
           <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="nav__link">LinkedIn</a>
           <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="nav__link">Instagram</a>
+          <a href={links.x} target="_blank" rel="noopener noreferrer" className="nav__link">
+            X <span className="nav__link-handle">@apoorvdarshan</span>
+          </a>
         </nav>
       </header>
 
@@ -199,6 +202,7 @@ export default function Home() {
             <div className="footer__links">
               <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="footer__link">LinkedIn</a>
               <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="footer__link">Instagram</a>
+              <a href={links.x} target="_blank" rel="noopener noreferrer" className="footer__link">X @apoorvdarshan</a>
               <a href={links.productHunt} target="_blank" rel="noopener noreferrer" className="footer__link">Product Hunt</a>
               <Link href="/privacy" className="footer__link">Privacy</Link>
               <Link href="/terms" className="footer__link">Terms</Link>
