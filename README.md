@@ -61,6 +61,26 @@ WKWebView (Amica Web Frontend (by Arbius AI))
 - Xcode 16+
 - Vercel environment variables for Gemini, ElevenLabs, and Deepgram
 
+## Planned Monetization
+
+Voice usage is modeled as one simple unit: **1 voice credit = 1 full voice turn** (user speech, STT, Gemini response, and ElevenLabs TTS).
+
+| Subscription | Price | Included credits |
+| --- | ---: | ---: |
+| Weekly | $9.99/week | 40 credits/week |
+| Monthly | $34.99/month | 180 credits/month, refilled as 45/week |
+| Yearly | $299.99/year | 2340 credits/year, refilled as 45/week |
+
+| Extra credit pack | Price |
+| ---: | ---: |
+| 10 credits | $3.99 |
+| 50 credits | $14.99 |
+| 100 credits | $27.99 |
+| 200 credits | $49.99 |
+| 500 credits | $119.99 |
+
+Extra credits can be used after the weekly subscription refill is consumed. They do not bypass safety limits such as one active voice reply at a time, capped audio input length, and capped TTS reply length.
+
 ## Setup
 
 Clone the repo first:

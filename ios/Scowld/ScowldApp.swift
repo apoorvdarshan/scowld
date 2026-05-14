@@ -84,6 +84,48 @@ struct AboutView: View {
                 } header: {
                     Label("Credits", systemImage: "doc.plaintext")
                 }
+
+                Section {
+                    Text(ScowldMonetization.voiceCreditDefinition)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(ScowldMonetization.subscriptionPlans) { plan in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(plan.title)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Text(plan.displayPrice)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text("\(plan.includedCredits) credits included - \(plan.refillDescription)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Label("Subscriptions", systemImage: "creditcard")
+                } footer: {
+                    Text("Subscription credits refill weekly. Extra credits can be used after the weekly refill is consumed.")
+                }
+
+                Section {
+                    ForEach(ScowldMonetization.extraCreditPacks) { pack in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("\(pack.credits) credits")
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Text(pack.displayPrice)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Label("Extra Credits", systemImage: "plus.circle")
+                } footer: {
+                    Text("Extra credits bypass the weekly subscription refill, but not safety limits like one active reply at a time.")
+                }
             }
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
