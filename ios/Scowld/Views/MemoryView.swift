@@ -63,42 +63,53 @@ struct MemoryView: View {
         let messages = memoryStore.fetchMessages(slotId: slot.id)
         let lastMessage = messages.last
 
-        NavigationLink {
-            PastChatDetailView(memoryStore: memoryStore, slot: slot)
-        } label: {
-            HStack(spacing: 12) {
+        HStack(spacing: 12) {
+            Button {
+                if !isActive {
+                    memoryStore.setActiveSlot(id: slot.id)
+                }
+            } label: {
                 Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(isActive ? .amicaBlue : .secondary)
                     .font(.title3)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isActive ? "Active chat" : "Use \(slot.name)")
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(slot.name)
-                        .font(.body)
-                        .fontWeight(isActive ? .semibold : .regular)
-                        .foregroundStyle(.primary)
+            NavigationLink {
+                PastChatDetailView(memoryStore: memoryStore, slot: slot)
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(slot.name)
+                            .font(.body)
+                            .fontWeight(isActive ? .semibold : .regular)
+                            .foregroundStyle(.primary)
 
-                    Text("\(slot.messageCount) messages")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    if let lastMessage {
-                        Text(lastMessage.content)
+                        Text("\(slot.messageCount) messages")
                             .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
+                            .foregroundStyle(.secondary)
+
+                        if let lastMessage {
+                            Text(lastMessage.content)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
                     }
-                }
 
-                Spacer()
+                    Spacer()
 
-                if isActive {
-                    Text("Active")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.amicaBlue)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.amicaBlue.opacity(0.15), in: Capsule())
+                    if isActive {
+                        Text("Active")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.amicaBlue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(.amicaBlue.opacity(0.15), in: Capsule())
+                    }
                 }
             }
         }
