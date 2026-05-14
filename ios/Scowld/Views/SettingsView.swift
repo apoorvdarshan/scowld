@@ -131,9 +131,22 @@ struct SettingsView: View {
                         saveAvatarSettings()
                     }
 
-                    TextField("Custom Name (optional)", text: $characterName)
-                        .autocorrectionDisabled()
-                        .onChange(of: characterName) { markCharacterChanged() }
+                    HStack(spacing: 8) {
+                        TextField("Custom Name (optional)", text: $characterName)
+                            .autocorrectionDisabled()
+                            .onChange(of: characterName) { markCharacterChanged() }
+
+                        if !characterName.isEmpty {
+                            Button {
+                                characterName = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Clear custom name")
+                        }
+                    }
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("System Prompt")
