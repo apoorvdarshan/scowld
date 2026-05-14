@@ -5,6 +5,7 @@ import Foundation
 /// Central character state manager. Combines inputs from ARKit, emotion engine,
 /// lip sync, and user interaction to produce the final character animation state.
 @Observable
+@MainActor
 final class CharacterManager {
     // MARK: - Character Identity
     var selectedCharacter: CharacterPack = {
@@ -34,7 +35,7 @@ final class CharacterManager {
     func startIdleAnimations() {
         // Random blinking every 2-5 seconds
         blinkTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.isBlinking = true
                 try? await Task.sleep(for: .milliseconds(150))
@@ -44,7 +45,7 @@ final class CharacterManager {
 
         // Subtle idle movement
         idleTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 // Gentle random eye movement when not tracking
                 self.pupilOffsetX = CGFloat.random(in: -0.2...0.2)
@@ -92,9 +93,9 @@ final class CharacterManager {
         // Add body bounce for excited/happy
         if emotion == .excited || emotion == .happy {
             bodyBounce = 1
-            Task {
+            Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(2))
-                self.bodyBounce = 0
+                self?.bodyBounce = 0
             }
         }
 

@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import UIKit
 
 // MARK: - Camera Manager
@@ -45,14 +45,16 @@ final class CameraManager: NSObject {
     func startCapture() {
         guard permissionGranted else { return }
         sessionQueue.async { [weak self] in
-            self?.configureSession()
+            guard let self else { return }
+            self.configureSession()
         }
     }
 
     func stopCapture() {
         sessionQueue.async { [weak self] in
-            self?.captureSession.stopRunning()
-            Task { @MainActor in
+            guard let self else { return }
+            self.captureSession.stopRunning()
+            Task { @MainActor [weak self] in
                 self?.isActive = false
             }
         }
@@ -76,7 +78,9 @@ final class CameraManager: NSObject {
               let input = try? AVCaptureDeviceInput(device: device),
               captureSession.canAddInput(input)
         else {
-            Task { @MainActor in self.error = "Failed to access front camera" }
+            Task { @MainActor [weak self] in
+                self?.error = "Failed to access front camera"
+            }
             captureSession.commitConfiguration()
             return
         }
@@ -89,7 +93,9 @@ final class CameraManager: NSObject {
         videoOutput.alwaysDiscardsLateVideoFrames = true
 
         guard captureSession.canAddOutput(videoOutput) else {
-            Task { @MainActor in self.error = "Failed to configure camera output" }
+            Task { @MainActor [weak self] in
+                self?.error = "Failed to configure camera output"
+            }
             captureSession.commitConfiguration()
             return
         }
@@ -104,11 +110,14 @@ final class CameraManager: NSObject {
         captureSession.commitConfiguration()
         captureSession.startRunning()
 
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             self.isActive = true
         }
     }
 }
+
+extension CameraManager: @unchecked Sendable {}
 
 // MARK: - Thread-safe Frame Counter
 
@@ -128,7 +137,7 @@ private final class FrameCounter: @unchecked Sendable {
 
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
 
-extension CameraManager: @preconcurrency AVCaptureVideoDataOutputSampleBufferDelegate {
+extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         let count = frameCounter.increment()
         guard count % captureInterval == 0 else { return }
@@ -140,7 +149,8 @@ extension CameraManager: @preconcurrency AVCaptureVideoDataOutputSampleBufferDel
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
         let image = UIImage(cgImage: cgImage)
 
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             self.latestFrame = image
         }
     }

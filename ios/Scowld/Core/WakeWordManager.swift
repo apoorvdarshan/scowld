@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import Speech
 import os
 
@@ -178,7 +178,7 @@ final class VoiceManager: NSObject {
 
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers])
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
             recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
@@ -187,7 +187,7 @@ final class VoiceManager: NSObject {
             recognitionRequest.requiresOnDeviceRecognition = true
 
             recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
                     if let result {
                         let transcript = result.bestTranscription.formattedString
@@ -207,7 +207,7 @@ final class VoiceManager: NSObject {
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
                 self?.recognitionRequest?.append(buffer)
                 let level = Self.audioLevel(for: buffer)
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     self?.handleSpeechActivity(level)
                 }
             }
@@ -218,7 +218,7 @@ final class VoiceManager: NSObject {
             // Auto-restart before Apple's 60s limit
             restartTimer?.invalidate()
             restartTimer = Timer.scheduledTimer(withTimeInterval: Self.maxRecognitionDuration, repeats: false) { [weak self] _ in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self, self.state == .listening else { return }
                     logger.info("[Voice] Auto-restart at 55s limit")
                     self.scheduleRestart()
@@ -226,8 +226,9 @@ final class VoiceManager: NSObject {
             }
         } catch {
             logger.error("[Voice] Failed to start recognition: \(error.localizedDescription)")
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(1))
+                guard let self else { return }
                 if self.isEnabled && self.state == .listening {
                     self.startRecognition()
                 }
@@ -245,7 +246,7 @@ final class VoiceManager: NSObject {
 
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers])
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
             let inputNode = audioEngine.inputNode
@@ -253,7 +254,7 @@ final class VoiceManager: NSObject {
             audioFormat = recordingFormat
 
             inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     self?.handleCloudAudioBuffer(buffer)
                 }
             }
@@ -267,7 +268,7 @@ final class VoiceManager: NSObject {
             // Auto-restart to prevent infinite recording
             restartTimer?.invalidate()
             restartTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false) { [weak self] _ in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self, self.state == .listening else { return }
                     if self.hasDetectedSpeech {
                         self.isEnabled = false
@@ -329,7 +330,7 @@ final class VoiceManager: NSObject {
 
         let backend = currentBackend
 
-        Task {
+        Task { @MainActor in
             do {
                 let wavData = CloudSTTManager.createWAV(from: buffers, format: format)
                 logger.info("[Voice] Cloud STT upload: backend=\(backend.rawValue) model=\(STTBackend.selectedModel(for: backend)) wavBytes=\(wavData.count)")
@@ -375,8 +376,9 @@ final class VoiceManager: NSObject {
         isRestarting = true
         stopRecognitionInternal()
 
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(200))
+            guard let self else { return }
             self.isRestarting = false
             guard self.isEnabled, self.state == .listening else { return }
             if self.currentBackend.isCloudBased {
@@ -490,7 +492,7 @@ final class VoiceManager: NSObject {
             guard speechStartWorkItem == nil else { return }
 
             let workItem = DispatchWorkItem { [weak self] in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self, self.state == .listening, !self.isTTSPlaying else { return }
                     self.isSpeechStatusLatched = true
                     self.speechStatusText = "Listening..."
@@ -511,7 +513,7 @@ final class VoiceManager: NSObject {
         guard isSpeechStatusLatched, speechEndWorkItem == nil else { return }
 
         let workItem = DispatchWorkItem { [weak self] in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self, self.state == .listening else { return }
                 self.isSpeechStatusLatched = false
                 self.speechStatusText = ""
@@ -542,8 +544,9 @@ final class VoiceManager: NSObject {
         speechStatusText = message
         state = .idle
 
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(900))
+            guard let self else { return }
             guard self.state == .idle else { return }
             self.speechStatusText = ""
             if self.isEnabled {

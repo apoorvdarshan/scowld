@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import Speech
 
 // MARK: - Speech Manager
@@ -66,7 +66,7 @@ final class SpeechManager: NSObject {
         do {
             // Configure audio session — playAndRecord so TTS and mic can coexist
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers])
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
             // Create recognition request
@@ -78,7 +78,7 @@ final class SpeechManager: NSObject {
             // Start recognition task
             recognizedText = ""
             recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
                     if let result {
                         self.recognizedText = result.bestTranscription.formattedString
@@ -165,7 +165,7 @@ final class SpeechManager: NSObject {
         // Real amplitude from AVSpeechSynthesizer is not directly accessible,
         // so we generate a natural-looking pattern
         amplitudeTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self, self.isSpeaking else { return }
                 // Generate semi-random amplitude for natural lip movement
                 let base: Float = 0.3
@@ -182,11 +182,14 @@ final class SpeechManager: NSObject {
     }
 }
 
+extension SpeechManager: @unchecked Sendable {}
+
 // MARK: - AVSpeechSynthesizerDelegate
 
-extension SpeechManager: @preconcurrency AVSpeechSynthesizerDelegate {
+extension SpeechManager: AVSpeechSynthesizerDelegate {
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             self.isSpeaking = false
             self.currentAmplitude = 0
             self.stopAmplitudeMonitoring()
@@ -194,7 +197,8 @@ extension SpeechManager: @preconcurrency AVSpeechSynthesizerDelegate {
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             self.isSpeaking = false
             self.currentAmplitude = 0
             self.stopAmplitudeMonitoring()

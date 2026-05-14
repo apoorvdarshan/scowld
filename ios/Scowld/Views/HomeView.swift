@@ -354,7 +354,7 @@ struct HomeView: View {
         .padding(.trailing, 8)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
-        .glassEffect(.regular.interactive(), in: Capsule())
+        .scowldComposerGlass()
     }
 
     private var recordingComposerBar: some View {
@@ -404,7 +404,7 @@ struct HomeView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
-        .glassEffect(.regular.interactive(), in: Capsule())
+        .scowldComposerGlass()
     }
 
     private var isBusy: Bool {
@@ -820,7 +820,7 @@ class AmicaLocalServer {
         // Get assigned port
         var assignedAddr = sockaddr_in()
         var addrLen = socklen_t(MemoryLayout<sockaddr_in>.size)
-        withUnsafeMutablePointer(to: &assignedAddr) {
+        _ = withUnsafeMutablePointer(to: &assignedAddr) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                 getsockname(serverSocket, $0, &addrLen)
             }
@@ -1990,6 +1990,22 @@ struct AmicaFullView: UIViewRepresentable {
         private func buildCurrentProvider() -> any LLMProvider {
             HostedServiceConfig.applyManagedDefaults()
             return HostedGeminiProvider(model: HostedServiceConfig.defaultGeminiModel)
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func scowldComposerGlass() -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            self
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(.white.opacity(0.14), lineWidth: 0.5)
+                )
         }
     }
 }

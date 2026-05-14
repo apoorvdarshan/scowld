@@ -1,10 +1,11 @@
-import ARKit
+@preconcurrency import ARKit
 
 // MARK: - ARKit Manager
 
 /// Manages ARKit face tracking using TrueDepth camera.
 /// Drives character animations: eye movement, head rotation, expressions.
 @Observable
+@MainActor
 final class ARKitManager: NSObject {
     // MARK: - Published State (drives character animations)
     var isTracking = false
@@ -60,7 +61,7 @@ final class ARKitManager: NSObject {
 
 // MARK: - ARSessionDelegate
 
-extension ARKitManager: @preconcurrency ARSessionDelegate {
+extension ARKitManager: ARSessionDelegate {
     nonisolated func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
         guard let faceAnchor = anchors.compactMap({ $0 as? ARFaceAnchor }).first else { return }
 
@@ -91,7 +92,8 @@ extension ARKitManager: @preconcurrency ARSessionDelegate {
         let eyeRInX = blendShapes[.eyeLookInRight]?.floatValue ?? 0
         let eyeRY = (blendShapes[.eyeLookUpRight]?.floatValue ?? 0) - (blendShapes[.eyeLookDownRight]?.floatValue ?? 0)
 
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             self.headYaw = yaw
             self.headPitch = pitch
             self.headRoll = roll
