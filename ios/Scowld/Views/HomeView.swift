@@ -1102,6 +1102,7 @@ struct AmicaFullView: UIViewRepresentable {
                 vrm_url: '/vrm/\(selectedAvatar).vrm'
             };
             window.__scowldVisionEnabled = \(visionEnabledJS);
+            window.__scowldUseNativeAudioPlayback = true;
             // Force full screen coverage
             var meta = document.createElement('meta');
             meta.name = 'viewport';
@@ -1404,6 +1405,19 @@ struct AmicaFullView: UIViewRepresentable {
                     _OrigAC.prototype.createBufferSource = function() {
                         var src = _origCreateBS.apply(this, arguments);
                         var _origStart = src.start.bind(src);
+                        var _origConnect = src.connect.bind(src);
+                        src.connect = function(destination) {
+                            try {
+                                var ctx = src.context || this.context;
+                                if (window.__scowldUseNativeAudioPlayback && ctx && destination === ctx.destination) {
+                                    var silentGain = ctx.createGain();
+                                    silentGain.gain.value = 0;
+                                    _origConnect(silentGain);
+                                    return silentGain.connect(destination);
+                                }
+                            } catch(e) {}
+                            return _origConnect.apply(src, arguments);
+                        };
                         src.start = function() {
                             window.__activeAudioCount++;
                             window.__activeScowldAudioSources.add(src);
@@ -1448,7 +1462,7 @@ struct AmicaFullView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
+    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, AVAudioPlayerDelegate {
         weak var webView: WKWebView?
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
@@ -1456,6 +1470,7 @@ struct AmicaFullView: UIViewRepresentable {
         private var settingsObserver: NSObjectProtocol?
         private var isRuntimeActive = true
         private var runtimeGeneration = 0
+        private var nativeTTSPlayer: AVAudioPlayer?
 
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
@@ -1484,6 +1499,7 @@ struct AmicaFullView: UIViewRepresentable {
         func cancelRuntimeWork() {
             runtimeGeneration += 1
             isRuntimeActive = false
+            stopNativeTTS()
             speechManager.stopSpeaking()
             stopWebAudio()
         }
@@ -1553,6 +1569,7 @@ struct AmicaFullView: UIViewRepresentable {
                     vrm_url: '/vrm/\(selectedAvatar).vrm'
                 };
                 window.__scowldVisionEnabled = \(visionEnabledJS);
+                window.__scowldUseNativeAudioPlayback = true;
             """
             // Update the user script with new config, then reload
             if let webView {
@@ -1800,7 +1817,11 @@ struct AmicaFullView: UIViewRepresentable {
                                 return
                             }
                             if (result as? Bool) == true {
-                                self.notifyTTSPlaybackStarted(byteCount: data.count)
+                                if self.playNativeTTSAudio(data) {
+                                    self.notifyTTSPlaybackStarted(byteCount: data.count)
+                                } else {
+                                    self.notifyTTSFailed()
+                                }
                             } else {
                                 self.notifyTTSFailed()
                             }
@@ -1825,6 +1846,55 @@ struct AmicaFullView: UIViewRepresentable {
                     notifyTTSFailed()
                 }
             }
+        }
+
+        private func playNativeTTSAudio(_ data: Data) -> Bool {
+            stopNativeTTS()
+
+            do {
+                let audioSession = AVAudioSession.sharedInstance()
+                try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+                try audioSession.setCategory(
+                    .playAndRecord,
+                    mode: .default,
+                    options: [.defaultToSpeaker, .allowBluetoothHFP, .allowBluetoothA2DP]
+                )
+                try audioSession.setActive(true)
+                try audioSession.overrideOutputAudioPort(.speaker)
+
+                let player = try AVAudioPlayer(data: data)
+                player.delegate = self
+                player.volume = 1
+                player.prepareToPlay()
+                nativeTTSPlayer = player
+
+                let didStart = player.play()
+                logger.info("[TTS] Native playback started: \(didStart)")
+                return didStart
+            } catch {
+                logger.error("[TTS] Native playback failed: \(error.localizedDescription)")
+                nativeTTSPlayer = nil
+                return false
+            }
+        }
+
+        private func stopNativeTTS() {
+            nativeTTSPlayer?.stop()
+            nativeTTSPlayer = nil
+        }
+
+        func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+            guard player === nativeTTSPlayer else { return }
+            nativeTTSPlayer = nil
+            logger.info("[TTS] Native playback finished")
+            NotificationCenter.default.post(name: .ttsDone, object: nil)
+        }
+
+        func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+            guard player === nativeTTSPlayer else { return }
+            nativeTTSPlayer = nil
+            logger.error("[TTS] Native playback decode error: \(error?.localizedDescription ?? "Unknown error")")
+            notifyTTSFailed()
         }
 
         private func notifyTTSPlaybackStarted(byteCount: Int) {
