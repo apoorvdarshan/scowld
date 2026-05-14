@@ -79,12 +79,7 @@ struct ScowldRootView: View {
                 }
                 .tag(ScowldTab.settings)
 
-            PaywallView(
-                reason: "Manage subscription and extra voice credits.",
-                showsCloseButton: false,
-                title: "Billing",
-                isStartupGate: false
-            )
+            BillingView()
             .tabItem {
                 Label("Billing", systemImage: "creditcard.fill")
             }

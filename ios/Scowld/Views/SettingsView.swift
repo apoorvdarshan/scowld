@@ -10,7 +10,7 @@ struct SettingsView: View {
     @State private var customVoiceID = ""
     @State private var previewPlayer: AVAudioPlayer?
     @State private var previewError: String?
-    @State private var selectedLanguageID = HostedServiceConfig.autoLanguageID
+    @State private var selectedLanguageID = HostedServiceConfig.deviceLanguageID
     @State private var showAICaption = false
     @State private var isLoadingSettings = false
     @Environment(BillingStore.self) private var billingStore
@@ -32,7 +32,6 @@ struct SettingsView: View {
             List {
                 Section {
                     Picker("Language", selection: $selectedLanguageID) {
-                        Text("Auto").tag(HostedServiceConfig.autoLanguageID)
                         Text(
                             String.localizedStringWithFormat(
                                 NSLocalizedString("iPhone Language (%@)", comment: "Device language picker option"),
@@ -252,11 +251,6 @@ struct SettingsView: View {
 
     private var selectedLanguageDescription: String? {
         switch selectedLanguageID {
-        case HostedServiceConfig.autoLanguageID:
-            return NSLocalizedString(
-                "Auto detects speech language and lets text-to-speech infer the language from the response.",
-                comment: "Auto language mode description"
-            )
         case HostedServiceConfig.deviceLanguageID:
             if let code = HostedServiceConfig.currentDeviceLanguageCode(),
                let language = ScowldLanguageLibrary.option(for: code) {

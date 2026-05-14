@@ -68,11 +68,11 @@ enum HostedServiceConfig {
     }
 
     static func selectedServiceLanguageID() -> String {
-        let saved = UserDefaults.standard.string(forKey: serviceLanguageDefaultsKey) ?? autoLanguageID
+        let saved = UserDefaults.standard.string(forKey: serviceLanguageDefaultsKey) ?? deviceLanguageID
         if saved == autoLanguageID || saved == deviceLanguageID {
-            return saved
+            return deviceLanguageID
         }
-        return ScowldLanguageLibrary.option(for: saved) == nil ? autoLanguageID : saved
+        return ScowldLanguageLibrary.option(for: saved) == nil ? deviceLanguageID : saved
     }
 
     static func selectedServiceLanguageCode() -> String? {
