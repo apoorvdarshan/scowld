@@ -101,7 +101,7 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 
 ## Reviewer Notes
 
-    Scowld requires an active subscription or extra credits to use voice conversations. Purchases are processed through Apple in-app purchase and can be tested with Apple sandbox or TestFlight.
+    Scowld requires an active subscription or extra credits to use voice conversations. Purchases are processed through Apple in-app purchase and can be tested with Apple sandbox StoreKit testing.
 
     To test:
     1. Launch the app.

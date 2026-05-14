@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 
 const links = {
-  beta: "https://testflight.apple.com/join/7WgDe7e4",
   productHunt: "https://www.producthunt.com/products/scowld",
   linkedIn: "https://www.linkedin.com/company/scowld",
   instagram: "https://www.instagram.com/scowld_/",
@@ -117,25 +116,13 @@ export default function Home() {
             </p>
 
             <div className="sr sr-delay-3 hero__buttons">
-              <a href={links.beta} target="_blank" rel="noopener noreferrer" className="btn-primary">
-                Join TestFlight
+              <a href={links.productHunt} target="_blank" rel="noopener noreferrer" className="btn-primary">
+                Vote on Product Hunt
               </a>
               <a href={links.koFi} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 Support on Ko-fi <span className="btn-secondary__arrow">&rarr;</span>
               </a>
             </div>
-
-            <a
-              href={links.productHunt}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="sr sr-delay-4 btn-ph"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13.604 8.4h-3.405V12h3.405a1.8 1.8 0 0 0 0-3.6zM12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm1.604 14.4h-3.405V18H7.801V6h5.804a4.2 4.2 0 0 1 0 8.4z"/>
-              </svg>
-              Vote on Product Hunt
-            </a>
           </div>
 
           <div className="hero__phone-wrap">
@@ -143,8 +130,8 @@ export default function Home() {
               <Image
                 src="/mockup.png"
                 alt="Scowld app screenshot"
-                width={320}
-                height={654}
+                width={1080}
+                height={1920}
                 priority
                 className="hero__phone"
               />

@@ -325,42 +325,6 @@ body::before {
   font-size: 11px;
 }
 
-.btn-ph {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 1.25rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: transparent;
-  padding: 10px 22px;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.35);
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
-  text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-ph:hover {
-  transform: translateY(-2px) scale(1.03);
-  border-color: #da552f;
-  color: #da552f;
-}
-
-.btn-ph:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.hero__beta-note {
-  margin-top: 12px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.2);
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
-}
-
 /* Phone mockup */
 .hero__phone-wrap {
   display: flex;

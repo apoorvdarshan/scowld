@@ -122,7 +122,7 @@ StoreKit product IDs:
    ```
 2. Select the Scowld scheme and your device.
 3. Build and run from Xcode.
-4. Use Xcode StoreKit testing or App Store sandbox/TestFlight for purchase flow testing.
+4. Use Xcode StoreKit testing or App Store sandbox for purchase flow testing.
 
 ### Website and Hosted Routes
 
