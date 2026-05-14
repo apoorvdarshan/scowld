@@ -31,80 +31,79 @@ struct ScowldRootView: View {
     @Environment(BillingStore.self) private var billingStore
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            if !isPaymentGateActive {
-                HomeView(memoryStore: memoryStore, isActive: selectedTab == .chat)
-                    .tabItem {
-                        Label("Chat", systemImage: "message.fill")
-                    }
-                    .tag(ScowldTab.chat)
-
-                NavigationStack {
-                    MemoryView(memoryStore: memoryStore)
-                }
-                .tabItem {
-                    Label("Chats", systemImage: "text.bubble.fill")
-                }
-                .tag(ScowldTab.pastChats)
-
-                SettingsView(showsDismissControls: false)
-                    .tabItem {
-                        Label("Settings", systemImage: "gearshape.fill")
-                    }
-                    .tag(ScowldTab.settings)
+        Group {
+            if !billingStore.hasLoadedEntitlements {
+                loadingBillingView
+            } else if !billingStore.hasPaidAccess {
+                PaywallView(
+                    reason: "Choose a plan to start using Scowld.",
+                    showsCloseButton: false,
+                    title: "Scowld Plus",
+                    isStartupGate: true
+                )
+            } else {
+                appTabs
             }
+        }
+        .onChange(of: billingStore.hasPaidAccess) { _, hasPaidAccess in
+            if hasPaidAccess {
+                selectedTab = .chat
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showBillingTab)) { _ in
+            if billingStore.hasPaidAccess {
+                selectedTab = .billing
+            }
+        }
+    }
+
+    private var appTabs: some View {
+        TabView(selection: $selectedTab) {
+            HomeView(memoryStore: memoryStore, isActive: selectedTab == .chat)
+                .tabItem {
+                    Label("Chat", systemImage: "message.fill")
+                }
+                .tag(ScowldTab.chat)
+
+            NavigationStack {
+                MemoryView(memoryStore: memoryStore)
+            }
+            .tabItem {
+                Label("Chats", systemImage: "text.bubble.fill")
+            }
+            .tag(ScowldTab.pastChats)
+
+            SettingsView(showsDismissControls: false)
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
+                }
+                .tag(ScowldTab.settings)
 
             PaywallView(
-                reason: isPaymentGateActive
-                    ? "Choose a plan or add credits to start using Scowld."
-                    : "Manage subscription and extra voice credits.",
+                reason: "Manage subscription and extra voice credits.",
                 showsCloseButton: false,
-                title: isPaymentGateActive ? "Scowld Plus" : "Billing",
-                isStartupGate: isPaymentGateActive
+                title: "Billing",
+                isStartupGate: false
             )
             .tabItem {
                 Label("Billing", systemImage: "creditcard.fill")
             }
             .tag(ScowldTab.billing)
 
-            if !isPaymentGateActive {
-                AboutView()
-                    .tabItem {
-                        Label("About", systemImage: "info.circle.fill")
-                    }
-                    .tag(ScowldTab.about)
-            }
-        }
-        .onAppear {
-            updateSelectedTabForBillingGate(isPaymentGateActive)
-        }
-        .onChange(of: isPaymentGateActive) { _, isActive in
-            updateSelectedTabForBillingGate(isActive)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showBillingTab)) { _ in
-            selectedTab = .billing
-        }
-        .overlay {
-            if !billingStore.hasLoadedEntitlements {
-                Color.black
-                    .ignoresSafeArea()
-                    .overlay {
-                        ProgressView("Loading billing...")
-                    }
-            }
+            AboutView()
+                .tabItem {
+                    Label("About", systemImage: "info.circle.fill")
+                }
+                .tag(ScowldTab.about)
         }
     }
 
-    private var isPaymentGateActive: Bool {
-        billingStore.hasLoadedEntitlements && !billingStore.hasPaidAccess
-    }
-
-    private func updateSelectedTabForBillingGate(_ isActive: Bool) {
-        if isActive {
-            selectedTab = .billing
-        } else if selectedTab == .billing {
-            selectedTab = .chat
-        }
+    private var loadingBillingView: some View {
+        Color.black
+            .ignoresSafeArea()
+            .overlay {
+                ProgressView("Loading billing...")
+            }
     }
 }
 

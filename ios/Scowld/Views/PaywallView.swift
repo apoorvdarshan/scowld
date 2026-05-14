@@ -3,6 +3,7 @@ import SwiftUI
 struct PaywallView: View {
     @Environment(BillingStore.self) private var billingStore
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedSubscriptionProductID = "scowld.sub.monthly"
 
     var reason: String?
     var showsCloseButton = true
@@ -15,13 +16,16 @@ struct PaywallView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     header
                     subscriptionSection
-                    creditBalance
-                    extraCreditsSection
+                    if !isStartupGate {
+                        creditBalance
+                        extraCreditsSection
+                    }
                     usagePolicySection
                 }
                 .padding(20)
+                .padding(.bottom, isStartupGate ? 120 : 96)
             }
-            .navigationTitle(title)
+            .navigationTitle(isStartupGate ? "" : title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if showsCloseButton {
@@ -60,7 +64,7 @@ struct PaywallView: View {
                 .shadow(color: .amicaBlue.opacity(0.35), radius: 18, y: 10)
 
             VStack(spacing: 6) {
-                Text("Scowld Plus")
+                Text(isStartupGate ? "Unlock Scowld" : "Scowld Plus")
                     .font(.largeTitle.bold())
                 Text(reason ?? "Pick a plan to unlock voice conversations.")
                     .font(.subheadline)
@@ -89,7 +93,7 @@ struct PaywallView: View {
     }
 
     private var subscriptionSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Label("Choose your plan", systemImage: "creditcard.fill")
                     .font(.headline)
@@ -102,21 +106,46 @@ struct PaywallView: View {
                 subscriptionPlanCard(
                     plan,
                     badge: subscriptionBadge(for: plan),
-                    isActive: billingStore.activeSubscriptionProductID == plan.productID
+                    isActive: billingStore.activeSubscriptionProductID == plan.productID,
+                    isSelected: selectedSubscriptionProductID == plan.productID
                 )
             }
+
+            Button {
+                purchaseSelectedSubscription()
+            } label: {
+                HStack {
+                    Text(selectedSubscriptionButtonTitle)
+                        .font(.headline)
+                    Spacer()
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.title3)
+                }
+                .foregroundStyle(.black)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .background(Color.amicaBlue, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(billingStore.isPurchasing || selectedSubscriptionPlan == nil)
+            .opacity(billingStore.isPurchasing || selectedSubscriptionPlan == nil ? 0.55 : 1)
+
+            Text("Payments are handled by Apple. You can cancel or manage subscriptions from your Apple ID settings.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
         }
     }
 
     private func subscriptionPlanCard(
         _ plan: ScowldSubscriptionPlan,
         badge: String?,
-        isActive: Bool
+        isActive: Bool,
+        isSelected: Bool
     ) -> some View {
         Button {
-            Task {
-                await billingStore.purchase(productID: plan.productID)
-            }
+            selectedSubscriptionProductID = plan.productID
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {
@@ -137,6 +166,9 @@ struct PaywallView: View {
 
                             if isActive {
                                 Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(.amicaBlue)
+                            } else if isSelected {
+                                Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.amicaBlue)
                             }
                         }
@@ -161,20 +193,20 @@ struct PaywallView: View {
                 HStack(spacing: 8) {
                     Label(plan.refillDescription, systemImage: "arrow.clockwise.circle.fill")
                     Spacer()
-                    Label(isActive ? "Current plan" : "Tap to continue", systemImage: "arrow.right.circle.fill")
+                    Label(isActive ? "Current plan" : selectionLabel(isSelected: isSelected), systemImage: isSelected ? "checkmark.circle.fill" : "circle")
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             }
             .padding(16)
-            .background(planCardBackground(isFeatured: plan.id == "monthly"))
+            .background(planCardBackground(isFeatured: isSelected || plan.id == "monthly"))
             .overlay(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(plan.id == "monthly" ? Color.amicaBlue.opacity(0.55) : Color.white.opacity(0.08), lineWidth: 1)
+                    .strokeBorder(isSelected ? Color.amicaBlue.opacity(0.8) : Color.white.opacity(0.08), lineWidth: 1.2)
             )
         }
         .buttonStyle(.plain)
-        .disabled(isActive || billingStore.isPurchasing)
+        .disabled(isActive)
     }
 
     private var creditBalance: some View {
@@ -258,15 +290,46 @@ struct PaywallView: View {
         return AnyShapeStyle(Material.ultraThinMaterial)
     }
 
+    private var selectedSubscriptionPlan: ScowldSubscriptionPlan? {
+        ScowldMonetization.subscriptionPlans.first { $0.productID == selectedSubscriptionProductID }
+    }
+
+    private var selectedSubscriptionButtonTitle: String {
+        guard let plan = selectedSubscriptionPlan else {
+            return "Choose a plan"
+        }
+
+        return "Continue with \(plan.title)"
+    }
+
+    private func selectionLabel(isSelected: Bool) -> String {
+        isSelected ? "Selected" : "Tap to select"
+    }
+
+    private func purchaseSelectedSubscription() {
+        guard let selectedSubscriptionPlan else { return }
+        Task {
+            await billingStore.purchase(productID: selectedSubscriptionPlan.productID)
+        }
+    }
+
     private var usagePolicySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Limits", systemImage: "shield.lefthalf.filled")
                 .font(.headline)
-            Text("Each voice turn uses one credit. Extra credits bypass weekly refill limits, but one active reply, audio length, and reply length limits still apply.")
+            Text(usagePolicyText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .sectionCard()
+    }
+
+    private var usagePolicyText: String {
+        if isStartupGate {
+            return "Each voice turn uses one credit. Subscription credits refill weekly, with one active reply, audio length, and reply length limits still applied."
+        }
+
+        return "Each voice turn uses one credit. Extra credits bypass weekly refill limits, but one active reply, audio length, and reply length limits still apply."
     }
 
     private func purchaseRow(
