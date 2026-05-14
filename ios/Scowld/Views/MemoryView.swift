@@ -19,6 +19,10 @@ private enum ChatSortOption: String, CaseIterable, Identifiable {
         }
     }
 
+    var localizedTitle: String {
+        NSLocalizedString(title, comment: "Chat sort option")
+    }
+
     var systemImage: String {
         switch self {
         case .createdDescending: "arrow.down"
@@ -108,7 +112,7 @@ struct MemoryView: View {
                 Menu {
                     Picker("Sort Chats", selection: $chatSortOptionRaw) {
                         ForEach(ChatSortOption.allCases) { option in
-                            Label(option.title, systemImage: option.systemImage)
+                            Label(option.localizedTitle, systemImage: option.systemImage)
                                 .tag(option.rawValue)
                         }
                     }
@@ -153,7 +157,7 @@ struct MemoryView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(isActive ? "Active chat" : "Use \(slot.name)")
+            .accessibilityLabel(isActive ? activeChatLabel : useChatAccessibilityLabel(for: slot.name))
 
             NavigationLink {
                 PastChatDetailView(memoryStore: memoryStore, slot: slot)
@@ -165,7 +169,7 @@ struct MemoryView: View {
                             .fontWeight(isActive ? .semibold : .regular)
                             .foregroundStyle(.primary)
 
-                        Text("\(slot.messageCount) messages")
+                        Text(messageCountLabel(slot.messageCount))
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -217,6 +221,24 @@ struct MemoryView: View {
                 .tint(.amicaBlue)
             }
         }
+    }
+
+    private var activeChatLabel: String {
+        NSLocalizedString("Active chat", comment: "Accessibility label for selected chat")
+    }
+
+    private func useChatAccessibilityLabel(for name: String) -> String {
+        String.localizedStringWithFormat(
+            NSLocalizedString("Use %@", comment: "Accessibility label for selecting a chat"),
+            name
+        )
+    }
+
+    private func messageCountLabel(_ count: Int) -> String {
+        String.localizedStringWithFormat(
+            NSLocalizedString("%d messages", comment: "Saved chat message count"),
+            count
+        )
     }
 }
 
@@ -317,9 +339,9 @@ private struct PastChatMessageRow: View {
 
     private var roleTitle: String {
         switch message.role {
-        case .user: "You"
+        case .user: NSLocalizedString("You", comment: "User message role")
         case .assistant: CharacterPack.resolveCharacterName()
-        case .system: "System"
+        case .system: NSLocalizedString("System", comment: "System message role")
         }
     }
 

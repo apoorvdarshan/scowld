@@ -32,10 +32,15 @@ struct SettingsView: View {
                 Section {
                     Picker("Language", selection: $selectedLanguageID) {
                         Text("Auto").tag(HostedServiceConfig.autoLanguageID)
-                        Text("iPhone Language (\(HostedServiceConfig.currentDeviceLanguageName()))")
+                        Text(
+                            String.localizedStringWithFormat(
+                                NSLocalizedString("iPhone Language (%@)", comment: "Device language picker option"),
+                                HostedServiceConfig.currentDeviceLanguageName()
+                            )
+                        )
                             .tag(HostedServiceConfig.deviceLanguageID)
                         ForEach(ScowldLanguageLibrary.options) { language in
-                            Text(language.name).tag(language.code)
+                            Text(LocalizedStringKey(language.name)).tag(language.code)
                         }
                     }
                     .onChange(of: selectedLanguageID) {
@@ -63,7 +68,7 @@ struct SettingsView: View {
                 Section {
                     Picker("Voice", selection: $selectedVoicePickerID) {
                         ForEach(ScowldVoiceLibrary.presetVoices) { voice in
-                            Text(voice.name).tag(voice.voiceID)
+                            Text(LocalizedStringKey(voice.name)).tag(voice.voiceID)
                         }
                         Text("Custom Voice ID").tag(ScowldVoiceLibrary.customID)
                     }
@@ -89,7 +94,7 @@ struct SettingsView: View {
                         .font(.caption)
                     } else if let voice = ScowldVoiceLibrary.option(for: selectedVoicePickerID) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(voice.description)
+                            Text(LocalizedStringKey(voice.description))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             Text(voice.voiceID)
@@ -213,7 +218,9 @@ struct SettingsView: View {
     }
 
     private var previewButtonTitle: String {
-        selectedVoiceHasBundledPreview ? "Play sample" : "Sample unavailable"
+        selectedVoiceHasBundledPreview
+            ? NSLocalizedString("Play sample", comment: "Play voice preview button")
+            : NSLocalizedString("Sample unavailable", comment: "Disabled voice preview button")
     }
 
     private var previewButtonIcon: String {
@@ -227,16 +234,28 @@ struct SettingsView: View {
     private var selectedLanguageDescription: String? {
         switch selectedLanguageID {
         case HostedServiceConfig.autoLanguageID:
-            return "Auto detects speech language and lets text-to-speech infer the language from the response."
+            return NSLocalizedString(
+                "Auto detects speech language and lets text-to-speech infer the language from the response.",
+                comment: "Auto language mode description"
+            )
         case HostedServiceConfig.deviceLanguageID:
             if let code = HostedServiceConfig.currentDeviceLanguageCode(),
                let language = ScowldLanguageLibrary.option(for: code) {
-                return "Uses this iPhone's current language when supported: \(language.name)."
+                return String.localizedStringWithFormat(
+                    NSLocalizedString("Uses this iPhone's current language when supported: %@.", comment: "Device language mode description"),
+                    NSLocalizedString(language.name, comment: "Language name")
+                )
             }
-            return "This iPhone language is not in the supported shortcut list, so providers will use auto."
+            return NSLocalizedString(
+                "This iPhone language is not in the supported shortcut list, so providers will use auto.",
+                comment: "Unsupported device language description"
+            )
         default:
             return ScowldLanguageLibrary.option(for: selectedLanguageID).map {
-                "Forces STT and TTS toward \($0.name)."
+                String.localizedStringWithFormat(
+                    NSLocalizedString("Forces STT and TTS toward %@.", comment: "Selected service language description"),
+                    NSLocalizedString($0.name, comment: "Language name")
+                )
             }
         }
     }
@@ -314,7 +333,10 @@ struct SettingsView: View {
         previewPlayer?.stop()
 
         guard let url = BundledElevenLabsVoicePreviews.url(forVoiceID: selectedPreviewVoiceID) else {
-            previewError = "No bundled sample is available for this custom voice ID."
+            previewError = NSLocalizedString(
+                "No bundled sample is available for this custom voice ID.",
+                comment: "Missing voice preview error"
+            )
             return
         }
 
@@ -338,7 +360,10 @@ struct SettingsView: View {
             player.play()
             previewPlayer = player
         } catch {
-            previewError = "Could not play sample: \(error.localizedDescription)"
+            previewError = String.localizedStringWithFormat(
+                NSLocalizedString("Could not play sample: %@", comment: "Voice preview playback error"),
+                error.localizedDescription
+            )
         }
     }
 }

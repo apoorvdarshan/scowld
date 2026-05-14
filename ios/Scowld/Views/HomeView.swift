@@ -465,20 +465,20 @@ struct HomeView: View {
 
     private var recordingStatusText: String {
         if isVoiceDragCancelArmed {
-            return "Release to cancel"
+            return NSLocalizedString("Release to cancel", comment: "Voice recording cancel instruction")
         }
 
         switch voiceManager.state {
         case .transcribing:
-            return "Sending voice..."
+            return NSLocalizedString("Sending voice...", comment: "Voice recording send status")
         case .listening where isVoicePressActive:
-            return "Release to send • slide left to cancel"
+            return NSLocalizedString("Release to send - slide left to cancel", comment: "Voice recording hold instruction")
         case .listening where isTapVoiceRecording:
-            return "Recording... tap send when done"
+            return NSLocalizedString("Recording... tap send when done", comment: "Tap voice recording instruction")
         case .listening:
-            return "Recording..."
+            return NSLocalizedString("Recording...", comment: "Voice recording status")
         default:
-            return "Voice"
+            return NSLocalizedString("Voice", comment: "Voice input label")
         }
     }
 

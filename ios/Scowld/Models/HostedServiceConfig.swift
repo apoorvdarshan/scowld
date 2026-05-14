@@ -92,6 +92,14 @@ enum HostedServiceConfig {
 
     static func currentDeviceLanguageCode() -> String? {
         guard let preferred = Locale.preferredLanguages.first else { return nil }
+        let normalized = preferred.replacingOccurrences(of: "_", with: "-").lowercased()
+        if normalized.hasPrefix("zh-hant") || normalized.hasPrefix("zh-tw") || normalized.hasPrefix("zh-hk") {
+            return "zh-TW"
+        }
+        if normalized.hasPrefix("fil") {
+            return "tl"
+        }
+
         let code = preferred
             .split(whereSeparator: { $0 == "-" || $0 == "_" })
             .first
@@ -100,7 +108,9 @@ enum HostedServiceConfig {
     }
 
     static func currentDeviceLanguageName() -> String {
-        guard let preferred = Locale.preferredLanguages.first else { return "Unknown" }
+        guard let preferred = Locale.preferredLanguages.first else {
+            return NSLocalizedString("Unknown", comment: "Unknown language fallback")
+        }
         return Locale.current.localizedString(forIdentifier: preferred) ?? preferred
     }
 }
