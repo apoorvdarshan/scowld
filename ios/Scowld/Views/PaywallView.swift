@@ -7,14 +7,15 @@ struct PaywallView: View {
     var reason: String?
     var showsCloseButton = true
     var title = "Scowld Plus"
+    var isStartupGate = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 22) {
                     header
-                    creditBalance
                     subscriptionSection
+                    creditBalance
                     extraCreditsSection
                     usagePolicySection
                 }
@@ -46,13 +47,134 @@ struct PaywallView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Voice credits")
-                .font(.largeTitle.bold())
-            Text(reason ?? ScowldMonetization.voiceCreditDefinition)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 14) {
+            Image("ScowldLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 88, height: 88)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .strokeBorder(.white.opacity(0.14), lineWidth: 1)
+                )
+                .shadow(color: .amicaBlue.opacity(0.35), radius: 18, y: 10)
+
+            VStack(spacing: 6) {
+                Text("Scowld Plus")
+                    .font(.largeTitle.bold())
+                Text(reason ?? "Pick a plan to unlock voice conversations.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            if billingStore.isLoadingProducts {
+                ProgressView("Loading App Store products...")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let error = billingStore.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, isStartupGate ? 12 : 0)
+    }
+
+    private var subscriptionSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Choose your plan", systemImage: "creditcard.fill")
+                    .font(.headline)
+                Text(ScowldMonetization.voiceCreditDefinition)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(ScowldMonetization.subscriptionPlans) { plan in
+                subscriptionPlanCard(
+                    plan,
+                    badge: subscriptionBadge(for: plan),
+                    isActive: billingStore.activeSubscriptionProductID == plan.productID
+                )
+            }
+        }
+    }
+
+    private func subscriptionPlanCard(
+        _ plan: ScowldSubscriptionPlan,
+        badge: String?,
+        isActive: Bool
+    ) -> some View {
+        Button {
+            Task {
+                await billingStore.purchase(productID: plan.productID)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(plan.title)
+                                .font(.title3.bold())
+
+                            if let badge {
+                                Text(badge)
+                                    .font(.caption2.bold())
+                                    .textCase(.uppercase)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.amicaBlue.opacity(0.18), in: Capsule())
+                                    .foregroundStyle(.amicaBlue)
+                            }
+
+                            if isActive {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(.amicaBlue)
+                            }
+                        }
+
+                        Text("\(plan.includedCredits) credits included")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(isActive ? "Active" : billingStore.displayPrice(for: plan))
+                            .font(.title3.bold())
+                            .foregroundStyle(isActive ? .amicaBlue : .primary)
+                        Text(planPriceCadence(for: plan))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    Label(plan.refillDescription, systemImage: "arrow.clockwise.circle.fill")
+                    Spacer()
+                    Label(isActive ? "Current plan" : "Tap to continue", systemImage: "arrow.right.circle.fill")
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            }
+            .padding(16)
+            .background(planCardBackground(isFeatured: plan.id == "monthly"))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(plan.id == "monthly" ? Color.amicaBlue.opacity(0.55) : Color.white.opacity(0.08), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isActive || billingStore.isPurchasing)
     }
 
     private var creditBalance: some View {
@@ -75,12 +197,6 @@ struct PaywallView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            if let error = billingStore.errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
         }
         .sectionCard()
     }
@@ -99,24 +215,6 @@ struct PaywallView: View {
         .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private var subscriptionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Subscriptions", systemImage: "creditcard.fill")
-                .font(.headline)
-
-            ForEach(ScowldMonetization.subscriptionPlans) { plan in
-                purchaseRow(
-                    title: plan.title,
-                    subtitle: "\(plan.includedCredits) credits included, \(plan.refillDescription)",
-                    price: billingStore.displayPrice(for: plan),
-                    productID: plan.productID,
-                    isActive: billingStore.activeSubscriptionProductID == plan.productID
-                )
-            }
-        }
-        .sectionCard()
-    }
-
     private var extraCreditsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Extra Credits", systemImage: "plus.circle.fill")
@@ -133,6 +231,31 @@ struct PaywallView: View {
             }
         }
         .sectionCard()
+    }
+
+    private func subscriptionBadge(for plan: ScowldSubscriptionPlan) -> String? {
+        switch plan.id {
+        case "monthly": "Popular"
+        case "yearly": "Best value"
+        default: nil
+        }
+    }
+
+    private func planPriceCadence(for plan: ScowldSubscriptionPlan) -> String {
+        switch plan.id {
+        case "weekly": "per week"
+        case "monthly": "per month"
+        case "yearly": "per year"
+        default: ""
+        }
+    }
+
+    private func planCardBackground(isFeatured: Bool) -> some ShapeStyle {
+        if isFeatured {
+            return AnyShapeStyle(Color.amicaBlue.opacity(0.14))
+        }
+
+        return AnyShapeStyle(Material.ultraThinMaterial)
     }
 
     private var usagePolicySection: some View {
@@ -185,8 +308,7 @@ struct PaywallView: View {
             .background(.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(isActive || billingStore.isPurchasing || billingStore.product(for: productID) == nil)
-        .opacity(billingStore.product(for: productID) == nil && !isActive ? 0.55 : 1)
+        .disabled(isActive || billingStore.isPurchasing)
     }
 }
 

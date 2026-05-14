@@ -32,41 +32,54 @@ struct ScowldRootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(memoryStore: memoryStore, isActive: selectedTab == .chat)
-                .tabItem {
-                    Label("Chat", systemImage: "message.fill")
-                }
-                .tag(ScowldTab.chat)
+            if !isPaymentGateActive {
+                HomeView(memoryStore: memoryStore, isActive: selectedTab == .chat)
+                    .tabItem {
+                        Label("Chat", systemImage: "message.fill")
+                    }
+                    .tag(ScowldTab.chat)
 
-            NavigationStack {
-                MemoryView(memoryStore: memoryStore)
-            }
-            .tabItem {
-                Label("Chats", systemImage: "text.bubble.fill")
-            }
-            .tag(ScowldTab.pastChats)
-
-            SettingsView(showsDismissControls: false)
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
+                NavigationStack {
+                    MemoryView(memoryStore: memoryStore)
                 }
-                .tag(ScowldTab.settings)
+                .tabItem {
+                    Label("Chats", systemImage: "text.bubble.fill")
+                }
+                .tag(ScowldTab.pastChats)
+
+                SettingsView(showsDismissControls: false)
+                    .tabItem {
+                        Label("Settings", systemImage: "gearshape.fill")
+                    }
+                    .tag(ScowldTab.settings)
+            }
 
             PaywallView(
-                reason: "Manage subscription and extra voice credits.",
+                reason: isPaymentGateActive
+                    ? "Choose a plan or add credits to start using Scowld."
+                    : "Manage subscription and extra voice credits.",
                 showsCloseButton: false,
-                title: "Billing"
+                title: isPaymentGateActive ? "Scowld Plus" : "Billing",
+                isStartupGate: isPaymentGateActive
             )
             .tabItem {
                 Label("Billing", systemImage: "creditcard.fill")
             }
             .tag(ScowldTab.billing)
 
-            AboutView()
-                .tabItem {
-                    Label("About", systemImage: "info.circle.fill")
-                }
-                .tag(ScowldTab.about)
+            if !isPaymentGateActive {
+                AboutView()
+                    .tabItem {
+                        Label("About", systemImage: "info.circle.fill")
+                    }
+                    .tag(ScowldTab.about)
+            }
+        }
+        .onAppear {
+            updateSelectedTabForBillingGate(isPaymentGateActive)
+        }
+        .onChange(of: isPaymentGateActive) { _, isActive in
+            updateSelectedTabForBillingGate(isActive)
         }
         .onReceive(NotificationCenter.default.publisher(for: .showBillingTab)) { _ in
             selectedTab = .billing
@@ -80,22 +93,18 @@ struct ScowldRootView: View {
                     }
             }
         }
-        .fullScreenCover(isPresented: startupPaymentRequiredBinding) {
-            PaywallView(
-                reason: "Choose a plan or add credits to start using Scowld.",
-                showsCloseButton: false,
-                title: "Scowld Plus"
-            )
-        }
     }
 
-    private var startupPaymentRequiredBinding: Binding<Bool> {
-        Binding(
-            get: {
-                billingStore.hasLoadedEntitlements && !billingStore.hasPaidAccess
-            },
-            set: { _ in }
-        )
+    private var isPaymentGateActive: Bool {
+        billingStore.hasLoadedEntitlements && !billingStore.hasPaidAccess
+    }
+
+    private func updateSelectedTabForBillingGate(_ isActive: Bool) {
+        if isActive {
+            selectedTab = .billing
+        } else if selectedTab == .billing {
+            selectedTab = .chat
+        }
     }
 }
 

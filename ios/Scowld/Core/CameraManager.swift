@@ -123,10 +123,10 @@ extension CameraManager: @unchecked Sendable {}
 
 /// Simple thread-safe counter using os_unfair_lock
 private final class FrameCounter: @unchecked Sendable {
-    private var _value: Int32 = 0
-    private var lock = os_unfair_lock()
+    nonisolated(unsafe) private var _value: Int32 = 0
+    nonisolated(unsafe) private var lock = os_unfair_lock()
 
-    func increment() -> Int32 {
+    nonisolated func increment() -> Int32 {
         os_unfair_lock_lock(&lock)
         _value += 1
         let val = _value
