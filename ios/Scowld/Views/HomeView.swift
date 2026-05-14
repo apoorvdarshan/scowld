@@ -29,9 +29,17 @@ struct HomeView: View {
     @State private var voiceManager = VoiceManager()
     @State private var aiResponseText = ""
     @State private var isAwaitingAssistantResponse = false
+    @State private var voicePressStartedAt: Date?
+    @State private var voicePressTranslation: CGSize = .zero
+    @State private var isVoicePressActive = false
+    @State private var isTapVoiceRecording = false
     @AppStorage("show_ai_caption") private var showAICaption = false
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var messageFieldFocused: Bool
+
+    private let voiceTapMaximumDuration: TimeInterval = 0.28
+    private let voiceTapMaximumMovement: CGFloat = 14
+    private let voiceCancelDragThreshold: CGFloat = -84
 
     var body: some View {
         NavigationStack {
@@ -41,7 +49,7 @@ struct HomeView: View {
                 })
                 .ignoresSafeArea()
 
-                // Live captions
+                // Assistant captions
                 VStack(spacing: 6) {
                     if showAICaption && !aiResponseText.isEmpty {
                         Text(aiResponseText)
@@ -51,16 +59,6 @@ struct HomeView: View {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
                             .background(.black.opacity(0.5))
-                            .cornerRadius(16)
-                    }
-                    if !voiceManager.speechStatusText.isEmpty {
-                        Text(voiceManager.speechStatusText)
-                            .font(.subheadline)
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(.amicaBlue.opacity(0.6))
                             .cornerRadius(16)
                     }
                 }
@@ -86,14 +84,20 @@ struct HomeView: View {
             setupVoice()
         }
         .onDisappear {
-            voiceManager.cancelCommandCapture()
+            cancelVoiceCapture()
         }
         .onChange(of: voiceManager.readyCommand) {
             if let text = voiceManager.readyCommand {
                 voiceManager.readyCommand = nil
+                resetVoiceInteractionState()
                 aiResponseText = ""
                 messageText = text
                 sendMessage()
+            }
+        }
+        .onChange(of: voiceManager.state) {
+            if voiceManager.state != .listening {
+                resetVoiceInteractionState()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
@@ -111,7 +115,7 @@ struct HomeView: View {
             case .active:
                 break
             case .inactive, .background:
-                voiceManager.cancelCommandCapture()
+                cancelVoiceCapture()
             @unknown default:
                 break
             }
@@ -125,54 +129,70 @@ struct HomeView: View {
             .onSubmit { if !isBusy { stopAndSend() } }
             .disabled(isBusy)
             .focused($messageFieldFocused)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 11)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
             .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.black.opacity(0.24))
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.black.opacity(0.34))
             }
-            .padding(.trailing, 8)
     }
 
-    private var sendButton: some View {
+    private var textSendButton: some View {
         Button {
             stopAndSend()
         } label: {
             Image(systemName: "arrow.up.circle.fill")
-                .foregroundColor(isBusy ? .secondary : .amicaBlue)
-                .frame(width: 34, height: 38)
+                .font(.system(size: 32, weight: .semibold))
+                .foregroundColor(canSendText ? .amicaBlue : .secondary)
+                .frame(width: 48, height: 48)
         }
-        .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
+        .buttonStyle(.plain)
+        .disabled(!canSendText)
     }
 
     private var voiceButton: some View {
         Image(systemName: voiceIconName)
-            .font(.title3)
-            .frame(width: 34, height: 38)
+            .font(.system(size: 30, weight: .semibold))
+            .frame(width: 48, height: 48)
             .foregroundStyle(voiceIconColor)
             .contentShape(Rectangle())
-            .opacity(canBeginVoiceCapture || voiceManager.state == .listening ? 1 : 0.5)
+            .opacity(canBeginVoiceCapture ? 1 : 0.5)
             .gesture(
                 DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        beginVoiceCapture()
+                    .onChanged { value in
+                        updateVoicePress(value)
                     }
-                    .onEnded { _ in
-                        endVoiceCapture()
+                    .onEnded { value in
+                        completeVoicePress(value)
                     }
             )
-            .accessibilityLabel("Hold to speak")
-            .accessibilityHint("Hold to record voice, then release to send")
+            .accessibilityLabel("Record voice")
+            .accessibilityHint("Tap to start recording, or hold and release to send. Slide left while holding to cancel.")
     }
 
     private var composerBar: some View {
+        ZStack {
+            standardComposerBar
+                .opacity(isVoiceCaptureActive ? 0 : 1)
+                .allowsHitTesting(!isVoiceCaptureActive || isVoicePressActive)
+
+            recordingComposerBar
+                .opacity(isVoiceCaptureActive ? 1 : 0)
+                .allowsHitTesting(isVoiceCaptureActive && !isVoicePressActive)
+        }
+        .animation(.easeInOut(duration: 0.18), value: isVoiceCaptureActive)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 8)
+    }
+
+    private var standardComposerBar: some View {
         HStack(spacing: 7) {
             Button {
                 toggleCamera()
             } label: {
                 Image(systemName: cameraOn ? "eye.fill" : "eye.slash")
-                    .font(.title3)
-                    .frame(width: 30, height: 38)
+                    .font(.system(size: 24, weight: .semibold))
+                    .frame(width: 44, height: 48)
                     .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
             }
             .buttonStyle(.plain)
@@ -181,16 +201,63 @@ struct HomeView: View {
 
             voiceButton
 
-            sendButton
-                .font(.title3)
+            textSendButton
         }
         .padding(.leading, 12)
-        .padding(.trailing, 10)
-        .padding(.vertical, 5)
+        .padding(.trailing, 8)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
         .glassEffect(.regular.interactive(), in: Capsule())
-        .padding(.horizontal, 14)
-        .padding(.bottom, 8)
+    }
+
+    private var recordingComposerBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                cancelVoiceCapture()
+            } label: {
+                Image(systemName: "trash.circle.fill")
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundStyle(canCancelVoiceCapture ? .red.opacity(0.9) : .secondary)
+                    .frame(width: 48, height: 48)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canCancelVoiceCapture)
+
+            HStack(spacing: 10) {
+                Image(systemName: recordingStatusIconName)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(isVoiceDragCancelArmed ? .red.opacity(0.95) : .amicaBlue)
+
+                Text(recordingStatusText)
+                    .font(.system(size: 16, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .foregroundStyle(isVoiceDragCancelArmed ? .red.opacity(0.95) : .white.opacity(0.92))
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 48)
+            .background {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill((isVoiceDragCancelArmed ? Color.red : Color.black).opacity(0.34))
+            }
+
+            Button {
+                sendVoiceCapture()
+            } label: {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundStyle(canSendVoiceCapture ? .amicaBlue : .secondary)
+                    .frame(width: 48, height: 48)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canSendVoiceCapture)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .glassEffect(.regular.interactive(), in: Capsule())
     }
 
     private var isBusy: Bool {
@@ -201,6 +268,10 @@ struct HomeView: View {
             voiceManager.state == .waitingForTTS
     }
 
+    private var canSendText: Bool {
+        !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isBusy
+    }
+
     private var canBeginVoiceCapture: Bool {
         !isAwaitingAssistantResponse &&
             aiResponseText.isEmpty &&
@@ -208,37 +279,126 @@ struct HomeView: View {
             messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var isVoiceCaptureActive: Bool {
+        voiceManager.state == .listening || voiceManager.state == .transcribing
+    }
+
+    private var canSendVoiceCapture: Bool {
+        voiceManager.state == .listening
+    }
+
+    private var canCancelVoiceCapture: Bool {
+        voiceManager.state == .listening
+    }
+
+    private var isVoiceDragCancelArmed: Bool {
+        isVoicePressActive && voicePressTranslation.width <= voiceCancelDragThreshold
+    }
+
     private var voiceIconName: String {
-        switch voiceManager.state {
-        case .listening:
-            "waveform.circle.fill"
-        case .transcribing:
-            "waveform.badge.magnifyingglass"
-        default:
-            "mic.circle.fill"
-        }
+        canBeginVoiceCapture ? "mic.circle.fill" : "mic.slash.circle.fill"
     }
 
     private var voiceIconColor: Color {
+        canBeginVoiceCapture ? .amicaBlue : .secondary
+    }
+
+    private var recordingStatusIconName: String {
+        if isVoiceDragCancelArmed {
+            return "xmark.circle.fill"
+        }
+
         switch voiceManager.state {
-        case .listening, .transcribing:
-            .amicaBlue
+        case .transcribing:
+            return "arrow.up.circle.fill"
         default:
-            canBeginVoiceCapture ? .amicaBlue : .secondary
+            return "waveform.circle.fill"
+        }
+    }
+
+    private var recordingStatusText: String {
+        if isVoiceDragCancelArmed {
+            return "Release to cancel"
+        }
+
+        switch voiceManager.state {
+        case .transcribing:
+            return "Sending voice..."
+        case .listening where isVoicePressActive:
+            return "Release to send • slide left to cancel"
+        case .listening where isTapVoiceRecording:
+            return "Recording... tap send when done"
+        case .listening:
+            return "Recording..."
+        default:
+            return "Voice"
+        }
+    }
+
+    private func updateVoicePress(_ value: DragGesture.Value) {
+        guard canBeginVoiceCapture || isVoicePressActive else { return }
+
+        if voicePressStartedAt == nil {
+            voicePressStartedAt = Date()
+            isVoicePressActive = true
+            voicePressTranslation = .zero
+            beginVoiceCapture()
+        } else {
+            voicePressTranslation = value.translation
+        }
+    }
+
+    private func completeVoicePress(_ value: DragGesture.Value) {
+        guard isVoicePressActive else { return }
+
+        let startedAt = voicePressStartedAt ?? Date()
+        let pressDuration = Date().timeIntervalSince(startedAt)
+        let movement = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+        let shouldCancel = value.translation.width <= voiceCancelDragThreshold
+        let shouldKeepRecording = pressDuration <= voiceTapMaximumDuration && movement <= voiceTapMaximumMovement
+
+        voicePressStartedAt = nil
+        voicePressTranslation = .zero
+        isVoicePressActive = false
+
+        if shouldCancel {
+            cancelVoiceCapture()
+        } else if shouldKeepRecording {
+            isTapVoiceRecording = true
+        } else {
+            sendVoiceCapture()
         }
     }
 
     private func beginVoiceCapture() {
         guard canBeginVoiceCapture else { return }
         messageFieldFocused = false
+        isTapVoiceRecording = false
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
         voiceManager.startCommandCapture()
     }
 
-    private func endVoiceCapture() {
+    private func sendVoiceCapture() {
         guard voiceManager.state == .listening else { return }
+        isTapVoiceRecording = false
         voiceManager.finishCommandCapture()
+    }
+
+    private func cancelVoiceCapture() {
+        guard voiceManager.state == .listening || voiceManager.state == .transcribing else { return }
+        isTapVoiceRecording = false
+        voicePressStartedAt = nil
+        voicePressTranslation = .zero
+        isVoicePressActive = false
+        voiceManager.cancelCommandCapture()
+    }
+
+    private func resetVoiceInteractionState() {
+        voicePressStartedAt = nil
+        voicePressTranslation = .zero
+        isVoicePressActive = false
+        isTapVoiceRecording = false
     }
 
     private func toggleCamera() {
