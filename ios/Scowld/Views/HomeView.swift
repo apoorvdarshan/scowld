@@ -166,6 +166,12 @@ struct HomeView: View {
                         completeVoicePress(value)
                     }
             )
+            .simultaneousGesture(
+                TapGesture()
+                    .onEnded {
+                        startTapVoiceCapture()
+                    }
+            )
             .accessibilityLabel("Record voice")
             .accessibilityHint("Tap to start recording, or hold and release to send. Slide left while holding to cancel.")
     }
@@ -377,6 +383,12 @@ struct HomeView: View {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
         voiceManager.startCommandCapture()
+    }
+
+    private func startTapVoiceCapture() {
+        guard canBeginVoiceCapture else { return }
+        beginVoiceCapture()
+        isTapVoiceRecording = true
     }
 
     private func sendVoiceCapture() {
