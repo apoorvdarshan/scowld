@@ -35,6 +35,14 @@ const socialLinks = [
   { href: links.mail, label: "Email", icon: "fa-solid fa-envelope" },
 ];
 
+const screenshots = [
+  { src: "/screenshots/aria.webp", title: "Aria", caption: "Main companion view" },
+  { src: "/screenshots/bella.webp", title: "Bella", caption: "Character switching" },
+  { src: "/screenshots/ciel.webp", title: "Ciel", caption: "Voice-first chat" },
+  { src: "/screenshots/chats.webp", title: "Chats", caption: "Past conversations" },
+  { src: "/screenshots/customization.webp", title: "Settings", caption: "Voice and character controls" },
+];
+
 export default function Home() {
   const mainRef = useRef<HTMLDivElement>(null);
 
@@ -83,7 +91,7 @@ export default function Home() {
     <div ref={mainRef} className="page">
       <header className="nav">
         <Link href="/" className="nav__logo">
-          <Image src="/logo.png" alt="" width={20} height={20} className="nav__logo-img" />
+          <Image src="/logo.png" alt="" width={30} height={30} className="nav__logo-img" />
           Scowld
         </Link>
         <nav className="nav__links">
@@ -177,6 +185,37 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      <section className="screenshots" aria-labelledby="screenshots-title">
+        <div className="screenshots__header">
+          <p className="sr sr-delay-1 screenshots__label">
+            <span className="screenshots__label-line" />
+            Screenshots
+          </p>
+          <h2 id="screenshots-title" className="sr sr-delay-2 screenshots__title">See Scowld in motion.</h2>
+          <p className="sr sr-delay-3 screenshots__subtitle">
+            Character views, saved chats, and settings built around fast voice conversation.
+          </p>
+        </div>
+
+        <div className="screenshots__rail" aria-label="Scowld app screenshots">
+          {screenshots.map((shot, i) => (
+            <figure key={shot.src} className={`sr sr-delay-${i + 3} screenshot-card`}>
+              <Image
+                src={shot.src}
+                alt={`${shot.title} screenshot`}
+                width={720}
+                height={1561}
+                className="screenshot-card__image"
+              />
+              <figcaption className="screenshot-card__caption">
+                <span className="screenshot-card__title">{shot.title}</span>
+                <span className="screenshot-card__text">{shot.caption}</span>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
 
       <section id="features" className="features">
         <div className="features__header">
