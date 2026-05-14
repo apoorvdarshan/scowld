@@ -315,7 +315,7 @@ struct HomeView: View {
         ZStack {
             standardComposerBar
                 .opacity(isVoiceCaptureActive ? 0 : 1)
-                .allowsHitTesting(!isVoiceCaptureActive || isVoicePressActive)
+                .allowsHitTesting((!isVoiceCaptureActive && !isBusy) || isVoicePressActive)
 
             recordingComposerBar
                 .opacity(isVoiceCaptureActive ? 1 : 0)
@@ -427,7 +427,11 @@ struct HomeView: View {
     }
 
     private var canSendVoiceCapture: Bool {
-        voiceManager.state == .listening && voiceManager.hasCapturedSpeech
+        voiceManager.state == .listening &&
+            voiceManager.hasCapturedSpeech &&
+            !isAwaitingAssistantResponse &&
+            !isAssistantSpeaking &&
+            aiResponseText.isEmpty
     }
 
     private var canCancelVoiceCapture: Bool {
@@ -523,7 +527,7 @@ struct HomeView: View {
     }
 
     private func sendVoiceCapture() {
-        guard voiceManager.state == .listening else { return }
+        guard canSendVoiceCapture else { return }
         isTapVoiceRecording = false
         voiceManager.finishCommandCapture()
         InteractionFeedback.send()
@@ -596,6 +600,7 @@ struct HomeView: View {
 
     private func stopAndSend() {
         guard canSendText else { return }
+        messageFieldFocused = false
         InteractionFeedback.send()
         sendMessage()
     }
@@ -1144,6 +1149,7 @@ struct AmicaFullView: UIViewRepresentable {
                 vrm_url: '/vrm/\(selectedAvatar).vrm'
             };
             window.__scowldVisionEnabled = \(visionEnabledJS);
+            window.__scowldUseNativeAudioPlayback = true;
             // Force full screen coverage
             var meta = document.createElement('meta');
             meta.name = 'viewport';
@@ -1448,6 +1454,19 @@ struct AmicaFullView: UIViewRepresentable {
                     _OrigAC.prototype.createBufferSource = function() {
                         var src = _origCreateBS.apply(this, arguments);
                         var _origStart = src.start.bind(src);
+                        var _origConnect = src.connect.bind(src);
+                        src.connect = function(destination) {
+                            try {
+                                var ctx = src.context || this.context;
+                                if (window.__scowldUseNativeAudioPlayback && ctx && destination === ctx.destination) {
+                                    var silentGain = ctx.createGain();
+                                    silentGain.gain.value = 0;
+                                    _origConnect(silentGain);
+                                    return silentGain.connect(destination);
+                                }
+                            } catch(e) {}
+                            return _origConnect.apply(src, arguments);
+                        };
                         src.start = function() {
                             window.__activeAudioCount++;
                             window.__activeScowldAudioSources.add(src);
@@ -1492,7 +1511,7 @@ struct AmicaFullView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
+    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, AVAudioPlayerDelegate {
         weak var webView: WKWebView?
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
@@ -1500,6 +1519,7 @@ struct AmicaFullView: UIViewRepresentable {
         private var settingsObserver: NSObjectProtocol?
         private var isRuntimeActive = true
         private var runtimeGeneration = 0
+        private var nativeTTSPlayer: AVAudioPlayer?
 
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
@@ -1528,6 +1548,7 @@ struct AmicaFullView: UIViewRepresentable {
         func cancelRuntimeWork() {
             runtimeGeneration += 1
             isRuntimeActive = false
+            stopNativeTTS()
             speechManager.stopSpeaking()
             stopWebAudio()
         }
@@ -1576,6 +1597,7 @@ struct AmicaFullView: UIViewRepresentable {
                     localStorage.setItem('chatvrm_elevenlabs_model', '\(elevenLabsModel)');
                     localStorage.setItem('chatvrm_rvc_enabled', 'false');
                     localStorage.setItem('chatvrm_amica_life_enabled', 'false');
+                    window.__scowldUseNativeAudioPlayback = true;
                 } catch(e) {}
                 window.__nativeConfig = {
                     chatbot_backend: 'native_ios',
@@ -1858,7 +1880,11 @@ struct AmicaFullView: UIViewRepresentable {
                                 return
                             }
                             if (result as? Bool) == true {
-                                self.notifyTTSPlaybackStarted(byteCount: data.count)
+                                if self.playNativeTTSAudio(data) {
+                                    self.notifyTTSPlaybackStarted(byteCount: data.count)
+                                } else {
+                                    self.notifyTTSFailed()
+                                }
                             } else {
                                 self.notifyTTSFailed()
                             }
@@ -1883,6 +1909,47 @@ struct AmicaFullView: UIViewRepresentable {
                     notifyTTSFailed()
                 }
             }
+        }
+
+        private func playNativeTTSAudio(_ data: Data) -> Bool {
+            stopNativeTTS()
+
+            do {
+                ScowldAudioSession.configureAmicaWebAudioPlayback()
+
+                let player = try AVAudioPlayer(data: data)
+                player.delegate = self
+                player.volume = 1
+                player.prepareToPlay()
+                nativeTTSPlayer = player
+
+                let didStart = player.play()
+                logger.info("[TTS] Native ElevenLabs playback started: \(didStart)")
+                return didStart
+            } catch {
+                logger.error("[TTS] Native ElevenLabs playback failed: \(error.localizedDescription)")
+                nativeTTSPlayer = nil
+                return false
+            }
+        }
+
+        private func stopNativeTTS() {
+            nativeTTSPlayer?.stop()
+            nativeTTSPlayer = nil
+        }
+
+        func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+            guard player === nativeTTSPlayer else { return }
+            nativeTTSPlayer = nil
+            logger.info("[TTS] Native ElevenLabs playback finished")
+            NotificationCenter.default.post(name: .ttsDone, object: nil)
+        }
+
+        func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+            guard player === nativeTTSPlayer else { return }
+            nativeTTSPlayer = nil
+            logger.error("[TTS] Native ElevenLabs playback decode error: \(error?.localizedDescription ?? "Unknown error")")
+            notifyTTSFailed()
         }
 
         private func notifyTTSPlaybackStarted(byteCount: Int) {
