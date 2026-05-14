@@ -134,6 +134,7 @@ private final class VoiceTouchControl: UIControl {
 
 struct HomeView: View {
     var memoryStore: MemoryStore
+    var isActive = true
     @State private var messageText = ""
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
     @State private var cameraOn = true
@@ -158,6 +159,7 @@ struct HomeView: View {
             ZStack(alignment: .bottom) {
                 AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
                     amicaCoordinator = coord
+                    coord.setRuntimeActive(isActive)
                 })
                 .ignoresSafeArea()
 
@@ -194,9 +196,17 @@ struct HomeView: View {
             }
 
             setupVoice()
+            amicaCoordinator?.setRuntimeActive(isActive)
         }
         .onDisappear {
-            cancelVoiceCapture(playFeedback: false)
+            stopActiveConversation()
+        }
+        .onChange(of: isActive) {
+            if isActive {
+                amicaCoordinator?.setRuntimeActive(true)
+            } else {
+                stopActiveConversation()
+            }
         }
         .onChange(of: voiceManager.readyCommand) {
             if let text = voiceManager.readyCommand {
@@ -225,9 +235,11 @@ struct HomeView: View {
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
-                break
+                if isActive {
+                    amicaCoordinator?.setRuntimeActive(true)
+                }
             case .inactive, .background:
-                cancelVoiceCapture(playFeedback: false)
+                stopActiveConversation()
             @unknown default:
                 break
             }
@@ -592,9 +604,22 @@ struct HomeView: View {
         voiceManager.cancelCommandCapture()
     }
 
+    private func stopActiveConversation() {
+        messageFieldFocused = false
+        resetVoiceInteractionState()
+        voiceManager.cancelCommandCapture()
+        isAwaitingAssistantResponse = false
+        aiResponseText = ""
+        stopTTS()
+        amicaCoordinator?.cancelRuntimeWork()
+    }
+
     private func stopTTS() {
         amicaCoordinator?.webView?.evaluateJavaScript("""
             (function() {
+                if (window.__stopScowldAudio) {
+                    window.__stopScowldAudio();
+                }
                 // Stop all AudioContext sources
                 if (window._allAudioContexts) {
                     window._allAudioContexts.forEach(function(ctx) {
@@ -1258,6 +1283,7 @@ struct AmicaFullView: UIViewRepresentable {
 
                 // Track active audio sources to detect when TTS finishes
                 window.__activeAudioCount = 0;
+                window.__activeScowldAudioSources = window.__activeScowldAudioSources || new Set();
                 var _ttsDoneTimer = null;
                 function notifyTTSDone() {
                     window.__activeAudioCount--;
@@ -1274,13 +1300,39 @@ struct AmicaFullView: UIViewRepresentable {
                         }, 250);
                     }
                 }
+                window.__stopScowldAudio = function() {
+                    if (_ttsDoneTimer) clearTimeout(_ttsDoneTimer);
+                    _ttsDoneTimer = null;
+                    window.__activeAudioCount = 0;
+                    try {
+                        document.querySelectorAll('audio').forEach(function(a) {
+                            try { a.pause(); } catch(e) {}
+                            try { a.currentTime = 0; } catch(e) {}
+                        });
+                    } catch(e) {}
+                    try {
+                        (window.__activeScowldAudioSources || new Set()).forEach(function(src) {
+                            try { src.stop(0); } catch(e) {}
+                            try { src.disconnect(); } catch(e) {}
+                        });
+                        window.__activeScowldAudioSources.clear();
+                    } catch(e) {}
+                    try {
+                        if (window.speechSynthesis) window.speechSynthesis.cancel();
+                    } catch(e) {}
+                };
                 // Hook Audio elements
                 var _origAudioPlay = HTMLAudioElement.prototype.play;
                 HTMLAudioElement.prototype.play = function() {
                     var self = this;
                     window.__activeAudioCount++;
-                    self.addEventListener('ended', notifyTTSDone, {once: true});
-                    self.addEventListener('error', notifyTTSDone, {once: true});
+                    window.__activeScowldAudioSources.add(self);
+                    function cleanupAudioElement() {
+                        window.__activeScowldAudioSources.delete(self);
+                        notifyTTSDone();
+                    }
+                    self.addEventListener('ended', cleanupAudioElement, {once: true});
+                    self.addEventListener('error', cleanupAudioElement, {once: true});
                     return _origAudioPlay.apply(self, arguments);
                 };
                 // Hook AudioContext.decodeAudioData + createBufferSource
@@ -1291,7 +1343,11 @@ struct AmicaFullView: UIViewRepresentable {
                         var _origStart = src.start.bind(src);
                         src.start = function() {
                             window.__activeAudioCount++;
-                            src.addEventListener('ended', notifyTTSDone, {once: true});
+                            window.__activeScowldAudioSources.add(src);
+                            src.addEventListener('ended', function() {
+                                window.__activeScowldAudioSources.delete(src);
+                                notifyTTSDone();
+                            }, {once: true});
                             return _origStart.apply(null, arguments);
                         };
                         return src;
@@ -1335,6 +1391,8 @@ struct AmicaFullView: UIViewRepresentable {
         let speechManager = SpeechManager()
 
         private var settingsObserver: NSObjectProtocol?
+        private var isRuntimeActive = true
+        private var runtimeGeneration = 0
 
         init(memoryStore: MemoryStore) {
             self.memoryStore = memoryStore
@@ -1350,6 +1408,44 @@ struct AmicaFullView: UIViewRepresentable {
             if let observer = settingsObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
+        }
+
+        func setRuntimeActive(_ active: Bool) {
+            if active {
+                isRuntimeActive = true
+            } else {
+                cancelRuntimeWork()
+            }
+        }
+
+        func cancelRuntimeWork() {
+            runtimeGeneration += 1
+            isRuntimeActive = false
+            speechManager.stopSpeaking()
+            stopWebAudio()
+        }
+
+        private func canDeliver(_ generation: Int) -> Bool {
+            isRuntimeActive && generation == runtimeGeneration
+        }
+
+        private func stopWebAudio() {
+            webView?.evaluateJavaScript("""
+                (function() {
+                    if (window.__stopScowldAudio) {
+                        window.__stopScowldAudio();
+                    }
+                    try {
+                        document.querySelectorAll('audio').forEach(function(a) {
+                            try { a.pause(); } catch(e) {}
+                            try { a.currentTime = 0; } catch(e) {}
+                        });
+                    } catch(e) {}
+                    try {
+                        if (window.speechSynthesis) window.speechSynthesis.cancel();
+                    } catch(e) {}
+                })();
+            """)
         }
 
         private func pushUpdatedConfig() {
@@ -1489,18 +1585,23 @@ struct AmicaFullView: UIViewRepresentable {
             case "chat":
                 guard let callbackId = json["callbackId"] as? String,
                       let messages = json["messages"] as? [[String: String]] else { return }
+                guard isRuntimeActive else { return }
                 let imageData = json["imageData"] as? String
-                Task { await handleChatRequest(callbackId: callbackId, messages: messages, imageData: imageData) }
+                let generation = runtimeGeneration
+                Task { await handleChatRequest(callbackId: callbackId, messages: messages, imageData: imageData, generation: generation) }
             case "tts_elevenlabs":
                 guard let callbackId = json["callbackId"] as? String,
                       let voiceId = json["voiceId"] as? String,
                       let bodyStr = json["body"] as? String else { return }
-                Task { await handleElevenLabsTTS(callbackId: callbackId, voiceId: voiceId, body: bodyStr) }
+                guard isRuntimeActive else { return }
+                let generation = runtimeGeneration
+                Task { await handleElevenLabsTTS(callbackId: callbackId, voiceId: voiceId, body: bodyStr, generation: generation) }
             case "speak":
-                if let text = json["text"] as? String {
+                if isRuntimeActive, let text = json["text"] as? String {
                     speechManager.speak(text)
                 }
             case "tts_done":
+                guard isRuntimeActive else { return }
                 logger.info("[Amica] TTS playback finished")
                 NotificationCenter.default.post(name: .ttsDone, object: nil)
             case "app_ready":
@@ -1518,7 +1619,8 @@ struct AmicaFullView: UIViewRepresentable {
 
         // MARK: Native AI
 
-        private func handleChatRequest(callbackId: String, messages: [[String: String]], imageData: String? = nil) async {
+        private func handleChatRequest(callbackId: String, messages: [[String: String]], imageData: String? = nil, generation: Int) async {
+            guard canDeliver(generation) else { return }
             let provider = buildCurrentProvider()
 
             let chatMessages = messages.compactMap { dict -> ChatMessage? in
@@ -1553,6 +1655,7 @@ struct AmicaFullView: UIViewRepresentable {
                 let lastUserMessage = chatMessages.last(where: { $0.role == .user })?.content ?? ""
 
                 await MainActor.run {
+                    guard self.canDeliver(generation) else { return }
                     deliverResponse(callbackId: callbackId, response: finalResponse)
                     memoryStore.saveExchange(
                         userMessage: lastUserMessage,
@@ -1561,6 +1664,7 @@ struct AmicaFullView: UIViewRepresentable {
                 }
             } catch {
                 await MainActor.run {
+                    guard self.canDeliver(generation) else { return }
                     deliverError(callbackId: callbackId, error: error.localizedDescription)
                 }
             }
@@ -1568,7 +1672,8 @@ struct AmicaFullView: UIViewRepresentable {
 
         // MARK: - Native ElevenLabs TTS
 
-        private func handleElevenLabsTTS(callbackId: String, voiceId: String, body: String) async {
+        private func handleElevenLabsTTS(callbackId: String, voiceId: String, body: String, generation: Int) async {
+            guard canDeliver(generation) else { return }
             var request = URLRequest(url: HostedServiceConfig.elevenLabsTTSURL)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1593,12 +1698,14 @@ struct AmicaFullView: UIViewRepresentable {
                     let base64 = data.base64EncodedString()
                     logger.info("[TTS] Hosted ElevenLabs success: \(data.count) bytes")
                     await MainActor.run {
+                        guard self.canDeliver(generation) else { return }
                         webView?.evaluateJavaScript("window['__ttsCallback_\(callbackId)'] && window['__ttsCallback_\(callbackId)']('\(base64)')")
                     }
                 } else {
                     let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
                     logger.error("[TTS] Hosted ElevenLabs error \(httpResponse.statusCode): \(errorBody)")
                     await MainActor.run {
+                        guard self.canDeliver(generation) else { return }
                         let detail = errorBody.replacingOccurrences(of: "'", with: "").replacingOccurrences(of: "\n", with: " ").prefix(200)
                         webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('ElevenLabs \(httpResponse.statusCode): \(detail)')")
                     }
@@ -1606,6 +1713,7 @@ struct AmicaFullView: UIViewRepresentable {
             } catch {
                 logger.error("[TTS] Hosted ElevenLabs network error: \(error.localizedDescription)")
                 await MainActor.run {
+                    guard self.canDeliver(generation) else { return }
                     let escaped = error.localizedDescription.replacingOccurrences(of: "'", with: "\\'")
                     webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
                 }

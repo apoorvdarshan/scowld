@@ -25,7 +25,7 @@ struct ScowldRootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(memoryStore: memoryStore)
+            HomeView(memoryStore: memoryStore, isActive: selectedTab == .chat)
                 .tabItem {
                     Label("Chat", systemImage: "message.fill")
                 }
