@@ -1337,66 +1337,84 @@ struct AmicaFullView: UIViewRepresentable {
         )
         contentController.addUserScript(cameraScript)
 
-        // Resume AudioContext for TTS audio playback
+        // Keep Amica's WebAudio graph alive for TTS audio playback and lip sync.
         let audioResumeScript = WKUserScript(
             source: """
             (function() {
-                // Resume all AudioContexts periodically and on interaction
+                if (window.__scowldAudioPatchInstalled) {
+                    return;
+                }
+                window.__scowldAudioPatchInstalled = true;
+
+                var OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+                window.__allScowldAudioContexts = window.__allScowldAudioContexts || [];
+                window.__activeAudioCount = 0;
+                window.__activeScowldAudioSources = window.__activeScowldAudioSources || new Set();
+                var _ttsDoneTimer = null;
+
+                function rememberContext(ctx) {
+                    if (!ctx) {
+                        return;
+                    }
+                    if (window.__allScowldAudioContexts.indexOf(ctx) === -1) {
+                        window.__allScowldAudioContexts.push(ctx);
+                    }
+                }
+
+                function resumeContext(ctx) {
+                    try {
+                        if (!ctx || ctx.state === 'closed') {
+                            return;
+                        }
+                        rememberContext(ctx);
+                        if (ctx.state !== 'running' && typeof ctx.resume === 'function') {
+                            ctx.resume().then(function() {
+                                console.log('[Audio] Resumed AudioContext, state: ' + ctx.state);
+                            }).catch(function(e) {
+                                console.warn('[Audio] AudioContext resume failed: ' + e);
+                            });
+                        }
+                    } catch(e) {
+                        console.warn('[Audio] resumeContext failed: ' + e);
+                    }
+                }
+
                 function resumeAll() {
                     try {
-                        var ctxs = [window._audioContext, window.audioContext];
-                        // Find AudioContexts in Amica's React state
-                        document.querySelectorAll('*').forEach(function() {});
-                        if (typeof AudioContext !== 'undefined' && !window.__scowldAudioContextResumeWrapped) {
-                            var origAC = AudioContext;
-                            window._allAudioContexts = window._allAudioContexts || [];
-                            window.AudioContext = function(opts) {
-                                var ctx = new origAC(opts);
-                                window._allAudioContexts.push(ctx);
-                                return ctx;
-                            };
-                            window.AudioContext.prototype = origAC.prototype;
-                            window.__scowldAudioContextResumeWrapped = true;
-                        }
-                        (window._allAudioContexts || []).forEach(function(ctx) {
-                            if (ctx && ctx.state === 'suspended') {
-                                ctx.resume().then(function() {
-                                    console.log('[Audio] Resumed AudioContext, state: ' + ctx.state);
-                                });
-                            }
-                        });
-                    } catch(e) {}
+                        rememberContext(window._audioContext);
+                        rememberContext(window.audioContext);
+                        (window.__allScowldAudioContexts || []).forEach(resumeContext);
+                    } catch(e) {
+                        console.warn('[Audio] resumeAll failed: ' + e);
+                    }
                 }
                 window.__resumeScowldAudioContexts = resumeAll;
-                // Track all created AudioContexts
-                var _OrigAC = window.AudioContext || window.webkitAudioContext;
-                window._allAudioContexts = [];
-                window.AudioContext = function(opts) {
-                    var ctx = new _OrigAC(opts);
-                    window._allAudioContexts.push(ctx);
-                    console.log('[Audio] New AudioContext created, state: ' + ctx.state);
-                    return ctx;
-                };
-                if (_OrigAC) {
-                    Object.keys(_OrigAC).forEach(function(k) { window.AudioContext[k] = _OrigAC[k]; });
-                    window.AudioContext.prototype = _OrigAC.prototype;
+
+                if (OriginalAudioContext) {
+                    var WrappedAudioContext = function(opts) {
+                        var ctx = new OriginalAudioContext(opts);
+                        rememberContext(ctx);
+                        console.log('[Audio] New AudioContext created, state: ' + ctx.state);
+                        return ctx;
+                    };
+                    Object.getOwnPropertyNames(OriginalAudioContext).forEach(function(k) {
+                        try {
+                            if (k !== 'prototype') {
+                                WrappedAudioContext[k] = OriginalAudioContext[k];
+                            }
+                        } catch(e) {}
+                    });
+                    WrappedAudioContext.prototype = OriginalAudioContext.prototype;
+                    window.AudioContext = WrappedAudioContext;
+                    window.webkitAudioContext = WrappedAudioContext;
                 }
-                window.webkitAudioContext = window.AudioContext;
 
                 document.addEventListener('touchstart', resumeAll, {once: false});
                 document.addEventListener('click', resumeAll, {once: false});
                 setInterval(function() {
-                    (window._allAudioContexts || []).forEach(function(ctx) {
-                        if (ctx && ctx.state === 'suspended') {
-                            ctx.resume();
-                        }
-                    });
+                    (window.__allScowldAudioContexts || []).forEach(resumeContext);
                 }, 1000);
 
-                // Track active audio sources to detect when TTS finishes
-                window.__activeAudioCount = 0;
-                window.__activeScowldAudioSources = window.__activeScowldAudioSources || new Set();
-                var _ttsDoneTimer = null;
                 function notifyTTSDone() {
                     window.__activeAudioCount--;
                     if (window.__activeAudioCount <= 0) {
@@ -1433,38 +1451,44 @@ struct AmicaFullView: UIViewRepresentable {
                         if (window.speechSynthesis) window.speechSynthesis.cancel();
                     } catch(e) {}
                 };
-                // Hook Audio elements
-                var _origAudioPlay = HTMLAudioElement.prototype.play;
-                HTMLAudioElement.prototype.play = function() {
-                    var self = this;
-                    window.__activeAudioCount++;
-                    window.__activeScowldAudioSources.add(self);
-                    function cleanupAudioElement() {
-                        window.__activeScowldAudioSources.delete(self);
-                        notifyTTSDone();
-                    }
-                    self.addEventListener('ended', cleanupAudioElement, {once: true});
-                    self.addEventListener('error', cleanupAudioElement, {once: true});
-                    return _origAudioPlay.apply(self, arguments);
-                };
-                // Hook AudioContext.decodeAudioData + createBufferSource
-                if (_OrigAC) {
-                    var _origCreateBS = _OrigAC.prototype.createBufferSource;
-                    _OrigAC.prototype.createBufferSource = function() {
+
+                if (window.HTMLAudioElement && HTMLAudioElement.prototype && HTMLAudioElement.prototype.play) {
+                    var _origAudioPlay = HTMLAudioElement.prototype.play;
+                    HTMLAudioElement.prototype.play = function() {
+                        var self = this;
+                        window.__activeAudioCount++;
+                        window.__activeScowldAudioSources.add(self);
+                        function cleanupAudioElement() {
+                            window.__activeScowldAudioSources.delete(self);
+                            notifyTTSDone();
+                        }
+                        self.addEventListener('ended', cleanupAudioElement, {once: true});
+                        self.addEventListener('error', cleanupAudioElement, {once: true});
+                        return _origAudioPlay.apply(self, arguments);
+                    };
+                }
+
+                if (OriginalAudioContext && OriginalAudioContext.prototype && OriginalAudioContext.prototype.createBufferSource) {
+                    var _origCreateBS = OriginalAudioContext.prototype.createBufferSource;
+                    OriginalAudioContext.prototype.createBufferSource = function() {
+                        rememberContext(this);
                         var src = _origCreateBS.apply(this, arguments);
                         var _origStart = src.start.bind(src);
                         src.start = function() {
+                            resumeContext(src.context);
                             window.__activeAudioCount++;
                             window.__activeScowldAudioSources.add(src);
                             src.addEventListener('ended', function() {
                                 window.__activeScowldAudioSources.delete(src);
                                 notifyTTSDone();
                             }, {once: true});
-                            return _origStart.apply(null, arguments);
+                            return _origStart.apply(src, arguments);
                         };
                         return src;
                     };
                 }
+
+                setTimeout(resumeAll, 0);
             })();
             """,
             injectionTime: .atDocumentStart,
@@ -1848,6 +1872,7 @@ struct AmicaFullView: UIViewRepresentable {
                                 if (window.__resumeScowldAudioContexts) {
                                     setTimeout(window.__resumeScowldAudioContexts, 0);
                                     setTimeout(window.__resumeScowldAudioContexts, 120);
+                                    setTimeout(window.__resumeScowldAudioContexts, 400);
                                 }
                                 console.log('[ScowldTTS] Delivered ElevenLabs audio \(data.count) bytes');
                                 return true;
