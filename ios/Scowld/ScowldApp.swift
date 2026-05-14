@@ -479,7 +479,7 @@ private enum AboutRowTrailing {
     case none
 }
 
-private enum AppUpdateState: Equatable {
+enum AppUpdateState: Equatable {
     case idle
     case checking
     case upToDate
