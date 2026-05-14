@@ -4,6 +4,9 @@ import Foundation
 
 enum HostedServiceConfig {
     static let baseURLString = "https://scowld.xyz"
+    static let serviceLanguageDefaultsKey = "scowld_service_language"
+    static let autoLanguageID = "__auto_language__"
+    static let deviceLanguageID = "__device_language__"
 
     static let defaultGeminiModel = "gemini-3.1-pro-preview"
     static let geminiFallbackModels = [
@@ -29,9 +32,15 @@ enum HostedServiceConfig {
 
     static func deepgramSTTURL(model: String) -> URL {
         var components = URLComponents(string: "\(baseURLString)/api/stt/deepgram")!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "model", value: model.isEmpty ? defaultDeepgramModel : model)
         ]
+        if let languageCode = selectedServiceLanguageCode() {
+            queryItems.append(URLQueryItem(name: "language", value: languageCode))
+        } else {
+            queryItems.append(URLQueryItem(name: "detect_language", value: "true"))
+        }
+        components.queryItems = queryItems
         return components.url!
     }
 
@@ -55,6 +64,78 @@ enum HostedServiceConfig {
         let value = UserDefaults.standard.string(forKey: "amica_elevenlabs_voiceid")?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return value.isEmpty ? defaultElevenLabsVoiceID : value
+    }
+
+    static func selectedServiceLanguageID() -> String {
+        let saved = UserDefaults.standard.string(forKey: serviceLanguageDefaultsKey) ?? autoLanguageID
+        if saved == autoLanguageID || saved == deviceLanguageID {
+            return saved
+        }
+        return ScowldLanguageLibrary.option(for: saved) == nil ? autoLanguageID : saved
+    }
+
+    static func selectedServiceLanguageCode() -> String? {
+        serviceLanguageCode(for: selectedServiceLanguageID())
+    }
+
+    static func serviceLanguageCode(for selectionID: String) -> String? {
+        switch selectionID {
+        case autoLanguageID:
+            return nil
+        case deviceLanguageID:
+            return currentDeviceLanguageCode()
+        default:
+            return ScowldLanguageLibrary.option(for: selectionID)?.code
+        }
+    }
+
+    static func currentDeviceLanguageCode() -> String? {
+        guard let preferred = Locale.preferredLanguages.first else { return nil }
+        let code = preferred
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first
+            .map { String($0).lowercased() } ?? ""
+        return ScowldLanguageLibrary.option(for: code) == nil ? nil : code
+    }
+
+    static func currentDeviceLanguageName() -> String {
+        guard let preferred = Locale.preferredLanguages.first else { return "Unknown" }
+        return Locale.current.localizedString(forIdentifier: preferred) ?? preferred
+    }
+}
+
+struct ScowldLanguageOption: Identifiable, Hashable {
+    var id: String { code }
+    let name: String
+    let code: String
+}
+
+enum ScowldLanguageLibrary {
+    static let options: [ScowldLanguageOption] = [
+        ScowldLanguageOption(name: "Arabic", code: "ar"),
+        ScowldLanguageOption(name: "Chinese", code: "zh"),
+        ScowldLanguageOption(name: "Dutch", code: "nl"),
+        ScowldLanguageOption(name: "English", code: "en"),
+        ScowldLanguageOption(name: "French", code: "fr"),
+        ScowldLanguageOption(name: "German", code: "de"),
+        ScowldLanguageOption(name: "Hindi", code: "hi"),
+        ScowldLanguageOption(name: "Indonesian", code: "id"),
+        ScowldLanguageOption(name: "Italian", code: "it"),
+        ScowldLanguageOption(name: "Japanese", code: "ja"),
+        ScowldLanguageOption(name: "Korean", code: "ko"),
+        ScowldLanguageOption(name: "Polish", code: "pl"),
+        ScowldLanguageOption(name: "Portuguese", code: "pt"),
+        ScowldLanguageOption(name: "Russian", code: "ru"),
+        ScowldLanguageOption(name: "Spanish", code: "es"),
+        ScowldLanguageOption(name: "Swedish", code: "sv"),
+        ScowldLanguageOption(name: "Thai", code: "th"),
+        ScowldLanguageOption(name: "Turkish", code: "tr"),
+        ScowldLanguageOption(name: "Ukrainian", code: "uk"),
+        ScowldLanguageOption(name: "Vietnamese", code: "vi"),
+    ]
+
+    static func option(for code: String) -> ScowldLanguageOption? {
+        options.first { $0.code == code }
     }
 }
 

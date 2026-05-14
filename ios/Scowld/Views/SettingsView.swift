@@ -5,14 +5,16 @@ import AVFoundation
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var hasChanges = false
     @State private var selectedVoicePickerID = HostedServiceConfig.defaultElevenLabsVoiceID
     @State private var customVoiceID = ""
     @State private var previewPlayer: AVAudioPlayer?
     @State private var previewError: String?
+    @State private var selectedLanguageID = HostedServiceConfig.autoLanguageID
     @State private var showAICaption = false
+    @State private var isLoadingSettings = false
 
     // MARK: - Character Settings
+    @State private var hasCharacterChanges = false
     @State private var characterName: String = "Stella"
     @State private var selectedAvatar: String = "AvatarSample_A"
     @State private var systemPrompt: String = ""
@@ -41,15 +43,21 @@ struct SettingsView: View {
                         }
                         Text("Custom Voice ID").tag(ScowldVoiceLibrary.customID)
                     }
-                    .onChange(of: selectedVoicePickerID) { hasChanges = true }
-                    .onChange(of: selectedVoicePickerID) { resetPreviewState() }
+                    .onChange(of: selectedVoicePickerID) {
+                        guard !isLoadingSettings else { return }
+                        saveSelectedVoice()
+                        resetPreviewState()
+                    }
 
                     if selectedVoicePickerID == ScowldVoiceLibrary.customID {
                         TextField("ElevenLabs Voice ID", text: $customVoiceID)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
-                            .onChange(of: customVoiceID) { hasChanges = true }
-                            .onChange(of: customVoiceID) { resetPreviewState() }
+                            .onChange(of: customVoiceID) {
+                                guard !isLoadingSettings else { return }
+                                saveSelectedVoice()
+                                resetPreviewState()
+                            }
 
                         Link(destination: URL(string: "https://elevenlabs.io/app/voice-library")!) {
                             Label("Where to get a custom voice ID", systemImage: "info.circle")
@@ -90,8 +98,36 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Picker("Language", selection: $selectedLanguageID) {
+                        Text("Auto").tag(HostedServiceConfig.autoLanguageID)
+                        Text("iPhone Language (\(HostedServiceConfig.currentDeviceLanguageName()))")
+                            .tag(HostedServiceConfig.deviceLanguageID)
+                        ForEach(ScowldLanguageLibrary.options) { language in
+                            Text(language.name).tag(language.code)
+                        }
+                    }
+                    .onChange(of: selectedLanguageID) {
+                        guard !isLoadingSettings else { return }
+                        saveLanguageSettings()
+                    }
+
+                    if let selectedLanguageDescription {
+                        Text(selectedLanguageDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Label("Language", systemImage: "globe")
+                } footer: {
+                    Text("One setting is used for both Deepgram speech recognition and ElevenLabs speech.")
+                }
+
+                Section {
                     Toggle("Show AI captions", isOn: $showAICaption)
-                        .onChange(of: showAICaption) { hasChanges = true }
+                        .onChange(of: showAICaption) {
+                            guard !isLoadingSettings else { return }
+                            saveDisplaySettings()
+                        }
                 } header: {
                     Label("Display", systemImage: "captions.bubble")
                 } footer: {
@@ -104,11 +140,11 @@ struct SettingsView: View {
                             Text(pack.name).tag(pack.fileName)
                         }
                     }
-                    .onChange(of: selectedAvatar) { hasChanges = true }
+                    .onChange(of: selectedAvatar) { markCharacterChanged() }
 
                     TextField("Custom Name (optional)", text: $characterName)
                         .autocorrectionDisabled()
-                        .onChange(of: characterName) { hasChanges = true }
+                        .onChange(of: characterName) { markCharacterChanged() }
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("System Prompt")
@@ -118,12 +154,20 @@ struct SettingsView: View {
                             .frame(minHeight: 100)
                             .font(.body)
                             .scrollContentBackground(.hidden)
-                            .onChange(of: systemPrompt) { hasChanges = true }
+                            .onChange(of: systemPrompt) { markCharacterChanged() }
                     }
+
+                    Button {
+                        saveCharacterSettings()
+                    } label: {
+                        Label("Save Character", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(hasCharacterChanges ? .amicaBlue : .secondary)
+                    }
+                    .disabled(!hasCharacterChanges)
                 } header: {
                     Label("Character", systemImage: "person.fill")
                 } footer: {
-                    Text("Each avatar uses its own name by default. Set a custom name to override it.")
+                    Text("Use Save Character after changing the avatar, custom name, or system prompt.")
                 }
             }
             .navigationTitle("Settings")
@@ -135,19 +179,6 @@ struct SettingsView: View {
                             dismiss()
                         }
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        saveSettings()
-                        if showsDismissControls {
-                            dismiss()
-                        }
-                    } label: {
-                        Text("Save")
-                            .fontWeight(.semibold)
-                            .foregroundStyle(hasChanges ? .amicaBlue : .secondary)
-                    }
-                    .disabled(!hasChanges)
                 }
             }
         }
@@ -179,38 +210,78 @@ struct SettingsView: View {
         BundledElevenLabsVoicePreviews.hasPreview(forVoiceID: selectedPreviewVoiceID)
     }
 
+    private var selectedLanguageDescription: String? {
+        switch selectedLanguageID {
+        case HostedServiceConfig.autoLanguageID:
+            return "Auto detects speech language and lets text-to-speech infer the language from the response."
+        case HostedServiceConfig.deviceLanguageID:
+            if let code = HostedServiceConfig.currentDeviceLanguageCode(),
+               let language = ScowldLanguageLibrary.option(for: code) {
+                return "Uses this iPhone's current language when supported: \(language.name)."
+            }
+            return "This iPhone language is not in the supported shortcut list, so providers will use auto."
+        default:
+            return ScowldLanguageLibrary.option(for: selectedLanguageID).map {
+                "Forces STT and TTS toward \($0.name)."
+            }
+        }
+    }
+
     // MARK: - Settings Persistence
 
     private func loadSettings() {
+        isLoadingSettings = true
         HostedServiceConfig.applyManagedDefaults()
 
         let defaults = UserDefaults.standard
         let voiceID = HostedServiceConfig.selectedElevenLabsVoiceID()
         selectedVoicePickerID = ScowldVoiceLibrary.pickerID(for: voiceID)
         customVoiceID = selectedVoicePickerID == ScowldVoiceLibrary.customID ? voiceID : ""
+        selectedLanguageID = HostedServiceConfig.selectedServiceLanguageID()
         characterName = defaults.string(forKey: "character_name") ?? ""
         selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         showAICaption = defaults.bool(forKey: "show_ai_caption")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            hasChanges = false
+            isLoadingSettings = false
+            hasCharacterChanges = false
         }
     }
 
-    private func saveSettings() {
+    private func saveSelectedVoice() {
         let defaults = UserDefaults.standard
         HostedServiceConfig.applyManagedDefaults()
         defaults.set(
             ScowldVoiceLibrary.voiceID(for: selectedVoicePickerID, customVoiceID: customVoiceID),
             forKey: "amica_elevenlabs_voiceid"
         )
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+    }
+
+    private func saveLanguageSettings() {
+        UserDefaults.standard.set(selectedLanguageID, forKey: HostedServiceConfig.serviceLanguageDefaultsKey)
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+    }
+
+    private func saveDisplaySettings() {
+        UserDefaults.standard.set(showAICaption, forKey: "show_ai_caption")
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+    }
+
+    private func markCharacterChanged() {
+        guard !isLoadingSettings else { return }
+        hasCharacterChanges = true
+    }
+
+    private func saveCharacterSettings() {
+        let defaults = UserDefaults.standard
+        HostedServiceConfig.applyManagedDefaults()
         defaults.set(characterName, forKey: "character_name")
         defaults.set(selectedAvatar, forKey: "selected_avatar")
         defaults.set(systemPrompt, forKey: "system_prompt")
-        defaults.set(showAICaption, forKey: "show_ai_caption")
 
-        hasChanges = false
+        hasCharacterChanges = false
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 

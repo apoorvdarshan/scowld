@@ -17,9 +17,16 @@ export async function POST(request: NextRequest) {
   }
 
   const model = request.nextUrl.searchParams.get("model") || process.env.DEEPGRAM_MODEL || DEFAULT_MODEL;
+  const language = sanitizeLanguage(request.nextUrl.searchParams.get("language") || "");
+  const shouldDetectLanguage = request.nextUrl.searchParams.get("detect_language") === "true";
   const url = new URL("https://api.deepgram.com/v1/listen");
   url.searchParams.set("model", model);
   url.searchParams.set("smart_format", "true");
+  if (language) {
+    url.searchParams.set("language", language);
+  } else if (shouldDetectLanguage) {
+    url.searchParams.set("detect_language", "true");
+  }
 
   const upstream = await fetch(url, {
     method: "POST",
@@ -40,7 +47,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const json = JSON.parse(raw);
-    return NextResponse.json({ text: extractTranscript(json), model });
+    return NextResponse.json({ text: extractTranscript(json), model, language: language || "auto" });
   } catch {
     return NextResponse.json({ error: "Invalid Deepgram response" }, { status: 502 });
   }
@@ -60,4 +67,9 @@ function providerError(raw: string) {
   } catch {
     return raw;
   }
+}
+
+function sanitizeLanguage(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return /^[a-z]{2,3}$/.test(normalized) ? normalized : "";
 }

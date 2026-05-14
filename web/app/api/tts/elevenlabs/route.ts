@@ -8,6 +8,8 @@ type ElevenLabsPayload = {
   body?: string | Record<string, unknown>;
   text?: string;
   model?: string;
+  languageCode?: string;
+  language_code?: string;
 };
 
 const DEFAULT_VOICE_ID = "mHX7OoPk2G45VMAuinIt";
@@ -83,6 +85,10 @@ function buildProviderBody(payload: ElevenLabsPayload, model: string) {
   }
 
   body.model_id = model;
+  const languageCode = sanitizeLanguageCode(payload.languageCode || payload.language_code || "");
+  if (languageCode) {
+    body.language_code = languageCode;
+  }
   if (!body.voice_settings) {
     body.voice_settings = {
       stability: 0.55,
@@ -97,6 +103,11 @@ function buildProviderBody(payload: ElevenLabsPayload, model: string) {
 
 function sanitizeVoiceId(voiceId: string) {
   return /^[A-Za-z0-9_-]+$/.test(voiceId) ? voiceId : DEFAULT_VOICE_ID;
+}
+
+function sanitizeLanguageCode(languageCode: string) {
+  const normalized = languageCode.trim().toLowerCase();
+  return /^[a-z]{2,3}$/.test(normalized) ? normalized : "";
 }
 
 function providerError(raw: string) {

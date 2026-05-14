@@ -559,11 +559,15 @@ class AmicaLocalServer {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-        urlRequest.httpBody = try? JSONSerialization.data(withJSONObject: [
+        var payload: [String: Any] = [
             "voiceId": voiceID,
             "body": String(data: body ?? Data(), encoding: .utf8) ?? "{}",
             "model": HostedServiceConfig.defaultElevenLabsModel,
-        ])
+        ]
+        if let languageCode = HostedServiceConfig.selectedServiceLanguageCode() {
+            payload["languageCode"] = languageCode
+        }
+        urlRequest.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
         logger.info("[Proxy] Hosted ElevenLabs \(method) \(fullPath) bodyLen=\(body?.count ?? 0)")
 
@@ -1271,11 +1275,15 @@ struct AmicaFullView: UIViewRepresentable {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-            request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            var payload: [String: Any] = [
                 "voiceId": voiceId.isEmpty ? HostedServiceConfig.selectedElevenLabsVoiceID() : voiceId,
                 "body": body,
                 "model": HostedServiceConfig.defaultElevenLabsModel,
-            ])
+            ]
+            if let languageCode = HostedServiceConfig.selectedServiceLanguageCode() {
+                payload["languageCode"] = languageCode
+            }
+            request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
             logger.info("[TTS] Hosted ElevenLabs request: voice=\(voiceId) bodyLen=\(body.count)")
 

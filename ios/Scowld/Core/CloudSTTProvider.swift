@@ -177,10 +177,16 @@ enum CloudSTTManager {
 
     private static func transcribeDeepgram(audioData: Data, apiKey: String, model: String) async throws -> String {
         var components = URLComponents(string: "https://api.deepgram.com/v1/listen")!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "model", value: model),
             URLQueryItem(name: "smart_format", value: "true"),
         ]
+        if let languageCode = HostedServiceConfig.selectedServiceLanguageCode() {
+            queryItems.append(URLQueryItem(name: "language", value: languageCode))
+        } else {
+            queryItems.append(URLQueryItem(name: "detect_language", value: "true"))
+        }
+        components.queryItems = queryItems
         let url = components.url!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
