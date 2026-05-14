@@ -2,9 +2,42 @@ import SwiftUI
 import WebKit
 import UIKit
 import AVFoundation
+import AudioToolbox
 import os
 
 private let logger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "Amica")
+
+private enum InteractionFeedback {
+    static func tap() {
+        AudioServicesPlaySystemSound(SystemSoundID(1104))
+        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.55)
+    }
+
+    static func recordStart() {
+        AudioServicesPlaySystemSound(SystemSoundID(1113))
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.75)
+    }
+
+    static func send() {
+        AudioServicesPlaySystemSound(SystemSoundID(1105))
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    static func cancel() {
+        AudioServicesPlaySystemSound(SystemSoundID(1053))
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+
+    static func slideCancelArmed() {
+        AudioServicesPlaySystemSound(SystemSoundID(1103))
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.8)
+    }
+
+    static func camera(isOn: Bool) {
+        AudioServicesPlaySystemSound(SystemSoundID(isOn ? 1104 : 1103))
+        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: isOn ? 0.55 : 0.75)
+    }
+}
 
 // MARK: - Home View
 
@@ -33,6 +66,7 @@ struct HomeView: View {
     @State private var voicePressTranslation: CGSize = .zero
     @State private var isVoicePressActive = false
     @State private var isTapVoiceRecording = false
+    @State private var wasVoiceDragCancelArmed = false
     @AppStorage("show_ai_caption") private var showAICaption = false
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var messageFieldFocused: Bool
@@ -84,7 +118,7 @@ struct HomeView: View {
             setupVoice()
         }
         .onDisappear {
-            cancelVoiceCapture()
+            cancelVoiceCapture(playFeedback: false)
         }
         .onChange(of: voiceManager.readyCommand) {
             if let text = voiceManager.readyCommand {
@@ -115,7 +149,7 @@ struct HomeView: View {
             case .active:
                 break
             case .inactive, .background:
-                cancelVoiceCapture()
+                cancelVoiceCapture(playFeedback: false)
             @unknown default:
                 break
             }
@@ -348,9 +382,11 @@ struct HomeView: View {
             voicePressStartedAt = Date()
             isVoicePressActive = true
             voicePressTranslation = .zero
+            wasVoiceDragCancelArmed = false
             beginVoiceCapture()
         } else {
             voicePressTranslation = value.translation
+            updateSlideCancelFeedback()
         }
     }
 
@@ -380,8 +416,7 @@ struct HomeView: View {
         guard canBeginVoiceCapture else { return }
         messageFieldFocused = false
         isTapVoiceRecording = false
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
+        InteractionFeedback.recordStart()
         voiceManager.startCommandCapture()
     }
 
@@ -395,15 +430,20 @@ struct HomeView: View {
         guard voiceManager.state == .listening else { return }
         isTapVoiceRecording = false
         voiceManager.finishCommandCapture()
+        InteractionFeedback.send()
     }
 
-    private func cancelVoiceCapture() {
+    private func cancelVoiceCapture(playFeedback: Bool = true) {
         guard voiceManager.state == .listening || voiceManager.state == .transcribing else { return }
         isTapVoiceRecording = false
         voicePressStartedAt = nil
         voicePressTranslation = .zero
         isVoicePressActive = false
+        wasVoiceDragCancelArmed = false
         voiceManager.cancelCommandCapture()
+        if playFeedback {
+            InteractionFeedback.cancel()
+        }
     }
 
     private func resetVoiceInteractionState() {
@@ -411,10 +451,21 @@ struct HomeView: View {
         voicePressTranslation = .zero
         isVoicePressActive = false
         isTapVoiceRecording = false
+        wasVoiceDragCancelArmed = false
+    }
+
+    private func updateSlideCancelFeedback() {
+        let isArmed = voicePressTranslation.width <= voiceCancelDragThreshold
+        defer { wasVoiceDragCancelArmed = isArmed }
+
+        if isArmed && !wasVoiceDragCancelArmed {
+            InteractionFeedback.slideCancelArmed()
+        }
     }
 
     private func toggleCamera() {
         cameraOn.toggle()
+        InteractionFeedback.camera(isOn: cameraOn)
         let enabled = cameraOn ? "true" : "false"
         amicaCoordinator?.webView?.evaluateJavaScript(
             """
@@ -436,6 +487,8 @@ struct HomeView: View {
     }
 
     private func stopAndSend() {
+        guard canSendText else { return }
+        InteractionFeedback.send()
         sendMessage()
     }
 
