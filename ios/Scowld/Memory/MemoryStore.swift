@@ -2,15 +2,15 @@ import CoreData
 
 // MARK: - Memory Store
 
-/// CoreData-backed storage for memory slots and messages.
-/// Each memory slot is a named save file — the character remembers
-/// the full conversation history within that slot.
+/// CoreData-backed storage for chat threads and messages.
+/// Each slot is a saved conversation thread that can be resumed later.
 @Observable
 final class MemoryStore {
     let container: NSPersistentContainer
     var slots: [MemorySlot] = []
     var activeSlotId: UUID?
     var totalMemoryCount: Int { slots.count }
+    private let defaultSlotPrefix = "Chat"
 
     init(inMemory: Bool = false) {
         container = NSPersistentContainer(name: "Scowld")
@@ -24,6 +24,7 @@ final class MemoryStore {
         }
         container.viewContext.automaticallyMergesChangesFromParent = true
         loadSlots()
+        migrateLegacySlotNames()
 
         // Restore active slot from UserDefaults
         if let idStr = UserDefaults.standard.string(forKey: "activeMemorySlotId"),
@@ -34,8 +35,9 @@ final class MemoryStore {
 
         // Create default slot if none exist
         if slots.isEmpty {
-            let slot = createSlot(name: "Memory 1")
+            let slot = createSlot(name: nextDefaultSlotName())
             activeSlotId = slot.id
+            saveActiveSlotId()
         }
     }
 
@@ -74,7 +76,7 @@ final class MemoryStore {
         let msgRequest: NSFetchRequest<NSFetchRequestResult> = MessageEntity.fetchRequest()
         msgRequest.predicate = NSPredicate(format: "sessionId == %@", id as CVarArg)
         let msgDelete = NSBatchDeleteRequest(fetchRequest: msgRequest)
-        try? context.execute(msgDelete)
+        _ = try? context.execute(msgDelete)
 
         // Delete the slot
         let slotRequest: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
@@ -104,6 +106,7 @@ final class MemoryStore {
         if let results = try? context.fetch(request), let entity = results.first {
             entity.lastUsedDate = Date()
             save(context)
+            loadSlots()
         }
     }
 
@@ -132,7 +135,7 @@ final class MemoryStore {
         loadSlots()
 
         // Create fresh default slot
-        let slot = createSlot(name: "Memory 1")
+        let slot = createSlot(name: nextDefaultSlotName())
         activeSlotId = slot.id
         saveActiveSlotId()
     }
@@ -141,16 +144,58 @@ final class MemoryStore {
 
     func saveMessage(role: MessageRole, content: String, emotion: Emotion? = nil) {
         guard let slotId = activeSlotId else { return }
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
         let context = container.viewContext
         let message = MessageEntity(context: context)
         message.id = UUID()
         message.role = role.rawValue
-        message.content = content
+        message.content = trimmed
         message.emotion = emotion?.rawValue ?? ""
         message.timestamp = Date()
         message.sessionId = slotId
+        touchSlot(id: slotId, context: context)
         save(context)
         loadSlots() // refresh message counts
+    }
+
+    func saveExchange(userMessage: String, assistantResponse: String) {
+        guard let slotId = activeSlotId else { return }
+        let userText = userMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let assistantText = assistantResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !userText.isEmpty || !assistantText.isEmpty else { return }
+
+        let existing = fetchMessages(slotId: slotId)
+        if existing.suffix(2).map(\.content) == [userText, assistantText] {
+            return
+        }
+
+        let context = container.viewContext
+        let timestamp = Date()
+
+        if !userText.isEmpty {
+            let user = MessageEntity(context: context)
+            user.id = UUID()
+            user.role = MessageRole.user.rawValue
+            user.content = userText
+            user.emotion = ""
+            user.timestamp = timestamp
+            user.sessionId = slotId
+        }
+
+        if !assistantText.isEmpty {
+            let assistant = MessageEntity(context: context)
+            assistant.id = UUID()
+            assistant.role = MessageRole.assistant.rawValue
+            assistant.content = assistantText
+            assistant.emotion = ""
+            assistant.timestamp = timestamp.addingTimeInterval(0.001)
+            assistant.sessionId = slotId
+        }
+
+        touchSlot(id: slotId, context: context)
+        save(context)
+        loadSlots()
     }
 
     func fetchMessages(slotId: UUID? = nil) -> [ChatMessage] {
@@ -175,10 +220,10 @@ final class MemoryStore {
     }
 
     /// Build context string from active slot's chat history for system prompt injection
-    func buildContextFromActiveSlot(limit: Int = 20) -> [String] {
+    func buildContextFromActiveSlot(limit: Int = 30) -> [String] {
         let messages = fetchMessages()
         let recent = messages.suffix(limit)
-        return recent.map { "[\($0.role.rawValue)] \($0.content)" }
+        return recent.map { "\($0.role.promptLabel): \($0.content)" }
     }
 
     // MARK: - Memory Log
@@ -263,8 +308,54 @@ final class MemoryStore {
         }
     }
 
+    private func touchSlot(id: UUID, context: NSManagedObjectContext) {
+        let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        if let results = try? context.fetch(request), let entity = results.first {
+            entity.lastUsedDate = Date()
+        }
+    }
+
+    private func migrateLegacySlotNames() {
+        let context = container.viewContext
+        let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
+        guard let results = try? context.fetch(request) else { return }
+
+        var changed = false
+        for entity in results {
+            guard let name = entity.name, name.hasPrefix("Memory ") else { continue }
+            let suffix = name.dropFirst("Memory ".count)
+            guard Int(suffix) != nil else { continue }
+            entity.name = "\(defaultSlotPrefix) \(suffix)"
+            changed = true
+        }
+
+        if changed {
+            save(context)
+            loadSlots()
+        }
+    }
+
+    func nextDefaultSlotName() -> String {
+        let numbers = slots.compactMap { slot -> Int? in
+            guard slot.name.hasPrefix("\(defaultSlotPrefix) ") else { return nil }
+            return Int(slot.name.dropFirst(defaultSlotPrefix.count + 1))
+        }
+        return "\(defaultSlotPrefix) \((numbers.max() ?? 0) + 1)"
+    }
+
     private func saveActiveSlotId() {
         UserDefaults.standard.set(activeSlotId?.uuidString, forKey: "activeMemorySlotId")
+    }
+}
+
+private extension MessageRole {
+    var promptLabel: String {
+        switch self {
+        case .user: "User"
+        case .assistant: CharacterPack.resolveCharacterName()
+        case .system: "System"
+        }
     }
 }
 

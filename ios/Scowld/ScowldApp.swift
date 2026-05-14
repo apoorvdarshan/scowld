@@ -14,7 +14,7 @@ struct ScowldApp: App {
 
 private enum ScowldTab: Hashable {
     case chat
-    case memories
+    case pastChats
     case settings
     case about
 }
@@ -35,9 +35,9 @@ struct ScowldRootView: View {
                 MemoryView(memoryStore: memoryStore)
             }
             .tabItem {
-                Label("Memories", systemImage: "brain.head.profile.fill")
+                Label("Chats", systemImage: "text.bubble.fill")
             }
-            .tag(ScowldTab.memories)
+            .tag(ScowldTab.pastChats)
 
             SettingsView(showsDismissControls: false)
                 .tabItem {

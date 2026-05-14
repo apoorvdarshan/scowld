@@ -116,7 +116,7 @@ struct CharacterPack: Identifiable, Codable, Sendable {
 // MARK: - System Prompt Template
 
 enum SystemPromptTemplate {
-    static func build(userName: String?, memories: [String], visionDescription: String?, characterName: String = "Stella") -> String {
+    static func build(userName: String?, conversationContext: [String], visionDescription: String?, characterName: String = "Stella") -> String {
         let customPrompt = UserDefaults.standard.string(forKey: "system_prompt") ?? ""
         let personality = customPrompt.isEmpty
             ? "You are \(characterName), a friendly and expressive AI assistant with an anime avatar. You are warm, curious, and genuinely care about helping. You speak naturally and conversationally. You're cheerful and engaging, with a playful personality."
@@ -135,10 +135,14 @@ enum SystemPromptTemplate {
             prompt += "You are \(name)'s personal AI assistant.\n\n"
         }
 
-        if !memories.isEmpty {
-            prompt += "What you know about them:\n"
-            for memory in memories {
-                prompt += "- \(memory)\n"
+        if !conversationContext.isEmpty {
+            prompt += """
+            Previous messages from the active saved chat:
+            Use these for continuity and reference them naturally when relevant, like a normal ongoing chat.
+
+            """
+            for message in conversationContext {
+                prompt += "- \(message)\n"
             }
             prompt += "\n"
         }

@@ -1,19 +1,16 @@
 import SwiftUI
 
-// MARK: - Memory View
+// MARK: - Past Chats View
 
-/// Browse and manage memory slots — each slot is a saved conversation context.
+/// Browse saved chat threads and switch which one is used as context.
 struct MemoryView: View {
     var memoryStore: MemoryStore
-    @State private var showNewSlotAlert = false
-    @State private var newSlotName = ""
     @State private var renameSlotId: UUID?
     @State private var renameText = ""
     @State private var viewingSlot: MemorySlot?
 
     var body: some View {
         List {
-            // MARK: - Memory Slots
             Section {
                 ForEach(memoryStore.slots) { slot in
                     slotRow(slot)
@@ -27,35 +24,24 @@ struct MemoryView: View {
                     }
                 }
             } header: {
-                Label("Save Slots", systemImage: "tray.2")
+                Label("Past Chats", systemImage: "text.bubble")
             } footer: {
-                Text("Tap to activate. Tap the info button to view/edit what the character remembers.")
+                Text("Tap a chat to read it. The active chat is used as reference for future replies.")
             }
 
-            // MARK: - Actions
             Section {
                 Button {
-                    newSlotName = "Memory \(memoryStore.slots.count + 1)"
-                    showNewSlotAlert = true
+                    let slot = memoryStore.createSlot(name: memoryStore.nextDefaultSlotName())
+                    memoryStore.setActiveSlot(id: slot.id)
                 } label: {
-                    Label("New Memory", systemImage: "plus.circle")
+                    Label("New Chat", systemImage: "plus.circle")
                         .foregroundStyle(.amicaBlue)
                 }
             }
         }
-        .navigationTitle("Memories")
+        .navigationTitle("Chats")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("New Memory", isPresented: $showNewSlotAlert) {
-            TextField("Name", text: $newSlotName)
-            Button("Create") {
-                let slot = memoryStore.createSlot(name: newSlotName)
-                memoryStore.setActiveSlot(id: slot.id)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Create a new conversation memory.")
-        }
-        .alert("Rename", isPresented: Binding(
+        .alert("Rename Chat", isPresented: Binding(
             get: { renameSlotId != nil },
             set: { if !$0 { renameSlotId = nil } }
         )) {
@@ -70,7 +56,7 @@ struct MemoryView: View {
         }
         .sheet(item: $viewingSlot) { slot in
             NavigationStack {
-                MemoryLogView(memoryStore: memoryStore, slot: slot)
+                PastChatDetailView(memoryStore: memoryStore, slot: slot)
             }
         }
     }
@@ -80,6 +66,8 @@ struct MemoryView: View {
     @ViewBuilder
     private func slotRow(_ slot: MemorySlot) -> some View {
         let isActive = memoryStore.activeSlotId == slot.id
+        let messages = memoryStore.fetchMessages(slotId: slot.id)
+        let lastMessage = messages.last
 
         Button {
             viewingSlot = slot
@@ -89,21 +77,21 @@ struct MemoryView: View {
                     .foregroundStyle(isActive ? .amicaBlue : .secondary)
                     .font(.title3)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(slot.name)
                         .font(.body)
                         .fontWeight(isActive ? .semibold : .regular)
                         .foregroundStyle(.primary)
 
-                    if !slot.memoryLog.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "brain.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.amicaBlue)
-                            Text("Has memories")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                    Text("\(slot.messageCount) messages")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if let lastMessage {
+                        Text(lastMessage.content)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
                     }
                 }
 
@@ -118,6 +106,10 @@ struct MemoryView: View {
                         .padding(.vertical, 3)
                         .background(.amicaBlue.opacity(0.15), in: Capsule())
                 }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
         }
         .swipeActions(edge: .trailing) {
@@ -141,7 +133,7 @@ struct MemoryView: View {
                 Button {
                     memoryStore.setActiveSlot(id: slot.id)
                 } label: {
-                    Label("Activate", systemImage: "checkmark.circle")
+                    Label("Use Chat", systemImage: "checkmark.circle")
                 }
                 .tint(.amicaBlue)
             }
@@ -149,48 +141,33 @@ struct MemoryView: View {
     }
 }
 
-// MARK: - Memory Log View
+// MARK: - Past Chat Detail
 
-/// View and edit what the character remembers in a specific slot.
-struct MemoryLogView: View {
+struct PastChatDetailView: View {
     var memoryStore: MemoryStore
     let slot: MemorySlot
-    @State private var editedLog: String = ""
-    @State private var hasChanges = false
     @Environment(\.dismiss) private var dismiss
 
+    private var messages: [ChatMessage] {
+        memoryStore.fetchMessages(slotId: slot.id)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if editedLog.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        Group {
+            if messages.isEmpty {
                 ContentUnavailableView(
-                    "No Memories Yet",
-                    systemImage: "brain.head.profile.fill",
-                    description: Text("Chat with the character and memories will be saved here automatically.")
+                    "No Messages Yet",
+                    systemImage: "text.bubble",
+                    description: Text("Start chatting and this conversation will appear here as a read-only transcript.")
                 )
             } else {
                 List {
                     Section {
-                        TextEditor(text: $editedLog)
-                            .frame(minHeight: 300)
-                            .font(.body)
-                            .scrollContentBackground(.hidden)
-                            .onChange(of: editedLog) { hasChanges = true }
-                    } header: {
-                        Label("What \(slot.name) remembers", systemImage: "brain.fill")
-                    } footer: {
-                        Text("This is what the AI knows about you from this conversation. Edit or remove anything you want.")
-                    }
-
-                    if memoryStore.activeSlotId != slot.id {
-                        Section {
-                            Button {
-                                memoryStore.setActiveSlot(id: slot.id)
-                                dismiss()
-                            } label: {
-                                Label("Use This Memory", systemImage: "checkmark.circle")
-                                    .foregroundStyle(.amicaBlue)
-                            }
+                        ForEach(messages) { message in
+                            PastChatMessageRow(message: message)
                         }
+                    } footer: {
+                        Text("Saved chats are read-only. Switch to this chat to use it as context for future replies.")
                     }
                 }
             }
@@ -199,22 +176,74 @@ struct MemoryLogView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("Cancel") { dismiss() }
+                Button("Done") { dismiss() }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Save") {
-                    memoryStore.updateMemoryLog(editedLog, slotId: slot.id)
-                    hasChanges = false
-                    dismiss()
+            if memoryStore.activeSlotId != slot.id {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Use") {
+                        memoryStore.setActiveSlot(id: slot.id)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.amicaBlue)
                 }
-                .fontWeight(.semibold)
-                .foregroundStyle(hasChanges ? .amicaBlue : .secondary)
-                .disabled(!hasChanges)
             }
         }
-        .onAppear {
-            // Load fresh from CoreData
-            editedLog = memoryStore.getMemoryLog(slotId: slot.id)
+    }
+}
+
+private struct PastChatMessageRow: View {
+    let message: ChatMessage
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: iconName)
+                .font(.body)
+                .foregroundStyle(iconColor)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text(roleTitle)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(message.timestamp.formatted(date: .omitted, time: .shortened))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+                Text(message.content)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var roleTitle: String {
+        switch message.role {
+        case .user: "You"
+        case .assistant: CharacterPack.resolveCharacterName()
+        case .system: "System"
+        }
+    }
+
+    private var iconName: String {
+        switch message.role {
+        case .user: "person.crop.circle.fill"
+        case .assistant: "sparkles"
+        case .system: "gearshape.fill"
+        }
+    }
+
+    private var iconColor: Color {
+        switch message.role {
+        case .user: .secondary
+        case .assistant: .amicaBlue
+        case .system: .secondary
         }
     }
 }

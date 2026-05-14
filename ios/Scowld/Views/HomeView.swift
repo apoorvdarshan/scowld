@@ -1030,7 +1030,6 @@ struct AmicaFullView: UIViewRepresentable {
         weak var webView: WKWebView?
         let memoryStore: MemoryStore
         let speechManager = SpeechManager()
-        let memoryExtractor = MemoryExtractor()
 
         private var settingsObserver: NSObjectProtocol?
 
@@ -1227,7 +1226,7 @@ struct AmicaFullView: UIViewRepresentable {
 
             let supportsVision = true
 
-            // Build system prompt with memory log and character name
+            // Build system prompt with active saved-chat context and character name
             let contextBuilder = ContextBuilder(memoryStore: memoryStore)
             let systemPrompt = contextBuilder.buildSystemPrompt()
 
@@ -1248,21 +1247,13 @@ struct AmicaFullView: UIViewRepresentable {
                 }
 
                 let finalResponse = response
+                let lastUserMessage = chatMessages.last(where: { $0.role == .user })?.content ?? ""
 
                 await MainActor.run {
                     deliverResponse(callbackId: callbackId, response: finalResponse)
-                }
-
-                // Update memory log in background
-                let lastUserMsg = chatMessages.last(where: { $0.role == .user })?.content ?? ""
-                let currentLog = memoryStore.getActiveMemoryLog()
-                Task.detached { [memoryExtractor, memoryStore] in
-                    await memoryExtractor.updateMemoryLog(
-                        userMessage: lastUserMsg,
-                        aiResponse: finalResponse,
-                        currentLog: currentLog,
-                        using: provider,
-                        store: memoryStore
+                    memoryStore.saveExchange(
+                        userMessage: lastUserMessage,
+                        assistantResponse: finalResponse
                     )
                 }
             } catch {
