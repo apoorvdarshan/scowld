@@ -78,6 +78,9 @@ struct MemoryView: View {
             Section {
                 ForEach(sortedSlots) { slot in
                     slotRow(slot)
+                        .listRowInsets(EdgeInsets(top: 7, leading: 20, bottom: 7, trailing: 20))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
                 .onDelete { indexSet in
                     let slotsToDelete = indexSet.compactMap { index in
@@ -90,9 +93,12 @@ struct MemoryView: View {
                     }
                 }
             } header: {
-                Label("Past Chats", systemImage: "text.bubble")
+                chatsSectionHeader("Past Chats", systemImage: "text.bubble")
             } footer: {
                 Text("Tap a chat to read it. The active chat is used as reference for future replies.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
             }
 
             Section {
@@ -100,11 +106,45 @@ struct MemoryView: View {
                     let slot = memoryStore.createSlot(name: memoryStore.nextDefaultSlotName())
                     memoryStore.setActiveSlot(id: slot.id)
                 } label: {
-                    Label("New Chat", systemImage: "plus.circle")
-                        .foregroundStyle(.amicaBlue)
+                    HStack(spacing: 12) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.amicaBlue)
+                            .frame(width: 36, height: 36)
+                            .background(.white.opacity(0.08), in: Circle())
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("New Chat")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("Start a fresh conversation")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                    )
                 }
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 18, trailing: 20))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.black.ignoresSafeArea())
         .navigationTitle("Chats")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -135,6 +175,15 @@ struct MemoryView: View {
             }
             Button("Cancel", role: .cancel) { renameSlotId = nil }
         }
+    }
+
+    private func chatsSectionHeader(_ title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.headline)
+            .foregroundStyle(.primary)
+            .textCase(nil)
+            .padding(.top, 10)
+            .padding(.horizontal, 4)
     }
 
     // MARK: - Slot Row
@@ -195,6 +244,12 @@ struct MemoryView: View {
                 }
             }
         }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(isActive ? Color.amicaBlue.opacity(0.45) : Color.white.opacity(0.08), lineWidth: 0.8)
+        )
         .swipeActions(edge: .trailing) {
             if memoryStore.slots.count > 1 {
                 Button(role: .destructive) {
@@ -268,11 +323,20 @@ struct PastChatDetailView: View {
                             ForEach(messages) { message in
                                 PastChatMessageRow(message: message)
                                     .id(message.id)
+                                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
                             }
                         } footer: {
                             Text("Saved chats are read-only. Switch to this chat to use it as context for future replies.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.black.ignoresSafeArea())
                     .onAppear {
                         scrollToBottom(proxy)
                     }
@@ -314,7 +378,8 @@ private struct PastChatMessageRow: View {
             Image(systemName: iconName)
                 .font(.body)
                 .foregroundStyle(iconColor)
-                .frame(width: 24)
+                .frame(width: 34, height: 34)
+                .background(.white.opacity(0.08), in: Circle())
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
@@ -334,7 +399,12 @@ private struct PastChatMessageRow: View {
                     .textSelection(.enabled)
             }
         }
-        .padding(.vertical, 4)
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+        )
     }
 
     private var roleTitle: String {

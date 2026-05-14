@@ -29,6 +29,7 @@ private enum ScowldTab: Hashable {
 struct ScowldRootView: View {
     var memoryStore: MemoryStore
     @State private var selectedTab: ScowldTab = .chat
+    @State private var appUpdateState: AppUpdateState = .idle
     @Environment(BillingStore.self) private var billingStore
 
     var body: some View {
@@ -45,6 +46,10 @@ struct ScowldRootView: View {
             } else {
                 appTabs
             }
+        }
+        .task(id: billingStore.hasPaidAccess) {
+            guard billingStore.hasPaidAccess else { return }
+            await checkForAppUpdateIfNeeded()
         }
         .onChange(of: billingStore.hasPaidAccess) { _, hasPaidAccess in
             if hasPaidAccess {
@@ -86,11 +91,12 @@ struct ScowldRootView: View {
             }
             .tag(ScowldTab.billing)
 
-            AboutView()
+            AboutView(updateState: $appUpdateState)
                 .tabItem {
                     Label("About", systemImage: "info.circle.fill")
                 }
                 .tag(ScowldTab.about)
+                .aboutUpdateBadge(isVisible: appUpdateState.isUpdateAvailable)
         }
     }
 
@@ -101,12 +107,19 @@ struct ScowldRootView: View {
                 ProgressView("Loading billing...")
             }
     }
+
+    @MainActor
+    private func checkForAppUpdateIfNeeded() async {
+        guard appUpdateState == .idle else { return }
+        appUpdateState = .checking
+        appUpdateState = await AppUpdateChecker.check(currentVersion: AppUpdateChecker.currentVersion)
+    }
 }
 
 struct AboutView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.requestReview) private var requestReview
-    @State private var updateState: AppUpdateState = .idle
+    @Binding var updateState: AppUpdateState
 
     private let websiteURL = URL(string: "https://scowld.xyz")!
     private let privacyURL = URL(string: "https://scowld.xyz/privacy")!
@@ -245,17 +258,11 @@ struct AboutView: View {
 
     private var versionDisplay: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
-
-        if build.isEmpty {
-            return "v\(version)"
-        }
-
-        return "v\(version) (\(build))"
+        return "v\(version)"
     }
 
     private var currentVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        AppUpdateChecker.currentVersion
     }
 
     private var updateButtonTitle: String {
@@ -479,9 +486,21 @@ private enum AppUpdateState: Equatable {
     case updateAvailable(version: String, appStoreURL: URL)
     case notOnAppStore
     case failed
+
+    var isUpdateAvailable: Bool {
+        if case .updateAvailable = self {
+            return true
+        }
+
+        return false
+    }
 }
 
 private struct AppUpdateChecker {
+    static var currentVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+    }
+
     static func check(currentVersion: String) async -> AppUpdateState {
         guard let bundleID = Bundle.main.bundleIdentifier,
               let url = URL(string: "https://itunes.apple.com/lookup?bundleId=\(bundleID)") else {
@@ -537,5 +556,16 @@ private struct AppStoreLookupResult: Decodable {
     private enum CodingKeys: String, CodingKey {
         case version
         case trackViewURL = "trackViewUrl"
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func aboutUpdateBadge(isVisible: Bool) -> some View {
+        if isVisible {
+            badge("")
+        } else {
+            self
+        }
     }
 }

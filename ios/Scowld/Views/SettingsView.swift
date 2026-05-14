@@ -6,6 +6,7 @@ import UIKit
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var selectedVoicePickerID = HostedServiceConfig.defaultElevenLabsVoiceID
     @State private var customVoiceID = ""
     @State private var previewPlayer: AVAudioPlayer?
@@ -29,183 +30,213 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Picker("Language", selection: $selectedLanguageID) {
-                        Text(
-                            String.localizedStringWithFormat(
-                                NSLocalizedString("iPhone Language (%@)", comment: "Device language picker option"),
-                                HostedServiceConfig.currentDeviceLanguageName()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    settingsSection(
+                        "Conversation",
+                        icon: "bubble.left.and.bubble.right",
+                        footer: "Language applies to both Deepgram speech recognition and ElevenLabs speech. Captions control the assistant's spoken response overlay."
+                    ) {
+                        settingRow {
+                            Picker("Language", selection: $selectedLanguageID) {
+                                Text(
+                                    String.localizedStringWithFormat(
+                                        NSLocalizedString("iPhone Language (%@)", comment: "Device language picker option"),
+                                        HostedServiceConfig.currentDeviceLanguageName()
+                                    )
+                                )
+                                    .tag(HostedServiceConfig.deviceLanguageID)
+                                ForEach(ScowldLanguageLibrary.options) { language in
+                                    Text(LocalizedStringKey(language.name)).tag(language.code)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .onChange(of: selectedLanguageID) {
+                                guard !isLoadingSettings else { return }
+                                saveLanguageSettings()
+                            }
+                        }
+
+                        if let selectedLanguageDescription {
+                            settingsInfoRow(
+                                title: selectedLanguageDescription,
+                                systemImage: "globe"
                             )
-                        )
-                            .tag(HostedServiceConfig.deviceLanguageID)
-                        ForEach(ScowldLanguageLibrary.options) { language in
-                            Text(LocalizedStringKey(language.name)).tag(language.code)
+                        }
+
+                        settingRow {
+                            Toggle("Show AI captions", isOn: $showAICaption)
+                                .tint(.amicaBlue)
+                                .onChange(of: showAICaption) {
+                                    guard !isLoadingSettings else { return }
+                                    saveDisplaySettings()
+                                }
                         }
                     }
-                    .onChange(of: selectedLanguageID) {
-                        guard !isLoadingSettings else { return }
-                        saveLanguageSettings()
-                    }
 
-                    if let selectedLanguageDescription {
-                        Text(selectedLanguageDescription)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Toggle("Show AI captions", isOn: $showAICaption)
-                        .onChange(of: showAICaption) {
-                            guard !isLoadingSettings else { return }
-                            saveDisplaySettings()
-                        }
-                } header: {
-                    Label("Conversation", systemImage: "bubble.left.and.bubble.right")
-                } footer: {
-                    Text("Language applies to both Deepgram speech recognition and ElevenLabs speech. Captions control the assistant's spoken response overlay.")
-                }
-
-                Section {
-                    Button {
-                        NotificationCenter.default.post(name: .showBillingTab, object: nil)
-                    } label: {
-                        HStack {
-                            Label("Manage Billing", systemImage: "creditcard")
-                            Spacer()
-                            Text("\(billingStore.totalCreditsRemaining) credits")
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
+                    settingsSection(
+                        "Billing",
+                        icon: "bolt.circle",
+                        footer: "Subscriptions refill weekly. Extra credits can be used after subscription credits run out."
+                    ) {
+                        settingsActionRow(
+                            title: "Manage Billing",
+                            subtitle: "\(billingStore.totalCreditsRemaining) credits",
+                            systemImage: "creditcard"
+                        ) {
+                            NotificationCenter.default.post(name: .showBillingTab, object: nil)
                         }
                     }
-                } header: {
-                    Label("Billing", systemImage: "bolt.circle")
-                } footer: {
-                    Text("Subscriptions refill weekly. Extra credits can be used after subscription credits run out.")
-                }
 
-                Section {
-                    Picker("Voice", selection: $selectedVoicePickerID) {
-                        ForEach(ScowldVoiceLibrary.presetVoices) { voice in
-                            Text(LocalizedStringKey(voice.name)).tag(voice.voiceID)
-                        }
-                        Text("Custom Voice ID").tag(ScowldVoiceLibrary.customID)
-                    }
-                    .onChange(of: selectedVoicePickerID) {
-                        guard !isLoadingSettings else { return }
-                        saveSelectedVoice()
-                        resetPreviewState()
-                    }
-
-                    if selectedVoicePickerID == ScowldVoiceLibrary.customID {
-                        TextField("ElevenLabs Voice ID", text: $customVoiceID)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                            .onChange(of: customVoiceID) {
+                    settingsSection(
+                        "Voice",
+                        icon: "speaker.wave.3",
+                        footer: "The selected voice ID is used for production ElevenLabs speech through the hosted backend."
+                    ) {
+                        settingRow {
+                            Picker("Voice", selection: $selectedVoicePickerID) {
+                                ForEach(ScowldVoiceLibrary.presetVoices) { voice in
+                                    Text(LocalizedStringKey(voice.name)).tag(voice.voiceID)
+                                }
+                                Text("Custom Voice ID").tag(ScowldVoiceLibrary.customID)
+                            }
+                            .pickerStyle(.menu)
+                            .onChange(of: selectedVoicePickerID) {
                                 guard !isLoadingSettings else { return }
                                 saveSelectedVoice()
                                 resetPreviewState()
                             }
-
-                        Link(destination: URL(string: "https://elevenlabs.io/app/voice-library")!) {
-                            Label("Where to get a custom voice ID", systemImage: "info.circle")
                         }
-                        .font(.caption)
-                    } else if let voice = ScowldVoiceLibrary.option(for: selectedVoicePickerID) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(LocalizedStringKey(voice.description))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Text(voice.voiceID)
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.tertiary)
-                                .textSelection(.enabled)
-                        }
-                    }
 
-                    Button {
-                        playBundledVoicePreview()
-                    } label: {
-                        Label(previewButtonTitle, systemImage: previewButtonIcon)
-                    }
-                    .disabled(!selectedVoiceHasBundledPreview)
-
-                    if let previewError {
-                        Text(previewError)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-
-                    Text("Preset samples are bundled in the app and play locally from this device.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Label("Voice", systemImage: "speaker.wave.3")
-                } footer: {
-                    Text("The selected voice ID is used for production ElevenLabs speech through the hosted backend.")
-                }
-
-                Section {
-                    Picker("Avatar", selection: $selectedAvatar) {
-                        ForEach(CharacterPack.defaultPacks) { pack in
-                            Text(pack.name).tag(pack.fileName)
-                        }
-                    }
-                    .onChange(of: selectedAvatar) {
-                        guard !isLoadingSettings else { return }
-                        saveAvatarSettings()
-                    }
-
-                    HStack(spacing: 8) {
-                        TextField("Custom Name (optional)", text: $characterName)
-                            .autocorrectionDisabled()
-                            .onChange(of: characterName) { markCharacterChanged() }
-
-                        if !characterName.isEmpty {
-                            Button {
-                                characterName = ""
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.secondary)
+                        if selectedVoicePickerID == ScowldVoiceLibrary.customID {
+                            settingRow {
+                                TextField("ElevenLabs Voice ID", text: $customVoiceID)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                                    .onChange(of: customVoiceID) {
+                                        guard !isLoadingSettings else { return }
+                                        saveSelectedVoice()
+                                        resetPreviewState()
+                                    }
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Clear custom name")
+
+                            settingsActionRow(
+                                title: "Where to get a custom voice ID",
+                                subtitle: "elevenlabs.io/app/voice-library",
+                                systemImage: "info.circle"
+                            ) {
+                                openURL(URL(string: "https://elevenlabs.io/app/voice-library")!)
+                            }
+                        } else if let voice = ScowldVoiceLibrary.option(for: selectedVoicePickerID) {
+                            settingRow {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(LocalizedStringKey(voice.description))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    Text(voice.voiceID)
+                                        .font(.caption.monospaced())
+                                        .foregroundStyle(.tertiary)
+                                        .textSelection(.enabled)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+
+                        settingsActionRow(
+                            title: previewButtonTitle,
+                            subtitle: selectedVoiceHasBundledPreview ? "Plays a bundled local sample" : nil,
+                            systemImage: previewButtonIcon,
+                            isDisabled: !selectedVoiceHasBundledPreview
+                        ) {
+                            playBundledVoicePreview()
+                        }
+
+                        if let previewError {
+                            settingsInfoRow(title: previewError, systemImage: "exclamationmark.triangle.fill", color: .red)
+                        }
+
+                        settingsInfoRow(
+                            title: "Preset samples are bundled in the app and play locally from this device.",
+                            systemImage: "speaker.wave.2.fill"
+                        )
+                    }
+
+                    settingsSection(
+                        "Character",
+                        icon: "person.fill",
+                        footer: "Avatar saves immediately. Use Save Character after changing the custom name or system prompt."
+                    ) {
+                        settingRow {
+                            Picker("Avatar", selection: $selectedAvatar) {
+                                ForEach(CharacterPack.defaultPacks) { pack in
+                                    Text(pack.name).tag(pack.fileName)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .onChange(of: selectedAvatar) {
+                                guard !isLoadingSettings else { return }
+                                saveAvatarSettings()
+                            }
+                        }
+
+                        settingRow {
+                            HStack(spacing: 8) {
+                                TextField("Custom Name (optional)", text: $characterName)
+                                    .autocorrectionDisabled()
+                                    .onChange(of: characterName) { markCharacterChanged() }
+
+                                if !characterName.isEmpty {
+                                    Button {
+                                        characterName = ""
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Clear custom name")
+                                }
+                            }
+                        }
+
+                        settingRow {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("System Prompt")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                TextEditor(text: $systemPrompt)
+                                    .frame(minHeight: 112)
+                                    .font(.body)
+                                    .scrollContentBackground(.hidden)
+                                    .background(.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .onChange(of: systemPrompt) { markCharacterChanged() }
+                            }
+                        }
+
+                        settingsActionRow(
+                            title: "Save Character",
+                            subtitle: hasCharacterChanges ? "Unsaved changes" : "No changes",
+                            systemImage: "checkmark.circle.fill",
+                            tint: hasCharacterChanges ? .amicaBlue : .secondary,
+                            isDisabled: !hasCharacterChanges
+                        ) {
+                            saveCharacterSettings()
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("System Prompt")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        TextEditor(text: $systemPrompt)
-                            .frame(minHeight: 100)
-                            .font(.body)
-                            .scrollContentBackground(.hidden)
-                            .onChange(of: systemPrompt) { markCharacterChanged() }
+                    settingsSection(
+                        "Managed Services",
+                        icon: "cloud",
+                        footer: "Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update."
+                    ) {
+                        labeledValue("AI", value: "Gemini 3 Flash")
+                        labeledValue("Speech-to-Text", value: "Deepgram Nova-3")
+                        labeledValue("Text-to-Speech", value: "ElevenLabs")
                     }
-
-                    Button {
-                        saveCharacterSettings()
-                    } label: {
-                        Label("Save Character", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(hasCharacterChanges ? .amicaBlue : .secondary)
-                    }
-                    .disabled(!hasCharacterChanges)
-                } header: {
-                    Label("Character", systemImage: "person.fill")
-                } footer: {
-                    Text("Avatar saves immediately. Use Save Character after changing the custom name or system prompt.")
                 }
-
-                Section {
-                    labeledValue("AI", value: "Gemini 3 Flash")
-                    labeledValue("Speech-to-Text", value: "Deepgram Nova-3")
-                    labeledValue("Text-to-Speech", value: "ElevenLabs")
-                } header: {
-                    Label("Managed Services", systemImage: "cloud")
-                } footer: {
-                    Text("Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update.")
-                }
+                .padding(20)
+                .padding(.bottom, 96)
             }
+            .background(Color.black.ignoresSafeArea())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .background(KeyboardDismissInstaller())
@@ -223,12 +254,118 @@ struct SettingsView: View {
     }
 
     private func labeledValue(_ label: String, value: String) -> some View {
-        HStack {
+        settingRow {
             Text(label)
             Spacer()
             Text(value)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private func settingsSection<Content: View>(
+        _ title: String,
+        icon: String,
+        footer: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            VStack(spacing: 0) {
+                content()
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+            if let footer {
+                Text(footer)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+        )
+    }
+
+    private func settingRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 12) {
+            content()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.black.opacity(0.22))
+    }
+
+    private func settingsActionRow(
+        title: String,
+        subtitle: String? = nil,
+        systemImage: String,
+        tint: Color = .primary,
+        isDisabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 34, height: 34)
+                    .background(.white.opacity(0.08), in: Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(tint)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.black.opacity(0.22))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.72 : 1)
+    }
+
+    private func settingsInfoRow(
+        title: String,
+        systemImage: String,
+        color: Color = .secondary
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 34, height: 34)
+                .background(.white.opacity(0.08), in: Circle())
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(color)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.black.opacity(0.22))
     }
 
     private var selectedPreviewVoiceID: String {
