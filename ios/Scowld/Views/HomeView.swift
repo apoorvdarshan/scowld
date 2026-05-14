@@ -29,6 +29,7 @@ struct HomeView: View {
     @State private var voiceManager = VoiceManager()
     @State private var aiResponseText = ""
     @State private var isAwaitingAssistantResponse = false
+    @AppStorage("show_ai_caption") private var showAICaption = false
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var messageFieldFocused: Bool
 
@@ -42,7 +43,7 @@ struct HomeView: View {
 
                 // Live captions
                 VStack(spacing: 6) {
-                    if !aiResponseText.isEmpty {
+                    if showAICaption && !aiResponseText.isEmpty {
                         Text(aiResponseText)
                             .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.9))

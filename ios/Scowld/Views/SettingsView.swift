@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var customVoiceID = ""
     @State private var previewPlayer: AVAudioPlayer?
     @State private var previewError: String?
+    @State private var showAICaption = false
 
     // MARK: - Character Settings
     @State private var characterName: String = "Stella"
@@ -86,6 +87,15 @@ struct SettingsView: View {
                     Label("Voice", systemImage: "speaker.wave.3")
                 } footer: {
                     Text("The selected voice ID is used for production ElevenLabs speech through the hosted backend.")
+                }
+
+                Section {
+                    Toggle("Show AI captions", isOn: $showAICaption)
+                        .onChange(of: showAICaption) { hasChanges = true }
+                } header: {
+                    Label("Display", systemImage: "captions.bubble")
+                } footer: {
+                    Text("Shows the assistant's spoken response as a caption over the character.")
                 }
 
                 Section {
@@ -181,6 +191,7 @@ struct SettingsView: View {
         characterName = defaults.string(forKey: "character_name") ?? ""
         selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
+        showAICaption = defaults.bool(forKey: "show_ai_caption")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             hasChanges = false
@@ -197,6 +208,7 @@ struct SettingsView: View {
         defaults.set(characterName, forKey: "character_name")
         defaults.set(selectedAvatar, forKey: "selected_avatar")
         defaults.set(systemPrompt, forKey: "system_prompt")
+        defaults.set(showAICaption, forKey: "show_ai_caption")
 
         hasChanges = false
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
