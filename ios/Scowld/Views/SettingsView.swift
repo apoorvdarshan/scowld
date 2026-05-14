@@ -18,6 +18,9 @@ struct SettingsView: View {
     @State private var characterName: String = "Stella"
     @State private var selectedAvatar: String = "AvatarSample_A"
     @State private var systemPrompt: String = ""
+    @State private var savedCharacterName: String = "Stella"
+    @State private var savedSelectedAvatar: String = "AvatarSample_A"
+    @State private var savedSystemPrompt: String = ""
 
     var showsDismissControls = true
 
@@ -241,6 +244,9 @@ struct SettingsView: View {
         characterName = defaults.string(forKey: "character_name") ?? ""
         selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
+        savedCharacterName = characterName
+        savedSelectedAvatar = selectedAvatar
+        savedSystemPrompt = systemPrompt
         showAICaption = defaults.bool(forKey: "show_ai_caption")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -271,7 +277,10 @@ struct SettingsView: View {
 
     private func markCharacterChanged() {
         guard !isLoadingSettings else { return }
-        hasCharacterChanges = true
+        hasCharacterChanges =
+            characterName != savedCharacterName ||
+            selectedAvatar != savedSelectedAvatar ||
+            systemPrompt != savedSystemPrompt
     }
 
     private func saveCharacterSettings() {
@@ -281,6 +290,9 @@ struct SettingsView: View {
         defaults.set(selectedAvatar, forKey: "selected_avatar")
         defaults.set(systemPrompt, forKey: "system_prompt")
 
+        savedCharacterName = characterName
+        savedSelectedAvatar = selectedAvatar
+        savedSystemPrompt = systemPrompt
         hasCharacterChanges = false
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
