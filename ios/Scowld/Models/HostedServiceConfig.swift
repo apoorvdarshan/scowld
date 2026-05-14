@@ -72,75 +72,75 @@ enum ScowldVoiceLibrary {
 
     static let presetVoices: [ScowldVoiceOption] = [
         ScowldVoiceOption(
-            name: "Sarah",
+            name: "celine - cuddly, thin and soft.",
             voiceID: HostedServiceConfig.defaultElevenLabsVoiceID,
-            description: "Default bright companion voice",
+            description: "Default ElevenLabs companion voice",
             previewText: defaultPreviewText
         ),
         ScowldVoiceOption(
-            name: "Aria",
-            voiceID: "9BWtsMINqrJLrRacOk9x",
-            description: "Clear, lively, and youthful",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Bella",
-            voiceID: "EXAVITQu4vr4xnSDxMaL",
-            description: "Soft and expressive",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Domi",
+            name: "Elara - Crisp Pro Narrator",
             voiceID: "AZnzlk1XvdvUeBnXmlld",
-            description: "Energetic and playful",
+            description: "Crisp pro narrator",
             previewText: defaultPreviewText
         ),
         ScowldVoiceOption(
-            name: "Dorothy",
+            name: "Evelyn",
             voiceID: "ThT5KcBeYPX3keUQqHPh",
-            description: "Cute and gentle",
+            description: "ElevenLabs voice",
             previewText: defaultPreviewText
         ),
         ScowldVoiceOption(
-            name: "Elli",
-            voiceID: "MF3mGyEYCl7XYWbV9V6O",
-            description: "Young, bright, and animated",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Grace",
-            voiceID: "oWAxZDx7w5VEj9dCyTzz",
-            description: "Warm and friendly",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Jessica",
-            voiceID: "cgSgspJ2msm6clMCkdW9",
-            description: "Upbeat and modern",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Lily",
-            voiceID: "pFZP5JQG7iQjIQuC4Bku",
-            description: "Sweet and polished",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Matilda",
-            voiceID: "XrExE9yKIg1WjnnlVkGX",
-            description: "Soft-spoken and calm",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Nicole",
-            voiceID: "piTKgcLEGmPE4e6mEKli",
-            description: "Gentle and natural",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Rachel",
+            name: "Janet",
             voiceID: "21m00Tcm4TlvDq8ikWAM",
-            description: "Classic, clear narration",
+            description: "ElevenLabs voice",
+            previewText: defaultPreviewText
+        ),
+        ScowldVoiceOption(
+            name: "Jessica - Playful, Bright, Warm",
+            voiceID: "cgSgspJ2msm6clMCkdW9",
+            description: "Playful, bright, warm",
+            previewText: defaultPreviewText
+        ),
+        ScowldVoiceOption(
+            name: "Lily - Velvety Actress",
+            voiceID: "pFZP5JQG7iQjIQuC4Bku",
+            description: "Velvety actress",
+            previewText: defaultPreviewText
+        ),
+        ScowldVoiceOption(
+            name: "Maisie - Friendly Casual Neighbor",
+            voiceID: "piTKgcLEGmPE4e6mEKli",
+            description: "Friendly casual neighbor",
+            previewText: defaultPreviewText
+        ),
+        ScowldVoiceOption(
+            name: "Matilda - Knowledgable, Professional",
+            voiceID: "XrExE9yKIg1WjnnlVkGX",
+            description: "Knowledgeable, professional",
+            previewText: defaultPreviewText
+        ),
+        ScowldVoiceOption(
+            name: "Peter",
+            voiceID: "MF3mGyEYCl7XYWbV9V6O",
+            description: "ElevenLabs voice",
+            previewText: defaultPreviewText
+        ),
+        ScowldVoiceOption(
+            name: "Riley",
+            voiceID: "oWAxZDx7w5VEj9dCyTzz",
+            description: "ElevenLabs voice",
+            previewText: defaultPreviewText
+        ),
+        ScowldVoiceOption(
+            name: "Sarah - Mature, Reassuring, Confident",
+            voiceID: "EXAVITQu4vr4xnSDxMaL",
+            description: "Mature, reassuring, confident",
+            previewText: defaultPreviewText
+        ),
+        ScowldVoiceOption(
+            name: "Zoe",
+            voiceID: "9BWtsMINqrJLrRacOk9x",
+            description: "ElevenLabs voice",
             previewText: defaultPreviewText
         ),
     ]

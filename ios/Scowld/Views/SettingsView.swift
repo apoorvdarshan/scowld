@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 // MARK: - Settings View
 
@@ -7,7 +8,9 @@ struct SettingsView: View {
     @State private var hasChanges = false
     @State private var selectedVoicePickerID = HostedServiceConfig.defaultElevenLabsVoiceID
     @State private var customVoiceID = ""
-    @State private var previewSpeech = SpeechManager()
+    @State private var previewPlayer: AVAudioPlayer?
+    @State private var isPreviewLoading = false
+    @State private var previewError: String?
 
     // MARK: - Character Settings
     @State private var characterName: String = "Stella"
@@ -39,12 +42,14 @@ struct SettingsView: View {
                         Text("Custom Voice ID").tag(ScowldVoiceLibrary.customID)
                     }
                     .onChange(of: selectedVoicePickerID) { hasChanges = true }
+                    .onChange(of: selectedVoicePickerID) { resetPreviewState() }
 
                     if selectedVoicePickerID == ScowldVoiceLibrary.customID {
                         TextField("ElevenLabs Voice ID", text: $customVoiceID)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                             .onChange(of: customVoiceID) { hasChanges = true }
+                            .onChange(of: customVoiceID) { resetPreviewState() }
                     } else if let voice = ScowldVoiceLibrary.option(for: selectedVoicePickerID) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(voice.description)
@@ -58,12 +63,23 @@ struct SettingsView: View {
                     }
 
                     Button {
-                        playLocalVoicePreview()
+                        playElevenLabsVoicePreview()
                     } label: {
-                        Label("Play sample", systemImage: "play.circle.fill")
+                        if isPreviewLoading {
+                            Label("Downloading sample", systemImage: "arrow.down.circle")
+                        } else {
+                            Label(previewButtonTitle, systemImage: previewButtonIcon)
+                        }
+                    }
+                    .disabled(isPreviewLoading)
+
+                    if let previewError {
+                        Text(previewError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
 
-                    Text("Sample playback uses local iOS speech and does not call ElevenLabs.")
+                    Text("Samples download once from ElevenLabs through Scowld's backend, then play locally from this device.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } header: {
@@ -137,6 +153,23 @@ struct SettingsView: View {
         }
     }
 
+    private var selectedPreviewVoiceID: String {
+        ScowldVoiceLibrary.voiceID(for: selectedVoicePickerID, customVoiceID: customVoiceID)
+    }
+
+    private var selectedPreviewText: String {
+        ScowldVoiceLibrary.option(for: selectedVoicePickerID)?.previewText
+            ?? ScowldVoiceLibrary.defaultPreviewText
+    }
+
+    private var previewButtonTitle: String {
+        ElevenLabsVoicePreviewCache.isCached(voiceID: selectedPreviewVoiceID) ? "Play sample" : "Download sample"
+    }
+
+    private var previewButtonIcon: String {
+        ElevenLabsVoicePreviewCache.isCached(voiceID: selectedPreviewVoiceID) ? "play.circle.fill" : "arrow.down.circle.fill"
+    }
+
     // MARK: - Settings Persistence
 
     private func loadSettings() {
@@ -170,11 +203,48 @@ struct SettingsView: View {
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 
-    private func playLocalVoicePreview() {
-        previewSpeech.speechRate = 0.5
-        previewSpeech.speechPitch = 1.25
-        let text = ScowldVoiceLibrary.option(for: selectedVoicePickerID)?.previewText
-            ?? ScowldVoiceLibrary.defaultPreviewText
-        previewSpeech.speak(text)
+    private func playElevenLabsVoicePreview() {
+        previewError = nil
+        previewPlayer?.stop()
+        isPreviewLoading = true
+
+        let voiceID = selectedPreviewVoiceID
+        let text = selectedPreviewText
+
+        Task {
+            do {
+                let url = try await ElevenLabsVoicePreviewCache.localAudioURL(voiceID: voiceID, text: text)
+                await MainActor.run {
+                    isPreviewLoading = false
+                    playPreviewAudio(from: url)
+                }
+            } catch {
+                await MainActor.run {
+                    isPreviewLoading = false
+                    previewError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func resetPreviewState() {
+        previewPlayer?.stop()
+        previewPlayer = nil
+        previewError = nil
+    }
+
+    private func playPreviewAudio(from url: URL) {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default)
+            try audioSession.setActive(true)
+
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.prepareToPlay()
+            player.play()
+            previewPlayer = player
+        } catch {
+            previewError = "Could not play sample: \(error.localizedDescription)"
+        }
     }
 }
