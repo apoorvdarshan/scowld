@@ -68,80 +68,80 @@ struct ScowldVoiceOption: Identifiable, Hashable {
 
 enum ScowldVoiceLibrary {
     static let customID = "__custom_voice_id__"
-    static let defaultPreviewText = "Hi, I'm Scowld. Tell me if this voice fits the avatar."
+    static let defaultPreviewText = "Hi, this is the selected voice. Tell me if this voice fits the avatar."
 
     static let presetVoices: [ScowldVoiceOption] = [
         ScowldVoiceOption(
-            name: "celine - cuddly, thin and soft.",
+            name: "Celine - cuddly, thin and soft",
             voiceID: HostedServiceConfig.defaultElevenLabsVoiceID,
-            description: "Default ElevenLabs companion voice",
-            previewText: defaultPreviewText
+            description: "Realistic, soft companion voice",
+            previewText: "Hi, I'm Celine. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
-            name: "Elara - Crisp Pro Narrator",
-            voiceID: "AZnzlk1XvdvUeBnXmlld",
-            description: "Crisp pro narrator",
-            previewText: defaultPreviewText
+            name: "Claire - Cute & Cheerful JP",
+            voiceID: "HxuFAkkGVeQs1sDIMF5g",
+            description: "Cute, cheerful Japanese voice",
+            previewText: "Hi, I'm Claire. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
-            name: "Evelyn",
-            voiceID: "ThT5KcBeYPX3keUQqHPh",
-            description: "ElevenLabs voice",
-            previewText: defaultPreviewText
+            name: "Haru - Calm & Friendly Japanese Female",
+            voiceID: "a0MsDWokG5Xsuji8g8er",
+            description: "Calm, friendly Japanese female voice",
+            previewText: "Hi, I'm Haru. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
-            name: "Janet",
-            voiceID: "21m00Tcm4TlvDq8ikWAM",
-            description: "ElevenLabs voice",
-            previewText: defaultPreviewText
+            name: "Hina - cute and friendly",
+            voiceID: "lhTvHflPVOqgSWyuWQry",
+            description: "Cute, friendly voice",
+            previewText: "Hi, I'm Hina. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
             name: "Jessica - Playful, Bright, Warm",
             voiceID: "cgSgspJ2msm6clMCkdW9",
-            description: "Playful, bright, warm",
-            previewText: defaultPreviewText
+            description: "Realistic, playful, bright voice",
+            previewText: "Hi, I'm Jessica. Tell me if this voice fits the avatar."
+        ),
+        ScowldVoiceOption(
+            name: "Kana - Japanese Young Female",
+            voiceID: "dhGvgIx0X6G3xzSWqOye",
+            description: "Young Japanese female voice",
+            previewText: "Hi, I'm Kana. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
             name: "Lily - Velvety Actress",
             voiceID: "pFZP5JQG7iQjIQuC4Bku",
-            description: "Velvety actress",
-            previewText: defaultPreviewText
+            description: "Realistic, velvety actress voice",
+            previewText: "Hi, I'm Lily. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
-            name: "Maisie - Friendly Casual Neighbor",
-            voiceID: "piTKgcLEGmPE4e6mEKli",
-            description: "Friendly casual neighbor",
-            previewText: defaultPreviewText
+            name: "Renren - Soft and Calm Japanese Female",
+            voiceID: "RWZ1lnBIIgPBTpyCnKn2",
+            description: "Soft, calm Japanese female voice",
+            previewText: "Hi, I'm Renren. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
-            name: "Matilda - Knowledgable, Professional",
-            voiceID: "XrExE9yKIg1WjnnlVkGX",
-            description: "Knowledgeable, professional",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Peter",
-            voiceID: "MF3mGyEYCl7XYWbV9V6O",
-            description: "ElevenLabs voice",
-            previewText: defaultPreviewText
-        ),
-        ScowldVoiceOption(
-            name: "Riley",
-            voiceID: "oWAxZDx7w5VEj9dCyTzz",
-            description: "ElevenLabs voice",
-            previewText: defaultPreviewText
+            name: "Sara - Calm, Soothing & Multilingual Japanese Female",
+            voiceID: "l7ME2dcqpdvq6E8sCS24",
+            description: "Calm, soothing Japanese female voice",
+            previewText: "Hi, I'm Sara. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
             name: "Sarah - Mature, Reassuring, Confident",
             voiceID: "EXAVITQu4vr4xnSDxMaL",
-            description: "Mature, reassuring, confident",
-            previewText: defaultPreviewText
+            description: "Realistic, mature, reassuring voice",
+            previewText: "Hi, I'm Sarah. Tell me if this voice fits the avatar."
         ),
         ScowldVoiceOption(
-            name: "Zoe",
-            voiceID: "9BWtsMINqrJLrRacOk9x",
-            description: "ElevenLabs voice",
-            previewText: defaultPreviewText
+            name: "Yoko Honda - Soft female voice",
+            voiceID: "0ptCJp0xgdabdcpVtCB5",
+            description: "Soft Japanese female voice",
+            previewText: "Hi, I'm Yoko. Tell me if this voice fits the avatar."
+        ),
+        ScowldVoiceOption(
+            name: "Yukiko - Native Japanese female calm voice",
+            voiceID: "Z5Rahxh8jMhJKEgBfCSS",
+            description: "Native Japanese calm female voice",
+            previewText: "Hi, I'm Yukiko. Tell me if this voice fits the avatar."
         ),
     ]
 

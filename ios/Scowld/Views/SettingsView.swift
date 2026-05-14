@@ -49,6 +49,11 @@ struct SettingsView: View {
                             .textInputAutocapitalization(.never)
                             .onChange(of: customVoiceID) { hasChanges = true }
                             .onChange(of: customVoiceID) { resetPreviewState() }
+
+                        Link(destination: URL(string: "https://elevenlabs.io/app/voice-library")!) {
+                            Label("Where to get a custom voice ID", systemImage: "info.circle")
+                        }
+                        .font(.caption)
                     } else if let voice = ScowldVoiceLibrary.option(for: selectedVoicePickerID) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(voice.description)
