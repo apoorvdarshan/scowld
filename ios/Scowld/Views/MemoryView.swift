@@ -240,13 +240,22 @@ struct PastChatDetailView: View {
                     description: Text("Start chatting and this conversation will appear here as a read-only transcript.")
                 )
             } else {
-                List {
-                    Section {
-                        ForEach(messages) { message in
-                            PastChatMessageRow(message: message)
+                ScrollViewReader { proxy in
+                    List {
+                        Section {
+                            ForEach(messages) { message in
+                                PastChatMessageRow(message: message)
+                                    .id(message.id)
+                            }
+                        } footer: {
+                            Text("Saved chats are read-only. Switch to this chat to use it as context for future replies.")
                         }
-                    } footer: {
-                        Text("Saved chats are read-only. Switch to this chat to use it as context for future replies.")
+                    }
+                    .onAppear {
+                        scrollToBottom(proxy)
+                    }
+                    .onChange(of: messages.count) {
+                        scrollToBottom(proxy)
                     }
                 }
             }
@@ -264,6 +273,13 @@ struct PastChatDetailView: View {
                     .foregroundStyle(.amicaBlue)
                 }
             }
+        }
+    }
+
+    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+        guard let latestMessageID = messages.last?.id else { return }
+        DispatchQueue.main.async {
+            proxy.scrollTo(latestMessageID, anchor: .bottom)
         }
     }
 }
