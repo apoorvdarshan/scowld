@@ -299,7 +299,10 @@ final class MemoryStore {
     private func loadSlots() {
         let context = container.viewContext
         let request: NSFetchRequest<MemorySlotEntity> = MemorySlotEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "lastUsedDate", ascending: false)]
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "createdDate", ascending: false),
+            NSSortDescriptor(key: "name", ascending: true)
+        ]
 
         guard let results = try? context.fetch(request) else { return }
 

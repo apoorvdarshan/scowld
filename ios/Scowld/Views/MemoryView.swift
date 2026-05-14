@@ -2,21 +2,84 @@ import SwiftUI
 
 // MARK: - Past Chats View
 
+private enum ChatSortOption: String, CaseIterable, Identifiable {
+    case createdDescending
+    case createdAscending
+    case nameAscending
+    case nameDescending
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .createdDescending: "Created: Newest"
+        case .createdAscending: "Created: Oldest"
+        case .nameAscending: "Name: A to Z"
+        case .nameDescending: "Name: Z to A"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .createdDescending: "arrow.down"
+        case .createdAscending: "arrow.up"
+        case .nameAscending: "arrow.up"
+        case .nameDescending: "arrow.down"
+        }
+    }
+}
+
 /// Browse saved chat threads and switch which one is used as context.
 struct MemoryView: View {
     var memoryStore: MemoryStore
+    @AppStorage("chatSortOption") private var chatSortOptionRaw = ChatSortOption.createdDescending.rawValue
     @State private var renameSlotId: UUID?
     @State private var renameText = ""
+
+    private var chatSortOption: ChatSortOption {
+        ChatSortOption(rawValue: chatSortOptionRaw) ?? .createdDescending
+    }
+
+    private var sortedSlots: [MemorySlot] {
+        memoryStore.slots.sorted { lhs, rhs in
+            switch chatSortOption {
+            case .createdDescending:
+                if lhs.createdDate != rhs.createdDate {
+                    return lhs.createdDate > rhs.createdDate
+                }
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            case .createdAscending:
+                if lhs.createdDate != rhs.createdDate {
+                    return lhs.createdDate < rhs.createdDate
+                }
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            case .nameAscending:
+                let comparison = lhs.name.localizedStandardCompare(rhs.name)
+                if comparison != .orderedSame {
+                    return comparison == .orderedAscending
+                }
+                return lhs.createdDate > rhs.createdDate
+            case .nameDescending:
+                let comparison = lhs.name.localizedStandardCompare(rhs.name)
+                if comparison != .orderedSame {
+                    return comparison == .orderedDescending
+                }
+                return lhs.createdDate > rhs.createdDate
+            }
+        }
+    }
 
     var body: some View {
         List {
             Section {
-                ForEach(memoryStore.slots) { slot in
+                ForEach(sortedSlots) { slot in
                     slotRow(slot)
                 }
                 .onDelete { indexSet in
-                    for index in indexSet {
-                        let slot = memoryStore.slots[index]
+                    let slotsToDelete = indexSet.compactMap { index in
+                        sortedSlots.indices.contains(index) ? sortedSlots[index] : nil
+                    }
+                    for slot in slotsToDelete {
                         if memoryStore.slots.count > 1 {
                             memoryStore.deleteSlot(id: slot.id)
                         }
@@ -40,6 +103,21 @@ struct MemoryView: View {
         }
         .navigationTitle("Chats")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Sort Chats", selection: $chatSortOptionRaw) {
+                        ForEach(ChatSortOption.allCases) { option in
+                            Label(option.title, systemImage: option.systemImage)
+                                .tag(option.rawValue)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+                .accessibilityLabel("Sort chats")
+            }
+        }
         .alert("Rename Chat", isPresented: Binding(
             get: { renameSlotId != nil },
             set: { if !$0 { renameSlotId = nil } }
