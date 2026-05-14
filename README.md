@@ -5,71 +5,91 @@
 <h1 align="center">Scowld</h1>
 
 <p align="center">
-  An AI companion app for iOS with 3D anime avatars, hands-free voice chat, vision, and persistent memory.
+  A paid iOS AI voice companion with an animated character, hosted Gemini AI, Deepgram speech-to-text, ElevenLabs text-to-speech, vision, and saved conversations.
 </p>
 
 <p align="center">
-  <a href="https://testflight.apple.com/join/7WgDe7e4"><img src="https://img.shields.io/badge/TestFlight-Join%20Beta-blue?logo=apple" alt="TestFlight"></a>
-  <a href="https://github.com/apoorvdarshan/scowld"><img src="https://img.shields.io/github/stars/apoorvdarshan/scowld?style=social" alt="GitHub Stars"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+  <a href="https://scowld.xyz"><img src="https://img.shields.io/badge/Website-scowld.xyz-blue" alt="Website"></a>
+  <a href="https://www.instagram.com/scowld_/"><img src="https://img.shields.io/badge/Instagram-@scowld__-pink" alt="Instagram"></a>
+  <a href="https://www.linkedin.com/company/scowld"><img src="https://img.shields.io/badge/LinkedIn-Scowld-blue" alt="LinkedIn"></a>
+  <a href="https://www.producthunt.com/products/scowld"><img src="https://img.shields.io/badge/Product%20Hunt-Scowld-orange" alt="Product Hunt"></a>
 </p>
 
 <p align="center">
-  <img src="assets/avatars.png" alt="Scowld Avatars — Aria, Bella, Ciel" width="700">
+  <img src="assets/avatars.png" alt="Scowld Avatars" width="700">
 </p>
+
+## Status
+
+This is a private Scowld repository for the iOS app, the hosted backend routes, and the marketing website at [scowld.xyz](https://scowld.xyz).
 
 ## Features
 
-- **3D Anime Avatars** — 3 switchable VRM characters (Aria, Bella, Ciel) with lip sync, idle animations, and expressions. Each avatar has her own name and personality
-- **Hands-Free Voice Chat** — Always-on speech recognition with auto-send on silence, live listening/transcribing states, and AI captions
-- **Hosted Speech-to-Text** — Deepgram Nova routed through the Vercel backend
-- **Vision** — Front camera feeds to the AI so it can see what you see (no preview shown, privacy-first)
-- **Managed Gemini AI** — Gemini 3.1 Pro starts the response path with hosted fallback models
-- **ElevenLabs Text-to-Speech** — Managed TTS with selectable voice IDs and local sample previews
-- **Persistent Memory** — AI extracts and remembers key details across conversations using memory slots
+- **Animated companion** - VRM character rendering through the bundled Amica/Arbius frontend, with lip sync, idle animations, and expressions.
+- **Voice and text chat** - Send typed messages or voice input from the iOS composer.
+- **Hosted speech-to-text** - Deepgram Nova-3 routed through the Vercel backend.
+- **Hosted Gemini AI** - Gemini 3 Flash starts the response path with hosted fallback models.
+- **ElevenLabs text-to-speech** - Managed TTS with selectable voice IDs and bundled local voice previews.
+- **Vision** - Optional front-camera context can be sent to the AI when enabled.
+- **Past chats** - Conversations are saved locally and can be selected as context for future replies.
+- **Character settings** - Avatar, custom name, and system prompt controls.
+- **Multilingual speech settings** - Defaults to the iPhone language, with supported language overrides.
+- **Billing and credits** - StoreKit subscriptions, extra credit packs, and Apple subscription management.
+- **About actions** - Update check, rating prompt, share, contact, Product Hunt, Ko-fi, LinkedIn, Instagram, privacy, and terms.
 
 ## Repo Structure
 
-This is a monorepo containing both the iOS app and the marketing website ([scowld.xyz](https://scowld.xyz)).
-
 ```
-ios/             — iOS app (open ios/Scowld.xcodeproj in Xcode)
-web/             — Next.js website (cd web && npm install && npm run dev)
+ios/             - iOS app (open ios/Scowld.xcodeproj in Xcode)
+web/             - Next.js website and hosted backend routes
+assets/          - README assets
+APPSTORE.md      - App Store Connect copy
 ```
 
 ## Architecture
 
 ```
 Native iOS (Swift/SwiftUI)
-├── VoiceManager        — Always-on speech recognition + silence detection
-├── CloudSTTManager     — Hosted Deepgram speech-to-text support
-├── MemoryStore         — CoreData persistence for chat history + memory logs
-├── MemoryExtractor     — LLM-powered memory extraction from conversations
-├── LLM Providers       — Hosted Gemini provider with model fallbacks
-└── HomeView            — Main UI with WKWebView bridge
+├── HomeView             - Main chat UI and WKWebView bridge
+├── BillingStore         - StoreKit products, subscriptions, and voice credits
+├── CloudSTTProvider     - Hosted Deepgram speech-to-text
+├── HostedGeminiProvider - Hosted Gemini chat requests
+├── MemoryStore          - Local CoreData chat history and selected chat context
+├── SettingsView         - Voice, language, avatar, prompt, and managed service settings
+└── AboutView            - App actions, update check, links, and support
 
-WKWebView (Amica Web Frontend (by Arbius AI))
-├── Three.js + three-vrm — 3D avatar rendering
-├── VRMA Animations      — Idle, gesture, and lip sync
-├── AudioContext          — TTS audio playback
-└── Native Bridge         — JS <-> Swift message passing
+WKWebView (bundled Amica/Arbius frontend)
+├── Three.js + three-vrm - 3D avatar rendering
+├── VRMA animations      - Idle, gesture, and lip sync animation support
+├── AudioContext         - TTS audio playback
+└── Native bridge        - JavaScript to Swift message passing
+
+Vercel / Next.js backend
+├── /api/chat            - Gemini model fallback route
+├── /api/stt/deepgram    - Deepgram speech-to-text proxy
+├── /api/tts/elevenlabs  - ElevenLabs text-to-speech proxy
+└── /api/billing/config  - Public billing configuration
 ```
 
 ## Requirements
 
 - iOS 17.0+
 - Xcode 16+
+- Node.js for the website/backend
 - Vercel environment variables for Gemini, ElevenLabs, and Deepgram
+- App Store Connect products matching the StoreKit product IDs below
 
-## Planned Monetization
+## Monetization
 
-Voice usage is modeled as one simple unit: **1 voice credit = 1 full voice turn** (user speech, STT, Gemini response, and ElevenLabs TTS).
+Voice usage is modeled as one simple unit:
+
+**1 voice credit = 1 full voice turn**
 
 | Subscription | Price | Included credits |
 | --- | ---: | ---: |
 | Weekly | $9.99/week | 40 credits/week |
 | Monthly | $34.99/month | 180 credits/month, refilled as 45/week |
-| Yearly | $299.99/year | 2340 credits/year, refilled as 45/week |
+| Yearly | $299.99/year | 2,340 credits/year, refilled as 45/week |
 
 | Extra credit pack | Price |
 | ---: | ---: |
@@ -79,9 +99,9 @@ Voice usage is modeled as one simple unit: **1 voice credit = 1 full voice turn*
 | 200 credits | $49.99 |
 | 500 credits | $119.99 |
 
-Extra credits can be used after the weekly subscription refill is consumed. They do not bypass safety limits such as one active voice reply at a time, capped audio input length, and capped TTS reply length.
+Extra credits are used after subscription credits. They do not bypass safety limits such as one active reply at a time, capped audio input length, capped TTS reply length, or reply-rate limits.
 
-StoreKit product IDs are defined in the app and mirrored by the Vercel billing config route at `/api/billing/config`:
+StoreKit product IDs:
 
 - `scowld.sub.weekly`
 - `scowld.sub.monthly`
@@ -94,23 +114,17 @@ StoreKit product IDs are defined in the app and mirrored by the Vercel billing c
 
 ## Setup
 
-Clone the repo first:
-
-```bash
-git clone https://github.com/apoorvdarshan/scowld.git
-cd scowld
-```
-
 ### iOS App
 
-1. Open in Xcode
+1. Open the Xcode project.
    ```bash
    open ios/Scowld.xcodeproj
    ```
-2. Build and run on your iPhone
-3. In Settings, choose the ElevenLabs voice and character settings
+2. Select the Scowld scheme and your device.
+3. Build and run from Xcode.
+4. Use Xcode StoreKit testing or App Store sandbox/TestFlight for purchase flow testing.
 
-### Website ([scowld.xyz](https://scowld.xyz))
+### Website and Hosted Routes
 
 ```bash
 cd web
@@ -118,11 +132,11 @@ npm install
 npm run dev
 ```
 
-Next.js dev server runs at http://localhost:3000.
+Next.js runs at `http://localhost:3000`.
 
 ### Hosted API Secrets
 
-The iOS app does not embed provider API keys. Add these environment variables to Vercel for the `web/` deployment:
+The iOS app does not embed provider API keys. Add these environment variables to the Vercel deployment for `web/`:
 
 ```bash
 GEMINI_API_KEY
@@ -134,46 +148,27 @@ DEEPGRAM_API_KEY
 DEEPGRAM_MODEL
 ```
 
-See `web/.env.example` for defaults.
+See [web/.env.example](web/.env.example) for defaults.
 
-## How It Works
+## Privacy Model
 
-### Voice Mode
-Tap the waveform icon to enable hands-free mode. Speak naturally — the app auto-sends after silence is detected. While the AI responds, the mic pauses and resumes automatically after TTS finishes.
+- No user provider API keys are shown in the app.
+- Gemini, Deepgram, and ElevenLabs keys live in hosted backend environment variables.
+- Chat history and selected chat context are stored locally on device.
+- Voice audio, prompt text, optional image context, and generated speech text are routed through the hosted backend only to provide app features.
+- Camera access is optional and used only when visual context is sent.
 
-### Avatars
-Switch between Aria, Bella, and Ciel in Settings. Each avatar uses her own name by default. Set a custom name to override it.
+## Website Links
 
-### Vision
-The front camera is enabled by default (hidden, no preview). The AI can see through your camera when you send messages. Toggle with the eye icon in the bottom bar.
+- Website: https://scowld.xyz
+- Privacy: https://scowld.xyz/privacy
+- Terms: https://scowld.xyz/terms
+- LinkedIn: https://www.linkedin.com/company/scowld
+- Instagram: https://www.instagram.com/scowld_/
+- Product Hunt: https://www.producthunt.com/products/scowld
+- Ko-fi: https://ko-fi.com/apoorvdarshan
 
-### Memory
-The AI automatically extracts important details from conversations and stores them in memory slots. These persist across sessions and are injected into the system prompt for context-aware responses.
+## Credits
 
-## Tech Stack
-
-**iOS app**
-- **Swift / SwiftUI** — Native iOS app
-- **WKWebView** — Hosts [Amica](https://github.com/semperai/amica) (by Arbius AI) Three.js frontend for 3D avatar rendering
-- **CoreData** — Chat history and memory persistence
-- **Deepgram** — Hosted speech-to-text
-- **ElevenLabs** — Hosted text-to-speech
-- **AVAudioEngine** — Audio session management for simultaneous TTS and STT
-
-**Website**
-- **Next.js** — React framework, deployed on Vercel
-- **Vercel Route Handlers** — Server-side Gemini, ElevenLabs, and Deepgram API proxy routes
-- **Vanilla CSS** — No Tailwind, no CSS-in-JS
-- **Clash Display** — Font for all text, JetBrains Mono for monospace
-
-## Acknowledgments
-
-- **[Amica](https://github.com/semperai/amica)** by Arbius AI — Open-source 3D avatar frontend with Three.js and VRM support (MIT License)
-
-## License
-
-MIT License — see [LICENSE](LICENSE)
-
-## Contact
-
-**Apoorv Darshan** — ad13dtu@gmail.com
+- Character/avatar frontend: Amica / Arbius AI (MIT)
+- Developer: Apoorv Darshan, ad13dtu@gmail.com
