@@ -13,7 +13,6 @@ struct SettingsView: View {
     @State private var selectedLanguageID = HostedServiceConfig.autoLanguageID
     @State private var showAICaption = false
     @State private var isLoadingSettings = false
-    @State private var showPaywall = false
     @Environment(BillingStore.self) private var billingStore
 
     // MARK: - Character Settings
@@ -69,7 +68,7 @@ struct SettingsView: View {
 
                 Section {
                     Button {
-                        showPaywall = true
+                        NotificationCenter.default.post(name: .showBillingTab, object: nil)
                     } label: {
                         HStack {
                             Label("Manage Billing", systemImage: "creditcard")
@@ -222,9 +221,6 @@ struct SettingsView: View {
             }
         }
         .onAppear { loadSettings() }
-        .sheet(isPresented: $showPaywall) {
-            PaywallView(reason: "Manage subscription and extra voice credits.")
-        }
     }
 
     private func labeledValue(_ label: String, value: String) -> some View {

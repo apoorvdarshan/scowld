@@ -155,8 +155,6 @@ struct HomeView: View {
     @State private var isAssistantSpeaking = false
     @State private var assistantSpeechUnlockTask: Task<Void, Never>?
     @State private var assistantSpeechEarliestEndAt: Date?
-    @State private var showPaywall = false
-    @State private var paywallReason = ""
     @AppStorage("show_ai_caption") private var showAICaption = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(BillingStore.self) private var billingStore
@@ -207,9 +205,6 @@ struct HomeView: View {
 
             setupVoice()
             amicaCoordinator?.setRuntimeActive(isActive)
-        }
-        .sheet(isPresented: $showPaywall) {
-            PaywallView(reason: paywallReason)
         }
         .onDisappear {
             stopActiveConversation()
@@ -657,8 +652,7 @@ struct HomeView: View {
     }
 
     private func presentPaywall(reason: String) {
-        paywallReason = reason
-        showPaywall = true
+        NotificationCenter.default.post(name: .showBillingTab, object: reason)
     }
 
 
@@ -2019,4 +2013,5 @@ extension Notification.Name {
     static let ttsFailed = Notification.Name("ttsFailed")
     static let aiResponseReady = Notification.Name("aiResponseReady")
     static let appReady = Notification.Name("appReady")
+    static let showBillingTab = Notification.Name("showBillingTab")
 }

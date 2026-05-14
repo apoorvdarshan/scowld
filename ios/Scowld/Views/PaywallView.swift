@@ -5,6 +5,8 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
 
     var reason: String?
+    var showsCloseButton = true
+    var title = "Scowld Plus"
 
     var body: some View {
         NavigationStack {
@@ -18,14 +20,17 @@ struct PaywallView: View {
                 }
                 .padding(20)
             }
-            .navigationTitle("Scowld Plus")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") {
-                        dismiss()
+                if showsCloseButton {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Close") {
+                            dismiss()
+                        }
                     }
                 }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Restore") {
                         Task { await billingStore.restorePurchases() }
@@ -37,6 +42,7 @@ struct PaywallView: View {
                 await billingStore.start()
             }
         }
+        .interactiveDismissDisabled(!showsCloseButton)
     }
 
     private var header: some View {

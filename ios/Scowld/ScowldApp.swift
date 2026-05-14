@@ -21,12 +21,14 @@ private enum ScowldTab: Hashable {
     case chat
     case pastChats
     case settings
+    case billing
     case about
 }
 
 struct ScowldRootView: View {
     var memoryStore: MemoryStore
     @State private var selectedTab: ScowldTab = .chat
+    @Environment(BillingStore.self) private var billingStore
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -50,18 +52,55 @@ struct ScowldRootView: View {
                 }
                 .tag(ScowldTab.settings)
 
+            PaywallView(
+                reason: "Manage subscription and extra voice credits.",
+                showsCloseButton: false,
+                title: "Billing"
+            )
+            .tabItem {
+                Label("Billing", systemImage: "creditcard.fill")
+            }
+            .tag(ScowldTab.billing)
+
             AboutView()
                 .tabItem {
                     Label("About", systemImage: "info.circle.fill")
                 }
                 .tag(ScowldTab.about)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .showBillingTab)) { _ in
+            selectedTab = .billing
+        }
+        .overlay {
+            if !billingStore.hasLoadedEntitlements {
+                Color.black
+                    .ignoresSafeArea()
+                    .overlay {
+                        ProgressView("Loading billing...")
+                    }
+            }
+        }
+        .fullScreenCover(isPresented: startupPaymentRequiredBinding) {
+            PaywallView(
+                reason: "Choose a plan or add credits to start using Scowld.",
+                showsCloseButton: false,
+                title: "Scowld Plus"
+            )
+        }
+    }
+
+    private var startupPaymentRequiredBinding: Binding<Bool> {
+        Binding(
+            get: {
+                billingStore.hasLoadedEntitlements && !billingStore.hasPaidAccess
+            },
+            set: { _ in }
+        )
     }
 }
 
 struct AboutView: View {
     @Environment(BillingStore.self) private var billingStore
-    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -86,7 +125,7 @@ struct AboutView: View {
 
                 Section {
                     Button {
-                        showPaywall = true
+                        NotificationCenter.default.post(name: .showBillingTab, object: nil)
                     } label: {
                         Label("Manage Billing", systemImage: "creditcard")
                     }
@@ -110,54 +149,9 @@ struct AboutView: View {
                 } header: {
                     Label("Credits", systemImage: "doc.plaintext")
                 }
-
-                Section {
-                    Text(ScowldMonetization.voiceCreditDefinition)
-                        .foregroundStyle(.secondary)
-
-                    ForEach(ScowldMonetization.subscriptionPlans) { plan in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(plan.title)
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text(plan.displayPrice)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text("\(plan.includedCredits) credits included - \(plan.refillDescription)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Label("Subscriptions", systemImage: "creditcard")
-                } footer: {
-                    Text("Subscription credits refill weekly. Extra credits can be used after the weekly refill is consumed.")
-                }
-
-                Section {
-                    ForEach(ScowldMonetization.extraCreditPacks) { pack in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("\(pack.credits) credits")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text(pack.displayPrice)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                } header: {
-                    Label("Extra Credits", systemImage: "plus.circle")
-                } footer: {
-                    Text("Extra credits bypass the weekly subscription refill, but not safety limits like one active reply at a time.")
-                }
             }
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showPaywall) {
-                PaywallView(reason: "Manage subscription and extra voice credits.")
-            }
         }
     }
 }

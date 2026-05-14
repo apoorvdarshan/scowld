@@ -21,6 +21,7 @@ final class BillingStore {
     private(set) var extraCreditsRemaining = 0
     private(set) var isLoadingProducts = false
     private(set) var isPurchasing = false
+    private(set) var hasLoadedEntitlements = false
     private(set) var lastPurchaseState: BillingPurchaseState?
     var errorMessage: String?
 
@@ -55,6 +56,10 @@ final class BillingStore {
         activeSubscriptionPlan != nil
     }
 
+    var hasPaidAccess: Bool {
+        hasActiveSubscription || totalCreditsRemaining > 0
+    }
+
     func start() async {
         guard !hasStarted else {
             applyWeeklyRefillIfNeeded()
@@ -67,8 +72,10 @@ final class BillingStore {
     }
 
     func reloadProductsAndEntitlements() async {
+        hasLoadedEntitlements = false
         await loadProducts()
         await refreshEntitlements()
+        hasLoadedEntitlements = true
     }
 
     func product(for productID: String) -> Product? {
