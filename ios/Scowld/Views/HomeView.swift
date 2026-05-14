@@ -69,7 +69,7 @@ private struct VoiceTouchCaptureView: UIViewRepresentable {
 
     func updateUIView(_ control: VoiceTouchControl, context: Context) {
         control.isCaptureEnabled = isEnabled
-        control.isUserInteractionEnabled = isEnabled
+        control.isUserInteractionEnabled = true
         control.onStart = onStart
         control.onMove = onMove
         control.onEnd = onEnd
@@ -86,6 +86,7 @@ private final class VoiceTouchControl: UIControl {
 
     private var startPoint = CGPoint.zero
     private var startedAt: Date?
+    private var isTrackingCapture = false
 
     override var intrinsicContentSize: CGSize {
         CGSize(width: 48, height: 48)
@@ -95,18 +96,19 @@ private final class VoiceTouchControl: UIControl {
         guard isCaptureEnabled else { return false }
         startPoint = touch.location(in: self)
         startedAt = Date()
+        isTrackingCapture = true
         onStart?()
         return true
     }
 
     override func continueTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
-        guard isCaptureEnabled else { return false }
+        guard isTrackingCapture else { return false }
         onMove?(translationSize(for: touch))
         return true
     }
 
     override func endTracking(_ touch: UITouch?, with event: UIEvent?) {
-        guard let startedAt else {
+        guard isTrackingCapture, let startedAt else {
             resetTracking()
             return
         }
@@ -117,7 +119,9 @@ private final class VoiceTouchControl: UIControl {
     }
 
     override func cancelTracking(with event: UIEvent?) {
-        onCancel?()
+        if isTrackingCapture {
+            onCancel?()
+        }
         resetTracking()
     }
 
@@ -129,6 +133,7 @@ private final class VoiceTouchControl: UIControl {
     private func resetTracking() {
         startPoint = .zero
         startedAt = nil
+        isTrackingCapture = false
     }
 }
 
@@ -238,7 +243,9 @@ struct HomeView: View {
                 if isActive {
                     amicaCoordinator?.setRuntimeActive(true)
                 }
-            case .inactive, .background:
+            case .inactive:
+                break
+            case .background:
                 stopActiveConversation()
             @unknown default:
                 break
