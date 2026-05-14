@@ -103,8 +103,6 @@ struct ScowldRootView: View {
 }
 
 struct AboutView: View {
-    @Environment(BillingStore.self) private var billingStore
-
     var body: some View {
         NavigationStack {
             List {
@@ -124,24 +122,6 @@ struct AboutView: View {
                     Link(destination: URL(string: "https://scowld.xyz/terms")!) {
                         Label("Terms of Service", systemImage: "doc.text")
                     }
-                }
-
-                Section {
-                    Button {
-                        NotificationCenter.default.post(name: .showBillingTab, object: nil)
-                    } label: {
-                        Label("Manage Billing", systemImage: "creditcard")
-                    }
-
-                    HStack {
-                        Text("Credits Available")
-                        Spacer()
-                        Text("\(billingStore.totalCreditsRemaining)")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                } header: {
-                    Label("Billing", systemImage: "bolt.circle")
                 }
 
                 Section {
