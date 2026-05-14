@@ -26,19 +26,13 @@ final class MemoryStore {
         loadSlots()
         migrateLegacySlotNames()
 
-        // Restore active slot from UserDefaults
         if let idStr = UserDefaults.standard.string(forKey: "activeMemorySlotId"),
            let id = UUID(uuidString: idStr),
            slots.contains(where: { $0.id == id }) {
             activeSlotId = id
         }
 
-        // Create default slot if none exist
-        if slots.isEmpty {
-            let slot = createSlot(name: nextDefaultSlotName())
-            activeSlotId = slot.id
-            saveActiveSlotId()
-        }
+        ensureActiveSlot()
     }
 
     // MARK: - Slot CRUD
@@ -88,14 +82,18 @@ final class MemoryStore {
         save(context)
         loadSlots()
 
-        // If deleted active slot, switch to first available
         if activeSlotId == id {
-            activeSlotId = slots.first?.id
-            saveActiveSlotId()
+            activeSlotId = nil
         }
+        ensureActiveSlot()
     }
 
     func setActiveSlot(id: UUID) {
+        guard slots.contains(where: { $0.id == id }) else {
+            ensureActiveSlot()
+            return
+        }
+
         activeSlotId = id
         saveActiveSlotId()
 
@@ -143,7 +141,7 @@ final class MemoryStore {
     // MARK: - Messages
 
     func saveMessage(role: MessageRole, content: String, emotion: Emotion? = nil) {
-        guard let slotId = activeSlotId else { return }
+        let slotId = ensureActiveSlot()
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         let context = container.viewContext
@@ -160,7 +158,7 @@ final class MemoryStore {
     }
 
     func saveExchange(userMessage: String, assistantResponse: String) {
-        guard let slotId = activeSlotId else { return }
+        let slotId = ensureActiveSlot()
         let userText = userMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         let assistantText = assistantResponse.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !userText.isEmpty || !assistantText.isEmpty else { return }
@@ -199,8 +197,7 @@ final class MemoryStore {
     }
 
     func fetchMessages(slotId: UUID? = nil) -> [ChatMessage] {
-        let id = slotId ?? activeSlotId
-        guard let id else { return [] }
+        let id = slotId ?? ensureActiveSlot()
         let context = container.viewContext
         let request: NSFetchRequest<MessageEntity> = MessageEntity.fetchRequest()
         request.predicate = NSPredicate(format: "sessionId == %@", id as CVarArg)
@@ -230,8 +227,7 @@ final class MemoryStore {
 
     /// Get the memory log for the active slot
     func getActiveMemoryLog() -> String {
-        guard let slotId = activeSlotId else { return "" }
-        return getMemoryLog(slotId: slotId)
+        getMemoryLog(slotId: ensureActiveSlot())
     }
 
     /// Get the memory log for a specific slot
@@ -245,8 +241,7 @@ final class MemoryStore {
 
     /// Update the memory log for the active slot
     func updateMemoryLog(_ log: String) {
-        guard let slotId = activeSlotId else { return }
-        updateMemoryLog(log, slotId: slotId)
+        updateMemoryLog(log, slotId: ensureActiveSlot())
     }
 
     /// Update the memory log for a specific slot
@@ -281,6 +276,24 @@ final class MemoryStore {
         } catch {
             print("CoreData save error: \(error.localizedDescription)")
         }
+    }
+
+    @discardableResult
+    private func ensureActiveSlot() -> UUID {
+        if let activeSlotId, slots.contains(where: { $0.id == activeSlotId }) {
+            return activeSlotId
+        }
+
+        if let firstSlot = slots.first {
+            activeSlotId = firstSlot.id
+            saveActiveSlotId()
+            return firstSlot.id
+        }
+
+        let slot = createSlot(name: nextDefaultSlotName())
+        activeSlotId = slot.id
+        saveActiveSlotId()
+        return slot.id
     }
 
     private func loadSlots() {
