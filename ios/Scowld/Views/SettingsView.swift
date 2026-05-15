@@ -14,7 +14,6 @@ struct SettingsView: View {
     @State private var selectedLanguageID = HostedServiceConfig.deviceLanguageID
     @State private var showAICaption = false
     @State private var isLoadingSettings = false
-    @Environment(BillingStore.self) private var billingStore
 
     // MARK: - Character Settings
     @State private var hasCharacterChanges = false
@@ -71,20 +70,6 @@ struct SettingsView: View {
                                     guard !isLoadingSettings else { return }
                                     saveDisplaySettings()
                                 }
-                        }
-                    }
-
-                    settingsSection(
-                        "Billing",
-                        icon: "bolt.circle",
-                        footer: "Subscriptions refill weekly. Extra credits can be used after subscription credits run out."
-                    ) {
-                        settingsActionRow(
-                            title: "Manage Billing",
-                            subtitle: "\(billingStore.totalCreditsRemaining) credits",
-                            systemImage: "creditcard"
-                        ) {
-                            NotificationCenter.default.post(name: .showBillingTab, object: nil)
                         }
                     }
 
