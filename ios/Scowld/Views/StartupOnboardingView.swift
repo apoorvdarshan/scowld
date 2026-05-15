@@ -1,5 +1,4 @@
 import AVFoundation
-import Combine
 import StoreKit
 import SwiftUI
 
@@ -101,7 +100,7 @@ struct StartupOnboardingView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                OnboardingVideoCarousel()
+                OnboardingVideoCarousel(isVisible: selectedPage == 2)
                     .frame(maxWidth: .infinity)
                     .frame(height: 430)
             }
@@ -257,6 +256,7 @@ private struct OnboardingFeatureRow: View {
 }
 
 private struct OnboardingVideoCarousel: View {
+    let isVisible: Bool
     @State private var selectedClip = 0
 
     private let clips = [
@@ -265,14 +265,12 @@ private struct OnboardingVideoCarousel: View {
         OnboardingClip(title: "Ciel", resourceName: "ciel"),
     ]
 
-    private let timer = Timer.publish(every: 4.8, on: .main, in: .common).autoconnect()
-
     var body: some View {
         VStack(spacing: 14) {
             TabView(selection: $selectedClip) {
                 ForEach(Array(clips.enumerated()), id: \.element.resourceName) { index, clip in
                     VStack(spacing: 10) {
-                        LoopingOnboardingVideoView(resourceName: clip.resourceName, isActive: selectedClip == index)
+                        LoopingOnboardingVideoView(resourceName: clip.resourceName, isActive: isVisible && selectedClip == index)
                             .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
                             .overlay {
                                 RoundedRectangle(cornerRadius: 30, style: .continuous)
@@ -296,11 +294,6 @@ private struct OnboardingVideoCarousel: View {
                         .fill(index == selectedClip ? Color.amicaBlue : Color.white.opacity(0.18))
                         .frame(width: index == selectedClip ? 22 : 7, height: 7)
                 }
-            }
-        }
-        .onReceive(timer) { _ in
-            withAnimation(.smooth(duration: 0.3)) {
-                selectedClip = (selectedClip + 1) % clips.count
             }
         }
     }
@@ -350,7 +343,8 @@ private struct LoopingOnboardingVideoView: UIViewRepresentable {
 
             let item = AVPlayerItem(url: url)
             let queuePlayer = AVQueuePlayer()
-            queuePlayer.isMuted = true
+            queuePlayer.isMuted = false
+            queuePlayer.volume = 1
             queuePlayer.actionAtItemEnd = .none
             looper = AVPlayerLooper(player: queuePlayer, templateItem: item)
             player = queuePlayer
@@ -359,10 +353,17 @@ private struct LoopingOnboardingVideoView: UIViewRepresentable {
 
         func setActive(_ isActive: Bool) {
             if isActive {
+                prepareAudioPlayback()
                 player?.play()
             } else {
                 player?.pause()
             }
+        }
+
+        private func prepareAudioPlayback() {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .moviePlayback)
+            try? session.setActive(true)
         }
 
         private func videoURL(for resourceName: String) -> URL? {
