@@ -91,6 +91,8 @@ struct StartupOnboardingView: View {
 
     private var videoPage: some View {
         OnboardingPageShell(topPadding: 26) {
+            let isPad = UIDevice.current.userInterfaceIdiom == .pad
+
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Choose her vibe.")
@@ -102,7 +104,7 @@ struct StartupOnboardingView: View {
 
                 OnboardingVideoCarousel(isVisible: selectedPage == 2)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 430)
+                    .frame(height: isPad ? 640 : 520)
             }
         }
     }
@@ -212,7 +214,7 @@ private struct OnboardingPageShell<Content: View>: View {
 
                 content
                     .padding(22)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? 640 : .infinity)
 
                 Spacer(minLength: 18)
             }
@@ -258,6 +260,7 @@ private struct OnboardingFeatureRow: View {
 private struct OnboardingVideoCarousel: View {
     let isVisible: Bool
     @State private var selectedClip = 0
+    private let videoAspectRatio: CGFloat = 1180.0 / 2556.0
 
     private let clips = [
         OnboardingClip(title: "Aria", resourceName: "aria"),
@@ -266,33 +269,42 @@ private struct OnboardingVideoCarousel: View {
     ]
 
     var body: some View {
-        VStack(spacing: 14) {
-            TabView(selection: $selectedClip) {
-                ForEach(Array(clips.enumerated()), id: \.element.resourceName) { index, clip in
-                    VStack(spacing: 10) {
-                        LoopingOnboardingVideoView(resourceName: clip.resourceName, isActive: isVisible && selectedClip == index)
-                            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                                    .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-                            }
-                            .shadow(color: .black.opacity(0.38), radius: 20, y: 14)
+        GeometryReader { proxy in
+            let availableHeight = max(320, proxy.size.height - 46)
+            let availableWidth = max(180, proxy.size.width - 36)
+            let videoHeight = min(availableHeight, availableWidth / videoAspectRatio)
+            let videoWidth = videoHeight * videoAspectRatio
 
-                        Text(clip.title)
-                            .font(.headline)
-                            .foregroundStyle(.white)
+            VStack(spacing: 14) {
+                TabView(selection: $selectedClip) {
+                    ForEach(Array(clips.enumerated()), id: \.element.resourceName) { index, clip in
+                        VStack(spacing: 10) {
+                            LoopingOnboardingVideoView(resourceName: clip.resourceName, isActive: isVisible && selectedClip == index)
+                                .frame(width: videoWidth, height: videoHeight)
+                                .background(.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                                        .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                                }
+                                .shadow(color: .black.opacity(0.38), radius: 20, y: 14)
+
+                            Text(clip.title)
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .tag(index)
                     }
-                    .padding(.horizontal, 18)
-                    .tag(index)
                 }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+                .tabViewStyle(.page(indexDisplayMode: .never))
 
-            HStack(spacing: 7) {
-                ForEach(clips.indices, id: \.self) { index in
-                    Capsule()
-                        .fill(index == selectedClip ? Color.amicaBlue : Color.white.opacity(0.18))
-                        .frame(width: index == selectedClip ? 22 : 7, height: 7)
+                HStack(spacing: 7) {
+                    ForEach(clips.indices, id: \.self) { index in
+                        Capsule()
+                            .fill(index == selectedClip ? Color.amicaBlue : Color.white.opacity(0.18))
+                            .frame(width: index == selectedClip ? 22 : 7, height: 7)
+                    }
                 }
             }
         }
@@ -314,7 +326,7 @@ private struct LoopingOnboardingVideoView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> LoopingOnboardingVideoUIView {
         let view = LoopingOnboardingVideoUIView()
-        view.playerLayer.videoGravity = .resizeAspectFill
+        view.playerLayer.videoGravity = .resizeAspect
         context.coordinator.configure(resourceName: resourceName, in: view)
         context.coordinator.setActive(isActive)
         return view

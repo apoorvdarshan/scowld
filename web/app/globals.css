@@ -8,6 +8,7 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -18,15 +19,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   animation: page-in 0.5s ease-out;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-::selection { background: rgba(255,255,255,0.1); color: #fff; }
+::selection { background: transparent; color: inherit; }
 * { -webkit-tap-highlight-color: transparent; }
 
 a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; }
 ul { list-style: none; }
 button { cursor: pointer; border: none; background: none; font: inherit; }
+
+a,
+button,
+img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+img {
+  -webkit-user-drag: none;
+}
 
 /* ====== CSS VARIABLES ====== */
 :root {
