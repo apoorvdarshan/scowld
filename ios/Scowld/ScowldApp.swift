@@ -28,6 +28,7 @@ private enum ScowldTab: Hashable {
 
 struct ScowldRootView: View {
     var memoryStore: MemoryStore
+    @AppStorage("startup_onboarding_completed") private var hasCompletedStartupOnboarding = false
     @State private var selectedTab: ScowldTab = .chat
     @State private var appUpdateState: AppUpdateState = .idle
     @Environment(BillingStore.self) private var billingStore
@@ -36,6 +37,10 @@ struct ScowldRootView: View {
         Group {
             if !billingStore.hasLoadedEntitlements {
                 loadingBillingView
+            } else if !billingStore.hasPaidAccess && !hasCompletedStartupOnboarding {
+                StartupOnboardingView {
+                    hasCompletedStartupOnboarding = true
+                }
             } else if !billingStore.hasPaidAccess {
                 PaywallView(
                     reason: "Choose a plan to start using Scowld.",

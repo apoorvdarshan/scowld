@@ -35,13 +35,6 @@ struct PaywallView: View {
                         }
                     }
                 }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Restore") {
-                        Task { await billingStore.restorePurchases() }
-                    }
-                    .disabled(billingStore.isPurchasing)
-                }
             }
             .task {
                 await billingStore.start()
