@@ -91,7 +91,7 @@ struct BillingView: View {
             }
             .buttonStyle(.plain)
 
-            if let message = managementError ?? billingStore.errorMessage {
+            if let message = managementError {
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -139,6 +139,13 @@ struct BillingView: View {
 
             ForEach(ScowldMonetization.extraCreditPacks) { pack in
                 extraCreditRow(pack)
+            }
+
+            if let message = billingStore.errorMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .billingSectionCard()
