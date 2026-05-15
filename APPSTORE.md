@@ -2,13 +2,13 @@
 
 App Store Connect submission details for Scowld v1.0. Each field is in a code block for easy copy-paste.
 
-## App Name
+## App Name (30 chars max)
 
-    Scowld
+    Scowld - AI Voice Companion
 
 ## Subtitle (30 chars max)
 
-    AI Voice Companion
+    Anime Chat With Memory
 
 ## Promotional Text (170 chars max)
 
