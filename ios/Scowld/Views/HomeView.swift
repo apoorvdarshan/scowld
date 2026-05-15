@@ -1123,6 +1123,40 @@ struct AmicaFullView: UIViewRepresentable {
         let contentController = config.userContentController
         contentController.add(context.coordinator, name: "nativeAI")
 
+        let interactionBlockerScript = WKUserScript(
+            source: """
+            (function() {
+                if (window.__scowldInteractionBlockerInstalled) return;
+                window.__scowldInteractionBlockerInstalled = true;
+
+                function installStyle() {
+                    try {
+                        if (document.getElementById('scowld-interaction-blocker-style')) return;
+                        var style = document.createElement('style');
+                        style.id = 'scowld-interaction-blocker-style';
+                        style.textContent = '*{-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-user-drag:none!important}::selection{background:transparent!important;color:inherit!important}';
+                        (document.head || document.documentElement).appendChild(style);
+                    } catch(e) {}
+                }
+
+                function preventNativeMenu(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return false;
+                }
+
+                ['contextmenu', 'selectstart', 'dragstart', 'copy', 'cut'].forEach(function(type) {
+                    document.addEventListener(type, preventNativeMenu, true);
+                });
+                installStyle();
+                document.addEventListener('DOMContentLoaded', installStyle);
+            })();
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        )
+        contentController.addUserScript(interactionBlockerScript)
+
         // Inject native config before page loads
         let defaults = UserDefaults.standard
         HostedServiceConfig.applyManagedDefaults()
@@ -1524,6 +1558,7 @@ struct AmicaFullView: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = .black
         webView.underPageBackgroundColor = .black
+        webView.allowsLinkPreview = false
         webView.scrollView.bounces = false
         webView.scrollView.isScrollEnabled = true
         webView.scrollView.contentInsetAdjustmentBehavior = .never
@@ -1741,6 +1776,12 @@ struct AmicaFullView: UIViewRepresentable {
                      decisionHandler: @escaping (WKPermissionDecision) -> Void) {
             logger.info("[Amica] Auto-granting camera permission")
             decisionHandler(.grant)
+        }
+
+        func webView(_ webView: WKWebView,
+                     contextMenuConfigurationFor elementInfo: WKContextMenuElementInfo,
+                     completionHandler: @escaping (UIContextMenuConfiguration?) -> Void) {
+            completionHandler(nil)
         }
 
         // MARK: WKScriptMessageHandler

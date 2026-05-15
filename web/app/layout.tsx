@@ -54,6 +54,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                function prevent(event) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  return false;
+                }
+                ['contextmenu', 'selectstart', 'dragstart', 'copy', 'cut'].forEach(function(type) {
+                  document.addEventListener(type, prevent, true);
+                });
+              })();
+            `,
+          }}
+        />
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({

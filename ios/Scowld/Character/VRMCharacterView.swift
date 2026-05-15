@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WebKit
 
 // MARK: - Amica Character View
@@ -45,14 +46,48 @@ struct AmicaWebView: UIViewRepresentable {
         let contentController = config.userContentController
         contentController.add(context.coordinator, name: "nativeAI")
         contentController.add(context.coordinator, name: "vrmEvent")
+        contentController.addUserScript(WKUserScript(
+            source: """
+            (function() {
+                if (window.__scowldInteractionBlockerInstalled) return;
+                window.__scowldInteractionBlockerInstalled = true;
+
+                function installStyle() {
+                    try {
+                        if (document.getElementById('scowld-interaction-blocker-style')) return;
+                        var style = document.createElement('style');
+                        style.id = 'scowld-interaction-blocker-style';
+                        style.textContent = '*{-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-user-drag:none!important}::selection{background:transparent!important;color:inherit!important}';
+                        (document.head || document.documentElement).appendChild(style);
+                    } catch(e) {}
+                }
+
+                function preventNativeMenu(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return false;
+                }
+
+                ['contextmenu', 'selectstart', 'dragstart', 'copy', 'cut'].forEach(function(type) {
+                    document.addEventListener(type, preventNativeMenu, true);
+                });
+                installStyle();
+                document.addEventListener('DOMContentLoaded', installStyle);
+            })();
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        ))
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.underPageBackgroundColor = .clear
+        webView.allowsLinkPreview = false
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.bounces = false
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
 
         // Load Amica's index.html
         if let amicaDir = Bundle.main.url(forResource: "amica", withExtension: nil),
@@ -87,7 +122,7 @@ struct AmicaWebView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         weak var webView: WKWebView?
         var isReady = false
 
@@ -107,6 +142,12 @@ struct AmicaWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             print("[Amica] Provisional navigation failed: \(error.localizedDescription)")
+        }
+
+        func webView(_ webView: WKWebView,
+                     contextMenuConfigurationFor elementInfo: WKContextMenuElementInfo,
+                     completionHandler: @escaping (UIContextMenuConfiguration?) -> Void) {
+            completionHandler(nil)
         }
 
         // MARK: WKScriptMessageHandler
