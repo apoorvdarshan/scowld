@@ -142,6 +142,16 @@ final class BillingStore {
             apply(customerInfo: result.customerInfo)
             lastPurchaseState = .success
         } catch {
+            #if DEBUG
+            if let pack = Self.creditPack(forProductID: productID),
+               Self.isStoreKitReceiptMissingPurchasedProductError(error) {
+                addExtraCreditsIfNeeded(pack.credits, transactionID: "debug-\(productID)-\(UUID().uuidString)")
+                errorMessage = nil
+                lastPurchaseState = .success
+                return
+            }
+            #endif
+
             errorMessage = error.localizedDescription
             lastPurchaseState = .failed
         }
@@ -350,6 +360,23 @@ final class BillingStore {
     private static func creditPack(forProductID productID: String) -> ScowldCreditPack? {
         ScowldMonetization.extraCreditPacks.first { $0.productID == productID }
     }
+
+    #if DEBUG
+    private static func isStoreKitReceiptMissingPurchasedProductError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
+        let message = [
+            error.localizedDescription,
+            nsError.localizedDescription,
+            underlyingError?.localizedDescription,
+        ]
+            .compactMap(\.self)
+            .joined(separator: " ")
+            .lowercased()
+
+        return message.contains("purchased product was missing in the receipt")
+    }
+    #endif
 }
 
 private struct HostedBillingConfigResponse: Decodable {
