@@ -121,13 +121,13 @@
 			);
 			mainGroup = BA8224922F6521F9002E853D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C2A0D5492F6A000100B7A001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BA82249C2F6521F9002E853D /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			packageReferences = (
-				C2A0D5492F6A000100B7A001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
-			);
 			targets = (
 				BA82249A2F6521F9002E853D /* Scowld */,
 			);
@@ -154,33 +154,14 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		C2A0D5492F6A000100B7A001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.9.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		C2A0D54A2F6A000100B7A001 /* RevenueCat */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C2A0D5492F6A000100B7A001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
-			productName = RevenueCat;
-		};
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin XCBuildConfiguration section */
 		BA8224A92F6521FA002E853D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
@@ -245,8 +226,8 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
@@ -309,8 +290,8 @@
 				DEVELOPMENT_TEAM = 23RV7FYH36;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleName = "Scowld - AI Voice Companion";
 				INFOPLIST_KEY_CFBundleDisplayName = Scowld;
+				INFOPLIST_KEY_CFBundleName = "Scowld - AI Voice Companion";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scowld uses your front camera to see you and your environment during conversations. Nothing is recorded or stored.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Scowld can connect to local AI providers you configure on your network.";
@@ -348,8 +329,8 @@
 				DEVELOPMENT_TEAM = 23RV7FYH36;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleName = "Scowld - AI Voice Companion";
 				INFOPLIST_KEY_CFBundleDisplayName = Scowld;
+				INFOPLIST_KEY_CFBundleName = "Scowld - AI Voice Companion";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scowld uses your front camera to see you and your environment during conversations. Nothing is recorded or stored.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Scowld can connect to local AI providers you configure on your network.";
@@ -400,6 +381,24 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		C2A0D5492F6A000100B7A001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C2A0D54A2F6A000100B7A001 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C2A0D5492F6A000100B7A001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BA8224932F6521F9002E853D /* Project object */;
 }
