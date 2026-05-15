@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/og.png",
+        url: "/og-image-scowld.jpg",
         width: 1200,
         height: 630,
         alt: "Scowld AI voice companion",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     title: "Scowld - AI Voice Companion for iOS",
     description: "Animated AI companion with voice, text, optional vision, and saved past chats.",
     creator: "@apoorvdarshan",
-    images: ["/og.png"],
+    images: ["/og-image-scowld.jpg"],
   },
   robots: {
     index: true,
