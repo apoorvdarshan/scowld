@@ -5,9 +5,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(scowldMonetization, {
+  const revenueCat = {
+    iosApiKey: process.env.REVENUECAT_IOS_API_KEY || null,
+    entitlementID: process.env.REVENUECAT_ENTITLEMENT_ID || "Scowld Plus",
+    offeringID: process.env.REVENUECAT_OFFERING_ID || "default",
+    appStoreAppID: process.env.APP_STORE_APP_ID || "6760672848",
+    isConfigured: Boolean(process.env.REVENUECAT_IOS_API_KEY),
+  };
+
+  return NextResponse.json({ ...scowldMonetization, revenueCat }, {
     headers: {
-      "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+      "Cache-Control": "no-store",
     },
   });
 }

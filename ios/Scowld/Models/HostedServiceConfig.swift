@@ -31,6 +31,10 @@ enum HostedServiceConfig {
         URL(string: "\(baseURLString)/api/tts/elevenlabs")!
     }
 
+    static var billingConfigURL: URL {
+        URL(string: "\(baseURLString)/api/billing/config")!
+    }
+
     static func deepgramSTTURL(model: String) -> URL {
         var components = URLComponents(string: "\(baseURLString)/api/stt/deepgram")!
         var queryItems = [

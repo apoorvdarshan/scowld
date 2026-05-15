@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import StoreKit
+import RevenueCat
 
 @MainActor
 @Observable
@@ -15,7 +15,7 @@ final class BillingStore {
 
     private let refillInterval: TimeInterval = 7 * 24 * 60 * 60
 
-    private(set) var products: [Product] = []
+    private(set) var products: [StoreProduct] = []
     private(set) var activeSubscriptionProductID: String?
     private(set) var subscriptionCreditsRemaining = 0
     private(set) var extraCreditsRemaining = 0
@@ -25,18 +25,14 @@ final class BillingStore {
     private(set) var lastPurchaseState: BillingPurchaseState?
     var errorMessage: String?
 
-    @ObservationIgnored private var transactionUpdatesTask: Task<Void, Never>?
     @ObservationIgnored private var hasStarted = false
     @ObservationIgnored private var processedTransactionIDs = Set<String>()
     @ObservationIgnored private var subscriptionRefillStart: Date?
+    @ObservationIgnored private var revenueCatConfig: RevenueCatBillingConfig?
 
     init() {
         loadLocalLedger()
         applyWeeklyRefillIfNeeded()
-    }
-
-    deinit {
-        transactionUpdatesTask?.cancel()
     }
 
     var totalCreditsRemaining: Int {
@@ -67,7 +63,6 @@ final class BillingStore {
         }
 
         hasStarted = true
-        listenForTransactionUpdates()
         await reloadProductsAndEntitlements()
     }
 
@@ -78,16 +73,16 @@ final class BillingStore {
         hasLoadedEntitlements = true
     }
 
-    func product(for productID: String) -> Product? {
-        products.first { $0.id == productID }
+    func product(for productID: String) -> StoreProduct? {
+        products.first { $0.productIdentifier == productID }
     }
 
     func displayPrice(for plan: ScowldSubscriptionPlan) -> String {
-        product(for: plan.productID)?.displayPrice ?? plan.displayPrice
+        product(for: plan.productID)?.localizedPriceString ?? plan.displayPrice
     }
 
     func displayPrice(for pack: ScowldCreditPack) -> String {
-        product(for: pack.productID)?.displayPrice ?? pack.displayPrice
+        product(for: pack.productID)?.localizedPriceString ?? pack.displayPrice
     }
 
     @discardableResult
@@ -110,8 +105,20 @@ final class BillingStore {
     }
 
     func purchase(productID: String) async {
+        do {
+            try await configureRevenueCatIfNeeded()
+            if product(for: productID) == nil {
+                await loadProducts()
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            lastPurchaseState = .failed
+            return
+        }
+
         guard let product = product(for: productID) else {
-            errorMessage = "This purchase is not available yet. Check App Store Connect product setup."
+            errorMessage = "This purchase is not available yet. Check App Store Connect and RevenueCat product setup."
+            lastPurchaseState = .failed
             return
         }
 
@@ -121,21 +128,19 @@ final class BillingStore {
         defer { isPurchasing = false }
 
         do {
-            let result = try await product.purchase()
-            switch result {
-            case .success(let verification):
-                let transaction = try checkVerified(verification)
-                await process(transaction: transaction)
-                await transaction.finish()
-                await refreshEntitlements()
-                lastPurchaseState = .success
-            case .userCancelled:
+            let result = try await Purchases.shared.purchase(product: product)
+            if result.userCancelled {
                 lastPurchaseState = .cancelled
-            case .pending:
-                lastPurchaseState = .pending
-            @unknown default:
-                lastPurchaseState = .unknown
+                return
             }
+
+            if let pack = Self.creditPack(forProductID: productID) {
+                let transactionID = result.transaction?.transactionIdentifier ?? UUID().uuidString
+                addExtraCreditsIfNeeded(pack.credits, transactionID: transactionID)
+            }
+
+            apply(customerInfo: result.customerInfo)
+            lastPurchaseState = .success
         } catch {
             errorMessage = error.localizedDescription
             lastPurchaseState = .failed
@@ -144,9 +149,11 @@ final class BillingStore {
 
     func restorePurchases() async {
         errorMessage = nil
+
         do {
-            try await AppStore.sync()
-            await refreshEntitlements()
+            try await configureRevenueCatIfNeeded()
+            let customerInfo = try await Purchases.shared.restorePurchases()
+            apply(customerInfo: customerInfo)
             lastPurchaseState = .restored
         } catch {
             errorMessage = error.localizedDescription
@@ -159,9 +166,10 @@ final class BillingStore {
         defer { isLoadingProducts = false }
 
         do {
-            products = try await Product.products(for: ScowldMonetization.allProductIDs)
+            try await configureRevenueCatIfNeeded()
+            products = await Purchases.shared.products(ScowldMonetization.allProductIDs)
                 .sorted { lhs, rhs in
-                    productSortIndex(lhs.id) < productSortIndex(rhs.id)
+                    productSortIndex(lhs.productIdentifier) < productSortIndex(rhs.productIdentifier)
                 }
         } catch {
             errorMessage = error.localizedDescription
@@ -170,68 +178,96 @@ final class BillingStore {
     }
 
     private func refreshEntitlements() async {
-        var activeSubscriptions: [Transaction] = []
-
-        for await entitlement in Transaction.currentEntitlements {
-            guard let transaction = try? checkVerified(entitlement),
-                  transaction.revocationDate == nil,
-                  Self.subscriptionPlan(forProductID: transaction.productID) != nil
-            else {
-                continue
-            }
-
-            if let expiration = transaction.expirationDate, expiration < Date() {
-                continue
-            }
-
-            activeSubscriptions.append(transaction)
+        do {
+            try await configureRevenueCatIfNeeded()
+            let customerInfo = try await Purchases.shared.customerInfo()
+            apply(customerInfo: customerInfo)
+        } catch {
+            errorMessage = error.localizedDescription
+            setActiveSubscription(productID: nil)
         }
 
-        let selectedSubscription = activeSubscriptions.max { lhs, rhs in
-            subscriptionRank(lhs.productID) < subscriptionRank(rhs.productID)
-        }
-
-        setActiveSubscription(productID: selectedSubscription?.productID)
         applyWeeklyRefillIfNeeded()
         saveLocalLedger()
     }
 
-    private func listenForTransactionUpdates() {
-        transactionUpdatesTask?.cancel()
-        transactionUpdatesTask = Task { [weak self] in
-            for await update in Transaction.updates {
-                await self?.handle(transactionUpdate: update)
-            }
-        }
-    }
-
-    private func handle(transactionUpdate update: VerificationResult<Transaction>) async {
-        do {
-            let transaction = try checkVerified(update)
-            await process(transaction: transaction)
-            await transaction.finish()
-            await refreshEntitlements()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func process(transaction: Transaction) async {
-        if let pack = Self.creditPack(forProductID: transaction.productID) {
-            addExtraCreditsIfNeeded(pack.credits, transactionID: transaction.id)
+    private func configureRevenueCatIfNeeded() async throws {
+        if revenueCatConfig != nil, Purchases.isConfigured {
             return
         }
 
-        if Self.subscriptionPlan(forProductID: transaction.productID) != nil {
-            setActiveSubscription(productID: transaction.productID)
+        let config = try await loadRevenueCatConfig()
+        revenueCatConfig = config
+
+        guard !Purchases.isConfigured else { return }
+
+        guard let apiKey = config.iosApiKey else {
+            throw BillingError.revenueCatNotConfigured
         }
+
+        Purchases.configure(withAPIKey: apiKey)
     }
 
-    private func addExtraCreditsIfNeeded(_ credits: Int, transactionID: UInt64) {
-        let transactionKey = String(transactionID)
-        guard !processedTransactionIDs.contains(transactionKey) else { return }
+    private func loadRevenueCatConfig() async throws -> RevenueCatBillingConfig {
+        var request = URLRequest(url: HostedServiceConfig.billingConfigURL)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 20
 
-        processedTransactionIDs.insert(transactionKey)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BillingError.invalidBillingConfigResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw BillingError.billingConfigRequestFailed(httpResponse.statusCode)
+        }
+
+        let decoded = try JSONDecoder().decode(HostedBillingConfigResponse.self, from: data)
+        guard var revenueCat = decoded.revenueCat else {
+            throw BillingError.revenueCatNotConfigured
+        }
+
+        revenueCat.iosApiKey = (revenueCat.iosApiKey ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        revenueCat.entitlementID = revenueCat.entitlementID.trimmingCharacters(in: .whitespacesAndNewlines)
+        revenueCat.offeringID = revenueCat.offeringID.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !(revenueCat.iosApiKey ?? "").isEmpty else {
+            throw BillingError.revenueCatNotConfigured
+        }
+
+        if revenueCat.entitlementID.isEmpty {
+            revenueCat.entitlementID = RevenueCatBillingConfig.defaultEntitlementID
+        }
+
+        if revenueCat.offeringID.isEmpty {
+            revenueCat.offeringID = RevenueCatBillingConfig.defaultOfferingID
+        }
+
+        return revenueCat
+    }
+
+    private func apply(customerInfo: CustomerInfo) {
+        let entitlementID = revenueCatConfig?.entitlementID ?? RevenueCatBillingConfig.defaultEntitlementID
+        if let entitlementProductID = customerInfo.entitlements.active[entitlementID]?.productIdentifier,
+           Self.subscriptionPlan(forProductID: entitlementProductID) != nil {
+            setActiveSubscription(productID: entitlementProductID)
+        } else {
+            let activeProductID = customerInfo.activeSubscriptions
+                .filter { Self.subscriptionPlan(forProductID: $0) != nil }
+                .max { lhs, rhs in
+                    subscriptionRank(lhs) < subscriptionRank(rhs)
+                }
+            setActiveSubscription(productID: activeProductID)
+        }
+
+        applyWeeklyRefillIfNeeded()
+        saveLocalLedger()
+    }
+
+    private func addExtraCreditsIfNeeded(_ credits: Int, transactionID: String) {
+        guard !processedTransactionIDs.contains(transactionID) else { return }
+
+        processedTransactionIDs.insert(transactionID)
         extraCreditsRemaining += credits
         saveLocalLedger()
     }
@@ -288,15 +324,6 @@ final class BillingStore {
         defaults.set(Array(processedTransactionIDs), forKey: Keys.processedTransactionIDs)
     }
 
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
-        switch result {
-        case .verified(let safe):
-            return safe
-        case .unverified:
-            throw BillingError.unverifiedTransaction
-        }
-    }
-
     private func productSortIndex(_ productID: String) -> Int {
         if let index = ScowldMonetization.subscriptionPlans.firstIndex(where: { $0.productID == productID }) {
             return index
@@ -325,6 +352,21 @@ final class BillingStore {
     }
 }
 
+private struct HostedBillingConfigResponse: Decodable {
+    let revenueCat: RevenueCatBillingConfig?
+}
+
+private struct RevenueCatBillingConfig: Decodable {
+    static let defaultEntitlementID = "Scowld Plus"
+    static let defaultOfferingID = "default"
+
+    var iosApiKey: String?
+    var entitlementID: String
+    var offeringID: String
+    let appStoreAppID: String?
+    let isConfigured: Bool?
+}
+
 enum BillingPurchaseState: Equatable {
     case success
     case cancelled
@@ -335,12 +377,18 @@ enum BillingPurchaseState: Equatable {
 }
 
 enum BillingError: LocalizedError {
-    case unverifiedTransaction
+    case invalidBillingConfigResponse
+    case billingConfigRequestFailed(Int)
+    case revenueCatNotConfigured
 
     var errorDescription: String? {
         switch self {
-        case .unverifiedTransaction:
-            "The App Store could not verify this purchase."
+        case .invalidBillingConfigResponse:
+            "Billing config returned an invalid response."
+        case .billingConfigRequestFailed(let statusCode):
+            "Billing config request failed with HTTP \(statusCode)."
+        case .revenueCatNotConfigured:
+            "RevenueCat is not configured on the billing backend."
         }
     }
 }
