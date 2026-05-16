@@ -34,7 +34,7 @@ This is a private Scowld repository for the iOS app, the hosted backend routes, 
 - **Past chats** - Conversations are saved locally and can be selected as context for future replies.
 - **Character settings** - Avatar, custom name, and system prompt controls.
 - **Multilingual speech settings** - Defaults to the iPhone language, with supported language overrides.
-- **Billing and credits** - StoreKit subscriptions, extra credit packs, and Apple subscription management.
+- **Billing and credits** - RevenueCat-backed StoreKit subscriptions, extra credit packs, and Apple subscription management.
 - **About actions** - Update check, rating prompt, share, contact, Product Hunt, Ko-fi, LinkedIn, Instagram, privacy, and terms.
 
 ## Repo Structure
@@ -51,7 +51,7 @@ APPSTORE.md      - App Store Connect copy
 ```
 Native iOS (Swift/SwiftUI)
 ├── HomeView             - Main chat UI and WKWebView bridge
-├── BillingStore         - StoreKit products, subscriptions, and voice credits
+├── BillingStore         - RevenueCat, StoreKit products, subscriptions, and voice credits
 ├── CloudSTTProvider     - Hosted Deepgram speech-to-text
 ├── HostedGeminiProvider - Hosted Gemini chat requests
 ├── MemoryStore          - Local CoreData chat history and selected chat context
@@ -68,7 +68,7 @@ Vercel / Next.js backend
 ├── /api/chat            - Gemini model fallback route
 ├── /api/stt/deepgram    - Deepgram speech-to-text proxy
 ├── /api/tts/elevenlabs  - ElevenLabs text-to-speech proxy
-└── /api/billing/config  - Public billing configuration
+└── /api/billing/config  - Public RevenueCat billing configuration and product metadata
 ```
 
 ## Requirements
@@ -76,8 +76,8 @@ Vercel / Next.js backend
 - iOS 17.0+
 - Xcode 16+
 - Node.js for the website/backend
-- Vercel environment variables for Gemini, ElevenLabs, and Deepgram
-- App Store Connect products matching the StoreKit product IDs below
+- Vercel environment variables for Gemini, ElevenLabs, Deepgram, and RevenueCat billing config
+- App Store Connect and RevenueCat products matching the StoreKit product IDs below
 
 ## Monetization
 
@@ -134,7 +134,7 @@ npm run dev
 
 Next.js runs at `http://localhost:3000`.
 
-### Hosted API Secrets
+### Hosted Environment Variables
 
 The iOS app does not embed provider API keys. Add these environment variables to the Vercel deployment for `web/`:
 
@@ -146,7 +146,13 @@ ELEVENLABS_DEFAULT_VOICE_ID
 ELEVENLABS_MODEL
 DEEPGRAM_API_KEY
 DEEPGRAM_MODEL
+REVENUECAT_IOS_API_KEY
+REVENUECAT_ENTITLEMENT_ID
+REVENUECAT_OFFERING_ID
+APP_STORE_APP_ID
 ```
+
+`REVENUECAT_IOS_API_KEY` is the public RevenueCat SDK key returned by `/api/billing/config`. Provider API keys remain server-side only.
 
 See [web/.env.example](web/.env.example) for defaults.
 

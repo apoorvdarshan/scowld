@@ -69,7 +69,7 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
     - Extra credits: 10, 50, 100, 200, and 500 credit packs
     - Purchases are handled by Apple and can be managed from Apple ID settings
 
-    Built with SwiftUI, StoreKit, Gemini, Deepgram, ElevenLabs, and a hosted Vercel backend.
+    Built with SwiftUI, StoreKit, RevenueCat, Gemini, Deepgram, ElevenLabs, and a hosted Vercel backend.
     Website: https://scowld.xyz
     LinkedIn: https://www.linkedin.com/company/scowld
     Instagram: https://www.instagram.com/scowld_/
@@ -101,7 +101,7 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 
 ## Reviewer Notes
 
-    Scowld requires an active subscription or extra credits to use voice conversations. Purchases are processed through Apple in-app purchase and can be tested with Apple sandbox StoreKit testing.
+    Scowld requires an active subscription to enter the app. Extra credits extend voice usage after subscription credits are used. Purchases are processed through Apple in-app purchase and can be tested with Apple sandbox purchase flow.
 
     To test:
     1. Launch the app.
