@@ -1,7 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Privacy Policy - Scowld" };
+export const metadata: Metadata = {
+  title: "Privacy Policy - Scowld",
+  description: "Privacy policy for Scowld, an iOS AI voice companion with hosted AI, speech, voice, optional vision, and local saved chats.",
+  alternates: { canonical: "/privacy" },
+};
 
 export default function Privacy() {
   return (

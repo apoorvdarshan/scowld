@@ -1,7 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Terms of Service - Scowld" };
+export const metadata: Metadata = {
+  title: "Terms of Service - Scowld",
+  description: "Terms of Service for Scowld, an iOS AI voice companion with subscriptions, voice credits, hosted AI, speech, and voice.",
+  alternates: { canonical: "/terms" },
+};
 
 export default function Terms() {
   return (

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Apoorv Darshan", url: "https://x.com/apoorvdarshan" }],
   creator: "Apoorv Darshan",
   icons: { icon: "/logo.png", apple: "/logo.png" },
-  alternates: { canonical: "https://scowld.xyz" },
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Scowld - AI Voice Companion for iOS",
     description: "Talk by voice or text with an animated AI companion powered by hosted Gemini, Deepgram, and ElevenLabs.",
@@ -80,7 +80,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               operatingSystem: "iOS",
               description: "Paid iOS AI voice companion with an animated avatar, hosted Gemini chat, Deepgram speech-to-text, ElevenLabs speech, optional vision, and saved past chats.",
               url: "https://scowld.xyz",
+              image: "https://scowld.xyz/og-image-scowld.jpg",
               author: { "@type": "Person", name: "Apoorv Darshan", url: "https://x.com/apoorvdarshan" },
+              sameAs: [
+                "https://www.instagram.com/scowld_/",
+                "https://www.linkedin.com/company/scowld",
+                "https://www.producthunt.com/products/scowld",
+                "https://x.com/apoorvdarshan",
+              ],
               offers: {
                 "@type": "AggregateOffer",
                 lowPrice: "9.99",
