@@ -20,8 +20,8 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 
 ## Category
 
-    Primary: Lifestyle
-    Secondary: Entertainment
+    Primary Category: Lifestyle
+    Secondary Category: Entertainment
 
 ## Description
 
