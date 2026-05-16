@@ -86,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 "https://www.instagram.com/scowld_/",
                 "https://www.linkedin.com/company/scowld",
                 "https://www.producthunt.com/products/scowld",
+                "https://trustmrr.com/startup/scowld-ai-voice-companion",
                 "https://x.com/apoorvdarshan",
               ],
               offers: {
