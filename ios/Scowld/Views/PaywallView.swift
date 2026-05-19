@@ -36,6 +36,21 @@ struct PaywallView: View {
                         }
                     }
                 }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        restorePurchases()
+                    } label: {
+                        if isRestoringPurchases {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text("Restore")
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .disabled(isRestoringPurchases || billingStore.isPurchasing)
+                }
             }
             .task {
                 await billingStore.start()
@@ -129,24 +144,6 @@ struct PaywallView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
-
-            Button {
-                restorePurchases()
-            } label: {
-                Label(isRestoringPurchases ? "Restoring Purchases..." : "Restore Purchases", systemImage: "arrow.clockwise.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
-                    .foregroundStyle(.primary)
-                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(.white.opacity(0.1), lineWidth: 1)
-                    }
-            }
-            .buttonStyle(.plain)
-            .disabled(isRestoringPurchases || billingStore.isPurchasing)
-            .opacity(isRestoringPurchases || billingStore.isPurchasing ? 0.55 : 1)
         }
     }
 
