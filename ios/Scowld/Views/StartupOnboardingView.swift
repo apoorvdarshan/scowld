@@ -1,15 +1,18 @@
 import AVFoundation
 import StoreKit
 import SwiftUI
+import WebKit
 
 struct StartupOnboardingView: View {
     @Environment(\.requestReview) private var requestReview
     @State private var selectedPage = 0
+    @State private var selectedLegalDocument: OnboardingLegalDocument = .privacy
+    @State private var hasAcceptedLegal = false
     @State private var hasRequestedReview = false
 
     let onComplete: () -> Void
 
-    private let pageCount = 4
+    private let pageCount = 5
 
     var body: some View {
         ZStack {
@@ -28,6 +31,9 @@ struct StartupOnboardingView: View {
 
                     ratingPage
                         .tag(3)
+
+                    legalPage
+                        .tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
@@ -149,6 +155,59 @@ struct StartupOnboardingView: View {
         }
     }
 
+    private var legalPage: some View {
+        OnboardingPageShell(topPadding: 22) {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Before you continue")
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                    Text("Review Scowld's Privacy Policy and Terms of Service, then accept them to continue to plans.")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                }
+
+                Picker("Legal document", selection: $selectedLegalDocument) {
+                    ForEach(OnboardingLegalDocument.allCases) { document in
+                        Text(document.title).tag(document)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                OnboardingLegalWebView(url: selectedLegalDocument.url)
+                    .frame(height: UIDevice.current.userInterfaceIdiom == .pad ? 560 : 390)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                    }
+
+                Button {
+                    hasAcceptedLegal.toggle()
+                } label: {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: hasAcceptedLegal ? "checkmark.circle.fill" : "circle")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(hasAcceptedLegal ? Color.amicaBlue : .secondary)
+
+                        Text("I have read and agree to the Privacy Policy and Terms of Service.")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(hasAcceptedLegal ? Color.amicaBlue.opacity(0.55) : Color.white.opacity(0.08), lineWidth: 1)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
     private var footer: some View {
         VStack(spacing: 16) {
             HStack(spacing: 7) {
@@ -186,7 +245,7 @@ struct StartupOnboardingView: View {
                     }
                 } label: {
                     HStack {
-                        Text(selectedPage == pageCount - 1 ? "Continue to Plans" : "Continue")
+                        Text(footerButtonTitle)
                             .font(.headline)
                         Spacer()
                         Image(systemName: "arrow.right.circle.fill")
@@ -198,7 +257,46 @@ struct StartupOnboardingView: View {
                     .background(Color.amicaBlue, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .disabled(!canContinue)
+                .opacity(canContinue ? 1 : 0.42)
             }
+        }
+    }
+
+    private var canContinue: Bool {
+        selectedPage != pageCount - 1 || hasAcceptedLegal
+    }
+
+    private var footerButtonTitle: String {
+        if selectedPage == pageCount - 1 {
+            return hasAcceptedLegal ? "Continue to Plans" : "Accept to Continue"
+        }
+
+        return "Continue"
+    }
+}
+
+private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
+    case privacy
+    case terms
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .privacy:
+            return "Privacy"
+        case .terms:
+            return "Terms"
+        }
+    }
+
+    var url: URL {
+        switch self {
+        case .privacy:
+            return URL(string: "https://scowld.xyz/privacy")!
+        case .terms:
+            return URL(string: "https://scowld.xyz/terms")!
         }
     }
 }
@@ -314,6 +412,54 @@ private struct OnboardingVideoCarousel: View {
 private struct OnboardingClip {
     let title: String
     let resourceName: String
+}
+
+private struct OnboardingLegalWebView: UIViewRepresentable {
+    let url: URL
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.allowsInlineMediaPlayback = false
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        webView.scrollView.backgroundColor = .black
+        webView.isOpaque = false
+        webView.backgroundColor = .black
+        context.coordinator.load(url, in: webView)
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.load(url, in: webView)
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        private var currentURL: URL?
+
+        func load(_ url: URL, in webView: WKWebView) {
+            guard currentURL != url else { return }
+            currentURL = url
+            webView.load(URLRequest(url: url))
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            guard navigationAction.targetFrame?.isMainFrame == true else {
+                return .allow
+            }
+
+            guard let url = navigationAction.request.url,
+                  let host = url.host?.lowercased(),
+                  host == "scowld.xyz" || host == "www.scowld.xyz" else {
+                return .cancel
+            }
+
+            return url.path == "/privacy" || url.path == "/terms" ? .allow : .cancel
+        }
+    }
 }
 
 private struct LoopingOnboardingVideoView: UIViewRepresentable {

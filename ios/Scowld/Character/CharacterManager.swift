@@ -2,8 +2,8 @@ import Foundation
 
 // MARK: - Character Manager
 
-/// Central character state manager. Combines inputs from ARKit, emotion engine,
-/// lip sync, and user interaction to produce the final character animation state.
+/// Central character state manager. Combines emotion, lip sync, and user
+/// interaction to produce the final character animation state.
 @Observable
 @MainActor
 final class CharacterManager {
@@ -59,19 +59,6 @@ final class CharacterManager {
         blinkTimer?.invalidate()
         idleTimer = nil
         blinkTimer = nil
-    }
-
-    // MARK: - ARKit Face Tracking Updates
-
-    /// Update character from ARKit face tracking data
-    func updateFromFaceTracking(yaw: Float, pitch: Float, eyeX: Float, eyeY: Float) {
-        // Mirror user's head rotation onto character
-        headRotation = CGFloat(yaw) * 30 // Scale to degrees
-        headTilt = CGFloat(pitch) * 20
-
-        // Eyes follow user's gaze (inverted — owl looks where user looks)
-        pupilOffsetX = CGFloat(eyeX)
-        pupilOffsetY = CGFloat(eyeY)
     }
 
     // MARK: - Speech Updates

@@ -145,7 +145,7 @@ struct AmicaWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView,
-                     contextMenuConfigurationFor elementInfo: WKContextMenuElementInfo,
+                     contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo,
                      completionHandler: @escaping (UIContextMenuConfiguration?) -> Void) {
             completionHandler(nil)
         }

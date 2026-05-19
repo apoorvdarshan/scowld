@@ -20,7 +20,7 @@ export default function Privacy() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Privacy Policy</h1>
-        <p className="legal__date">Last updated: May 14, 2026</p>
+        <p className="legal__date">Last updated: May 19, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -62,6 +62,7 @@ export default function Privacy() {
               <li>Camera access can be disabled from the app or iOS settings.</li>
               <li>When camera is disabled, Scowld does not capture camera frames.</li>
             </ul>
+            <p>Scowld does not use Apple&apos;s TrueDepth API or ARKit face tracking. Scowld does not collect, store, or share face geometry, depth maps, facial blend shapes, or biometric identifiers.</p>
           </div>
 
           <div>

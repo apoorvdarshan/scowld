@@ -4,6 +4,7 @@ struct PaywallView: View {
     @Environment(BillingStore.self) private var billingStore
     @Environment(\.dismiss) private var dismiss
     @State private var selectedSubscriptionProductID = "scowld.sub.monthly"
+    @State private var isRestoringPurchases = false
 
     var reason: String?
     var showsCloseButton = true
@@ -128,6 +129,24 @@ struct PaywallView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
+
+            Button {
+                restorePurchases()
+            } label: {
+                Label(isRestoringPurchases ? "Restoring Purchases..." : "Restore Purchases", systemImage: "arrow.clockwise.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .foregroundStyle(.primary)
+                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                    }
+            }
+            .buttonStyle(.plain)
+            .disabled(isRestoringPurchases || billingStore.isPurchasing)
+            .opacity(isRestoringPurchases || billingStore.isPurchasing ? 0.55 : 1)
         }
     }
 
@@ -305,6 +324,14 @@ struct PaywallView: View {
         guard let selectedSubscriptionPlan else { return }
         Task {
             await billingStore.purchase(productID: selectedSubscriptionPlan.productID)
+        }
+    }
+
+    private func restorePurchases() {
+        Task {
+            isRestoringPurchases = true
+            await billingStore.restorePurchases()
+            isRestoringPurchases = false
         }
     }
 
