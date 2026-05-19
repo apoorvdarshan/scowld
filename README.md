@@ -34,7 +34,7 @@ This is a private Scowld repository for the iOS app, the hosted backend routes, 
 - **Past chats** - Conversations are saved locally and can be selected as context for future replies.
 - **Character settings** - Avatar, custom name, and system prompt controls.
 - **Multilingual speech settings** - Defaults to the iPhone language, with supported language overrides.
-- **Billing and credits** - RevenueCat-backed StoreKit subscriptions, extra credit packs, and Apple subscription management.
+- **Billing and credits** - RevenueCat-backed StoreKit subscriptions, restore purchases, extra credit packs, and Apple subscription management.
 - **Startup onboarding** - Local videos, rating prompt, offline Privacy/Terms acceptance, and locked paywall.
 - **About actions** - Update check, rating prompt, share, contact, Product Hunt, Ko-fi, LinkedIn, Instagram, privacy, and terms.
 

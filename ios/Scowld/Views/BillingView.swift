@@ -6,6 +6,7 @@ struct BillingView: View {
     @Environment(BillingStore.self) private var billingStore
     @Environment(\.openURL) private var openURL
     @State private var managementError: String?
+    @State private var isRestoringPurchases = false
 
     var body: some View {
         NavigationStack {
@@ -90,6 +91,29 @@ struct BillingView: View {
                 .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .buttonStyle(.plain)
+
+            Button {
+                restorePurchases()
+            } label: {
+                HStack {
+                    if isRestoringPurchases {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Label("Restore Purchases", systemImage: "arrow.clockwise.circle.fill")
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+                .font(.headline)
+                .padding(14)
+                .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(isRestoringPurchases || billingStore.isPurchasing)
+            .opacity(isRestoringPurchases || billingStore.isPurchasing ? 0.55 : 1)
 
             if let message = managementError {
                 Text(message)
@@ -219,6 +243,21 @@ struct BillingView: View {
             await billingStore.reloadProductsAndEntitlements()
         } catch {
             managementError = error.localizedDescription
+        }
+    }
+
+    private func restorePurchases() {
+        guard !isRestoringPurchases else { return }
+
+        isRestoringPurchases = true
+        managementError = nil
+
+        Task {
+            await billingStore.restorePurchases()
+            if billingStore.lastPurchaseState == .failed {
+                managementError = billingStore.errorMessage
+            }
+            isRestoringPurchases = false
         }
     }
 }

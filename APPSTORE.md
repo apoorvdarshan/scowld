@@ -113,21 +113,21 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
     5. Optionally grant camera permission and ask a visual question with camera enabled.
     6. Open Chats to confirm conversations are saved and can be selected as context.
     7. Open Settings to test language, voice selection, local voice previews, captions, avatar, custom name, and system prompt.
-    8. Open Billing to view active subscription, credit balance, manage subscription, and extra credit packs.
+    8. Open Billing to view active subscription, restore purchases, credit balance, manage subscription, and extra credit packs.
     9. Open About to test update check, rating prompt, sharing, contact, social, support, privacy, and terms links.
 
     Network access is required. The app routes AI chat, speech-to-text, and text-to-speech through Scowld's hosted backend so provider API keys are not shipped in the app binary.
 
     The app uses the microphone for voice input and the camera only when the user enables vision/camera context.
     The startup onboarding includes bundled offline Privacy Policy and Terms of Service text with a required acceptance checkbox before the paywall.
-    The paywall includes a distinct Restore button in the top-right toolbar.
+    The paywall includes a distinct Restore button in the top-right toolbar, and Billing includes Restore Purchases for users returning later.
 
     The app is designed for iPhone and iPad.
 
 ## App Review Response Notes
 
     Restore Purchases:
-    Build 1.0 (5) adds a distinct Restore button in the top-right toolbar of the startup paywall. Tapping it initiates RevenueCat's restore purchases flow.
+    Build 1.0 (6) adds a distinct Restore button in the top-right toolbar of the startup paywall and a Restore Purchases row in the Billing tab. Tapping either initiates RevenueCat's restore purchases flow.
 
     Age Rating:
     Set App Store Connect age rating to 18+ using "Override to Higher Age Rating" because the AI companion can generate general AI content.
