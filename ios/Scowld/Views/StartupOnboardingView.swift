@@ -317,7 +317,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Camera, vision, and face data",
-                    body: "Scowld requests camera access only for optional vision context. Frames are captured on device and sent through the hosted backend to Gemini only when visual context is used in a message. Images are not saved to your photo library by Scowld. Scowld does not use Apple's TrueDepth API or ARKit face tracking. Scowld does not collect, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, biometric identifiers, or other face data."
+                    body: "Scowld requests camera access only for optional vision context. Frames are captured on device and sent through the hosted backend to Gemini only when visual context is used in a message. Images are not saved to your photo library by Scowld. Scowld does not use Apple's TrueDepth API or ARKit face tracking. Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data."
                 ),
                 LegalTextSection(
                     title: "Microphone access",
@@ -352,7 +352,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Purchases, subscriptions, and credits",
-                    body: "Scowld uses Apple in-app purchase for subscriptions and extra voice credit packs. Payments, renewals, cancellations, refunds, and subscription management are handled by Apple. One voice credit means one full voice turn. Subscription credits refill weekly according to the selected plan, and extra credits are used after subscription credits."
+                    body: "Scowld uses Apple in-app purchase for subscriptions and extra voice credit packs. Payments, renewals, cancellations, refunds, restore purchases, and subscription management are handled by Apple. One voice credit means one full voice turn. Subscription credits refill weekly according to the selected plan, and extra credits are used after subscription credits."
                 ),
                 LegalTextSection(
                     title: "Your responsibilities",

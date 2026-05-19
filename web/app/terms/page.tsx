@@ -50,6 +50,7 @@ export default function Terms() {
               <li>1 voice credit means 1 full voice turn.</li>
               <li>Subscription credits refill weekly according to the selected plan.</li>
               <li>Extra credits are used after subscription credits.</li>
+              <li>Previously purchased subscriptions can be restored from the paywall or Billing screen using Restore Purchases.</li>
               <li>Credits and plans may be adjusted for abuse prevention, provider cost changes, or operational reasons.</li>
               <li>Extra credits do not bypass safety limits such as one active reply at a time, audio length limits, TTS length limits, or reply-rate limits.</li>
             </ul>

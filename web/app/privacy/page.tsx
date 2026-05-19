@@ -62,16 +62,17 @@ export default function Privacy() {
               <li>Camera access can be disabled from the app or iOS settings.</li>
               <li>When camera is disabled, Scowld does not capture camera frames.</li>
             </ul>
-            <p>Scowld does not use Apple&apos;s TrueDepth API or ARKit face tracking. Scowld does not collect, store, or share face geometry, depth maps, facial blend shapes, or biometric identifiers.</p>
+            <p>Scowld does not use Apple&apos;s TrueDepth API or ARKit face tracking. Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data.</p>
           </div>
 
           <div>
             <h2>5. Face Data and TrueDepth API</h2>
-            <p>Scowld does not use Apple&apos;s TrueDepth API. The app does not collect face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data.</p>
+            <p>Scowld does not use Apple&apos;s TrueDepth API. The app does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data.</p>
             <ul>
               <li>No TrueDepth information is collected by Scowld.</li>
+              <li>No TrueDepth or face data is used by Scowld for any purpose.</li>
               <li>No TrueDepth or face data is stored locally by Scowld or on Scowld&apos;s hosted backend.</li>
-              <li>No TrueDepth or face data is shared with Gemini, Deepgram, ElevenLabs, Vercel, Apple, or any other third party by Scowld.</li>
+              <li>No TrueDepth or face data is disclosed or shared with Gemini, Deepgram, ElevenLabs, Vercel, Apple, or any other third party by Scowld.</li>
               <li>No TrueDepth or face data is retained because Scowld does not collect it.</li>
             </ul>
           </div>

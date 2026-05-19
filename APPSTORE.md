@@ -49,7 +49,7 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
     - Camera frames are used only when you enable camera and send visual context
     - Provider keys can be rotated on the hosted backend without an App Store update
     - Scowld does not use Apple's TrueDepth API or ARKit face tracking
-    - Scowld does not collect, store, share, or retain face geometry, depth maps, facial blend shapes, biometric identifiers, or other face data
+    - Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data
 
     HOW IT WORKS
     1. Choose a subscription plan to unlock Scowld
@@ -148,4 +148,4 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
     Privacy Policy section 5, "Face Data and TrueDepth API," explains collection, use, disclosure, sharing, and retention of face data.
 
     Privacy policy quote:
-    "Scowld does not use Apple's TrueDepth API. The app does not collect face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data."
+    "Scowld does not use Apple's TrueDepth API. The app does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data."

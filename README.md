@@ -164,7 +164,7 @@ See [web/.env.example](web/.env.example) for defaults.
 - Chat history and selected chat context are stored locally on device.
 - Voice audio, prompt text, optional image context, and generated speech text are routed through the hosted backend only to provide app features.
 - Camera access is optional and used only when visual context is sent.
-- Scowld does not use Apple's TrueDepth API or ARKit face tracking and does not collect, store, share, or retain face geometry, depth maps, facial blend shapes, biometric identifiers, or other face data.
+- Scowld does not use Apple's TrueDepth API or ARKit face tracking and does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data.
 - Privacy Policy and Terms are published on the web and bundled as offline acceptance text in startup onboarding. Keep both copies in sync when legal text changes.
 
 ## Website Links
