@@ -20,7 +20,7 @@ export default function Terms() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Terms of Service</h1>
-        <p className="legal__date">Last updated: May 14, 2026</p>
+        <p className="legal__date">Last updated: May 19, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -61,7 +61,7 @@ export default function Terms() {
               <li><strong className="legal__strong-dim">Lawful use:</strong> You agree not to use Scowld for illegal, harmful, abusive, harassing, threatening, exploitative, or otherwise objectionable purposes.</li>
               <li><strong className="legal__strong-dim">Content:</strong> You are responsible for content you submit and for how you use generated responses.</li>
               <li><strong className="legal__strong-dim">AI limitations:</strong> Do not rely on AI responses for medical, legal, financial, safety-critical, or emergency advice.</li>
-              <li><strong className="legal__strong-dim">Camera and microphone:</strong> When you enable these permissions, you consent to their use for the purposes described in the Privacy Policy.</li>
+              <li><strong className="legal__strong-dim">Camera and microphone:</strong> When you enable these permissions, you consent to their use for the purposes described in the Privacy Policy. Scowld does not use Apple&apos;s TrueDepth API or collect face data.</li>
               <li><strong className="legal__strong-dim">Third-party terms:</strong> You must comply with applicable terms and acceptable use policies of providers used by Scowld, including Gemini, Deepgram, ElevenLabs, Apple, and Vercel.</li>
             </ul>
           </div>

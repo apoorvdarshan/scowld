@@ -48,6 +48,8 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
     - Microphone audio is sent for speech recognition only when voice input is used
     - Camera frames are used only when you enable camera and send visual context
     - Provider keys can be rotated on the hosted backend without an App Store update
+    - Scowld does not use Apple's TrueDepth API or ARKit face tracking
+    - Scowld does not collect, store, share, or retain face geometry, depth maps, facial blend shapes, biometric identifiers, or other face data
 
     HOW IT WORKS
     1. Choose a subscription plan to unlock Scowld
@@ -117,5 +119,33 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
     Network access is required. The app routes AI chat, speech-to-text, and text-to-speech through Scowld's hosted backend so provider API keys are not shipped in the app binary.
 
     The app uses the microphone for voice input and the camera only when the user enables vision/camera context.
+    The startup onboarding includes bundled offline Privacy Policy and Terms of Service text with a required acceptance checkbox before the paywall.
+    The paywall includes a distinct Restore Purchases button.
 
     The app is designed for iPhone and iPad.
+
+## App Review Response Notes
+
+    Restore Purchases:
+    Build 1.0 (3) adds a distinct Restore Purchases button on the startup paywall. Tapping it initiates RevenueCat's restore purchases flow.
+
+    Age Rating:
+    Set App Store Connect age rating to 18+ using "Override to Higher Age Rating" because the AI companion can generate general AI content.
+
+    TrueDepth / Face Data:
+    Scowld does not use Apple's TrueDepth API or ARKit face tracking. The previous unused ARKit face-tracking code path was removed from the app target.
+
+    What information is collected using TrueDepth API?
+    None. Scowld does not collect TrueDepth API information.
+
+    For what purpose is this information collected?
+    No TrueDepth information is collected, so there is no planned use.
+
+    Will the data be shared with any third parties? Where is it stored?
+    No TrueDepth or face data is shared with third parties or stored anywhere by Scowld, because Scowld does not collect it.
+
+    Privacy policy location:
+    Privacy Policy section 5, "Face Data and TrueDepth API," explains collection, use, disclosure, sharing, and retention of face data.
+
+    Privacy policy quote:
+    "Scowld does not use Apple's TrueDepth API. The app does not collect face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data."

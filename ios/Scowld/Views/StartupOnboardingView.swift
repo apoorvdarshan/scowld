@@ -1,7 +1,6 @@
 import AVFoundation
 import StoreKit
 import SwiftUI
-import WebKit
 
 struct StartupOnboardingView: View {
     @Environment(\.requestReview) private var requestReview
@@ -174,7 +173,7 @@ struct StartupOnboardingView: View {
                 }
                 .pickerStyle(.segmented)
 
-                OnboardingLegalWebView(url: selectedLegalDocument.url)
+                OnboardingLegalTextView(document: selectedLegalDocument)
                     .frame(height: UIDevice.current.userInterfaceIdiom == .pad ? 560 : 390)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .overlay {
@@ -291,14 +290,107 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
         }
     }
 
-    var url: URL {
+    var date: String {
         switch self {
         case .privacy:
-            return URL(string: "https://scowld.xyz/privacy")!
+            return "Last updated: May 19, 2026"
         case .terms:
-            return URL(string: "https://scowld.xyz/terms")!
+            return "Last updated: May 19, 2026"
         }
     }
+
+    var sections: [LegalTextSection] {
+        switch self {
+        case .privacy:
+            return [
+                LegalTextSection(
+                    title: "Overview",
+                    body: "Scowld is an iOS AI companion app. It uses a hosted backend to route chat, speech-to-text, and text-to-speech requests to configured providers without putting provider API keys inside the iOS app."
+                ),
+                LegalTextSection(
+                    title: "Account and analytics",
+                    body: "The iOS app does not require a Scowld account. The app does not include advertising SDKs or third-party app analytics SDKs. We do not ask for your name, email, location, or account password in the iOS app. We do not sell personal data."
+                ),
+                LegalTextSection(
+                    title: "AI and voice processing",
+                    body: "To provide app features, Scowld may process typed messages, selected conversation context, speech audio sent for transcription, recognized speech text, assistant response text sent for speech generation, and optional camera image context when you enable camera/vision and send a message."
+                ),
+                LegalTextSection(
+                    title: "Camera, vision, and face data",
+                    body: "Scowld requests camera access only for optional vision context. Frames are captured on device and sent through the hosted backend to Gemini only when visual context is used in a message. Images are not saved to your photo library by Scowld. Scowld does not use Apple's TrueDepth API or ARKit face tracking. Scowld does not collect, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, biometric identifiers, or other face data."
+                ),
+                LegalTextSection(
+                    title: "Microphone access",
+                    body: "Scowld requests microphone access for voice input. When you record or send voice input, speech audio is sent through the hosted backend to Deepgram for transcription, and recognized text may be sent to Gemini as part of the conversation. Microphone permission can be revoked in iOS settings."
+                ),
+                LegalTextSection(
+                    title: "Third-party providers",
+                    body: "Scowld uses managed third-party providers through the hosted backend: Google Gemini for AI chat and optional image understanding, Deepgram for speech-to-text, ElevenLabs for text-to-speech, Apple for in-app purchases and subscription management, and Vercel for website and backend deployment."
+                ),
+                LegalTextSection(
+                    title: "Provider API keys",
+                    body: "Scowld does not ask users to enter Gemini, Deepgram, or ElevenLabs API keys. Provider keys are stored as hosted backend environment variables and are not included in the App Store binary. They can be rotated from the hosted deployment without an App Store update."
+                ),
+                LegalTextSection(
+                    title: "Local device storage",
+                    body: "Scowld stores app data locally on your device, including past chat messages, the selected active chat, character settings, voice and language preferences, caption preferences, and local purchase or credit state used by the app UI. Deleting the app removes local app data from the device, subject to normal iOS behavior and backups."
+                ),
+                LegalTextSection(
+                    title: "Voice samples, children, and contact",
+                    body: "Voice sample playback in Settings uses bundled local preview audio files and does not call ElevenLabs. Scowld is not directed at children under 13. For privacy questions, contact Apoorv Darshan at ad13dtu@gmail.com."
+                ),
+            ]
+        case .terms:
+            return [
+                LegalTextSection(
+                    title: "Acceptance",
+                    body: "By downloading, installing, purchasing, subscribing to, or using Scowld, you agree to these Terms of Service. If you do not agree, do not use the app."
+                ),
+                LegalTextSection(
+                    title: "Service",
+                    body: "Scowld is a paid iOS AI companion app with conversational AI through Scowld's hosted backend, an animated VRM companion, voice input using Deepgram, text-to-speech using ElevenLabs, optional camera/vision context, local saved chats, subscriptions, and extra credit packs."
+                ),
+                LegalTextSection(
+                    title: "Purchases, subscriptions, and credits",
+                    body: "Scowld uses Apple in-app purchase for subscriptions and extra voice credit packs. Payments, renewals, cancellations, refunds, and subscription management are handled by Apple. One voice credit means one full voice turn. Subscription credits refill weekly according to the selected plan, and extra credits are used after subscription credits."
+                ),
+                LegalTextSection(
+                    title: "Your responsibilities",
+                    body: "You agree not to use Scowld for illegal, harmful, abusive, harassing, threatening, exploitative, or otherwise objectionable purposes. You are responsible for content you submit and for how you use generated responses."
+                ),
+                LegalTextSection(
+                    title: "Camera and microphone",
+                    body: "When you enable camera or microphone permissions, you consent to their use for the purposes described in the Privacy Policy. Scowld does not use Apple's TrueDepth API or collect face data. Camera vision is optional and microphone input is used only for voice input."
+                ),
+                LegalTextSection(
+                    title: "Service limits and availability",
+                    body: "AI, speech-to-text, and text-to-speech require an active internet connection. Third-party providers may change, fail, rate limit, or become unavailable. Scowld may enforce usage limits to control cost, prevent abuse, or protect service reliability."
+                ),
+                LegalTextSection(
+                    title: "AI output disclaimer",
+                    body: "AI-generated responses may be inaccurate, incomplete, biased, offensive, or inappropriate. Scowld is an entertainment and companion experience, not a professional advisor. Do not rely on AI responses for medical, legal, financial, safety-critical, or emergency advice."
+                ),
+                LegalTextSection(
+                    title: "Third-party services",
+                    body: "The app integrates with services not owned or controlled by the developer, including Google Gemini, Deepgram, ElevenLabs, Apple services, and Vercel hosting. The developer is not responsible for third-party service content, policies, availability, or data practices."
+                ),
+                LegalTextSection(
+                    title: "Ownership and termination",
+                    body: "The Scowld name, logo, branding, app design, website, and private app code are owned by Apoorv Darshan unless otherwise stated. You may stop using Scowld at any time by deleting the app. Access may be restricted for abuse, unlawful use, or violation of these terms."
+                ),
+                LegalTextSection(
+                    title: "Contact",
+                    body: "For questions about these terms, contact Apoorv Darshan at ad13dtu@gmail.com."
+                ),
+            ]
+        }
+    }
+}
+
+private struct LegalTextSection: Identifiable {
+    let id = UUID()
+    let title: String
+    let body: String
 }
 
 private struct OnboardingPageShell<Content: View>: View {
@@ -414,51 +506,37 @@ private struct OnboardingClip {
     let resourceName: String
 }
 
-private struct OnboardingLegalWebView: UIViewRepresentable {
-    let url: URL
+private struct OnboardingLegalTextView: View {
+    let document: OnboardingLegalDocument
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(document.title == "Privacy" ? "Privacy Policy" : "Terms of Service")
+                        .font(.title3.weight(.bold))
+                    Text(document.date)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
-    func makeUIView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.allowsInlineMediaPlayback = false
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = context.coordinator
-        webView.scrollView.backgroundColor = .black
-        webView.isOpaque = false
-        webView.backgroundColor = .black
-        context.coordinator.load(url, in: webView)
-        return webView
-    }
-
-    func updateUIView(_ webView: WKWebView, context: Context) {
-        context.coordinator.load(url, in: webView)
-    }
-
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        private var currentURL: URL?
-
-        func load(_ url: URL, in webView: WKWebView) {
-            guard currentURL != url else { return }
-            currentURL = url
-            webView.load(URLRequest(url: url))
-        }
-
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
-            guard navigationAction.targetFrame?.isMainFrame == true else {
-                return .allow
+                ForEach(document.sections) { section in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(section.title)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                        Text(section.body)
+                            .font(.subheadline)
+                            .lineSpacing(4)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.disabled)
+                    }
+                }
             }
-
-            guard let url = navigationAction.request.url,
-                  let host = url.host?.lowercased(),
-                  host == "scowld.xyz" || host == "www.scowld.xyz" else {
-                return .cancel
-            }
-
-            return url.path == "/privacy" || url.path == "/terms" ? .allow : .cancel
+            .padding(18)
         }
+        .scrollIndicators(.visible)
+        .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 

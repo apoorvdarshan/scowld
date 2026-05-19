@@ -66,7 +66,18 @@ export default function Privacy() {
           </div>
 
           <div>
-            <h2>5. Microphone Access</h2>
+            <h2>5. Face Data and TrueDepth API</h2>
+            <p>Scowld does not use Apple&apos;s TrueDepth API. The app does not collect face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data.</p>
+            <ul>
+              <li>No TrueDepth information is collected by Scowld.</li>
+              <li>No TrueDepth or face data is stored locally by Scowld or on Scowld&apos;s hosted backend.</li>
+              <li>No TrueDepth or face data is shared with Gemini, Deepgram, ElevenLabs, Vercel, Apple, or any other third party by Scowld.</li>
+              <li>No TrueDepth or face data is retained because Scowld does not collect it.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h2>6. Microphone Access</h2>
             <p>Scowld requests microphone access for voice input. When you record or send voice input:</p>
             <ul>
               <li>Speech audio is sent through the hosted backend to Deepgram for transcription.</li>
@@ -77,7 +88,7 @@ export default function Privacy() {
           </div>
 
           <div>
-            <h2>6. Third-Party Providers</h2>
+            <h2>7. Third-Party Providers</h2>
             <p>Scowld uses managed third-party providers through the hosted backend. These providers may process data needed to provide app features:</p>
             <ul>
               <li><strong className="legal__strong-dim">Google Gemini</strong> for AI chat and optional image understanding.</li>
@@ -90,7 +101,7 @@ export default function Privacy() {
           </div>
 
           <div>
-            <h2>7. Provider API Keys</h2>
+            <h2>8. Provider API Keys</h2>
             <p>Scowld does not ask users to enter Gemini, Deepgram, or ElevenLabs API keys. Provider keys are stored as hosted backend environment variables and are not included in the App Store binary.</p>
             <ul>
               <li>Provider keys are not shown in the iOS app UI.</li>
@@ -100,7 +111,7 @@ export default function Privacy() {
           </div>
 
           <div>
-            <h2>8. Local Device Storage</h2>
+            <h2>9. Local Device Storage</h2>
             <p>Scowld stores app data locally on your device using Apple&apos;s local storage frameworks. This may include:</p>
             <ul>
               <li>Past chat messages and assistant replies.</li>
@@ -113,22 +124,22 @@ export default function Privacy() {
           </div>
 
           <div>
-            <h2>9. Voice Samples</h2>
+            <h2>10. Voice Samples</h2>
             <p>Voice sample playback in Settings uses bundled local preview audio files included with the app. Playing a bundled sample does not call ElevenLabs.</p>
           </div>
 
           <div>
-            <h2>10. Children&apos;s Privacy</h2>
+            <h2>11. Children&apos;s Privacy</h2>
             <p>Scowld is not directed at children under 13. We do not knowingly collect personal information from children under 13.</p>
           </div>
 
           <div>
-            <h2>11. Changes to This Policy</h2>
+            <h2>12. Changes to This Policy</h2>
             <p>We may update this privacy policy from time to time. Changes will be reflected on this page with an updated date.</p>
           </div>
 
           <div>
-            <h2>12. Contact</h2>
+            <h2>13. Contact</h2>
             <p>For privacy questions, contact:<br />
             <strong className="legal__strong-dim">Apoorv Darshan</strong> - <a href="mailto:ad13dtu@gmail.com">ad13dtu@gmail.com</a></p>
           </div>

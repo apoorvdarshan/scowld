@@ -35,6 +35,7 @@ This is a private Scowld repository for the iOS app, the hosted backend routes, 
 - **Character settings** - Avatar, custom name, and system prompt controls.
 - **Multilingual speech settings** - Defaults to the iPhone language, with supported language overrides.
 - **Billing and credits** - RevenueCat-backed StoreKit subscriptions, extra credit packs, and Apple subscription management.
+- **Startup onboarding** - Local videos, rating prompt, offline Privacy/Terms acceptance, and locked paywall.
 - **About actions** - Update check, rating prompt, share, contact, Product Hunt, Ko-fi, LinkedIn, Instagram, privacy, and terms.
 
 ## Repo Structure
@@ -163,6 +164,8 @@ See [web/.env.example](web/.env.example) for defaults.
 - Chat history and selected chat context are stored locally on device.
 - Voice audio, prompt text, optional image context, and generated speech text are routed through the hosted backend only to provide app features.
 - Camera access is optional and used only when visual context is sent.
+- Scowld does not use Apple's TrueDepth API or ARKit face tracking and does not collect, store, share, or retain face geometry, depth maps, facial blend shapes, biometric identifiers, or other face data.
+- Privacy Policy and Terms are published on the web and bundled as offline acceptance text in startup onboarding. Keep both copies in sync when legal text changes.
 
 ## Website Links
 
