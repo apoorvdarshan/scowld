@@ -120,14 +120,14 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 
     The app uses the microphone for voice input and the camera only when the user enables vision/camera context.
     The startup onboarding includes bundled offline Privacy Policy and Terms of Service text with a required acceptance checkbox before the paywall.
-    The paywall includes a distinct Restore Purchases button.
+    The paywall includes a distinct Restore button in the top-right toolbar.
 
     The app is designed for iPhone and iPad.
 
 ## App Review Response Notes
 
     Restore Purchases:
-    Build 1.0 (3) adds a distinct Restore Purchases button on the startup paywall. Tapping it initiates RevenueCat's restore purchases flow.
+    Build 1.0 (5) adds a distinct Restore button in the top-right toolbar of the startup paywall. Tapping it initiates RevenueCat's restore purchases flow.
 
     Age Rating:
     Set App Store Connect age rating to 18+ using "Override to Higher Age Rating" because the AI companion can generate general AI content.
