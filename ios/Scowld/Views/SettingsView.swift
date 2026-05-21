@@ -17,10 +17,10 @@ struct SettingsView: View {
 
     // MARK: - Character Settings
     @State private var hasCharacterChanges = false
-    @State private var characterName: String = "Stella"
+    @State private var characterName: String = "Bella"
     @State private var selectedAvatar: String = "AvatarSample_A"
     @State private var systemPrompt: String = ""
-    @State private var savedCharacterName: String = "Stella"
+    @State private var savedCharacterName: String = "Bella"
     @State private var savedSystemPrompt: String = ""
 
     var showsDismissControls = true
@@ -154,7 +154,7 @@ struct SettingsView: View {
                         settingRow {
                             Picker("Avatar", selection: $selectedAvatar) {
                                 ForEach(CharacterPack.defaultPacks) { pack in
-                                    Text(pack.name).tag(pack.fileName)
+                                    Text(pack.displayName).tag(pack.fileName)
                                 }
                             }
                             .pickerStyle(.menu)
@@ -166,7 +166,7 @@ struct SettingsView: View {
 
                         settingRow {
                             HStack(spacing: 8) {
-                                TextField("Custom Name (optional)", text: $characterName)
+                                TextField("Add custom name", text: $characterName)
                                     .autocorrectionDisabled()
                                     .onChange(of: characterName) { markCharacterChanged() }
 
@@ -420,7 +420,9 @@ struct SettingsView: View {
         selectedVoicePickerID = ScowldVoiceLibrary.pickerID(for: voiceID)
         customVoiceID = selectedVoicePickerID == ScowldVoiceLibrary.customID ? voiceID : ""
         selectedLanguageID = HostedServiceConfig.selectedServiceLanguageID()
-        characterName = defaults.string(forKey: "character_name") ?? ""
+        let storedCharacterName = defaults.string(forKey: "character_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        characterName = storedCharacterName.isEmpty ? "Bella" : storedCharacterName
         selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
         systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
         savedCharacterName = characterName
@@ -468,10 +470,13 @@ struct SettingsView: View {
     private func saveCharacterSettings() {
         let defaults = UserDefaults.standard
         HostedServiceConfig.applyManagedDefaults()
-        defaults.set(characterName, forKey: "character_name")
+        let trimmedCharacterName = characterName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let savedName = trimmedCharacterName.isEmpty ? "Bella" : trimmedCharacterName
+        characterName = savedName
+        defaults.set(trimmedCharacterName, forKey: "character_name")
         defaults.set(systemPrompt, forKey: "system_prompt")
 
-        savedCharacterName = characterName
+        savedCharacterName = savedName
         savedSystemPrompt = systemPrompt
         hasCharacterChanges = false
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)

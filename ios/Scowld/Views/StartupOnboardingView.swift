@@ -453,9 +453,9 @@ private struct OnboardingVideoCarousel: View {
     private let videoAspectRatio: CGFloat = 1180.0 / 2556.0
 
     private let clips = [
-        OnboardingClip(title: "Aria", resourceName: "aria"),
-        OnboardingClip(title: "Bella", resourceName: "bella"),
-        OnboardingClip(title: "Ciel", resourceName: "ciel"),
+        OnboardingClip(title: "Character 1", resourceName: "aria"),
+        OnboardingClip(title: "Character 2", resourceName: "bella"),
+        OnboardingClip(title: "Character 3", resourceName: "ciel"),
     ]
 
     var body: some View {

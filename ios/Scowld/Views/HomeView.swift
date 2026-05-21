@@ -144,6 +144,7 @@ struct HomeView: View {
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
     @State private var cameraOn = true
     @State private var voiceManager = VoiceManager()
+    @State private var handsFreeWakeListener = HandsFreeWakeListener()
     @State private var aiResponseText = ""
     @State private var isAwaitingAssistantResponse = false
     @State private var assistantUnlockTask: Task<Void, Never>?
@@ -152,10 +153,12 @@ struct HomeView: View {
     @State private var isVoicePressActive = false
     @State private var isTapVoiceRecording = false
     @State private var wasVoiceDragCancelArmed = false
+    @State private var isHandsFreeCommandActive = false
     @State private var isAssistantSpeaking = false
     @State private var assistantSpeechUnlockTask: Task<Void, Never>?
     @State private var assistantSpeechEarliestEndAt: Date?
     @AppStorage("show_ai_caption") private var showAICaption = false
+    @AppStorage("hands_free_mode_enabled") private var handsFreeModeEnabled = true
     @Environment(\.scenePhase) private var scenePhase
     @Environment(BillingStore.self) private var billingStore
     @FocusState private var messageFieldFocused: Bool
@@ -201,10 +204,12 @@ struct HomeView: View {
 
             Task {
                 _ = await SpeechManager().requestPermissions()
+                updateHandsFreeWakeListener()
             }
 
             setupVoice()
             amicaCoordinator?.setRuntimeActive(isActive)
+            updateHandsFreeWakeListener()
         }
         .onDisappear {
             stopActiveConversation()
@@ -212,6 +217,7 @@ struct HomeView: View {
         .onChange(of: isActive) {
             if isActive {
                 amicaCoordinator?.setRuntimeActive(true)
+                updateHandsFreeWakeListener()
             } else {
                 stopActiveConversation()
             }
@@ -229,6 +235,7 @@ struct HomeView: View {
             if voiceManager.state != .listening {
                 resetVoiceInteractionState()
             }
+            updateHandsFreeWakeListener()
         }
         .onReceive(NotificationCenter.default.publisher(for: .ttsDone)) { _ in
             finishAssistantTurn()
@@ -246,11 +253,18 @@ struct HomeView: View {
                 scheduleAssistantUnlockFallback(after: estimatedFallbackDelay(for: text))
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .amicaSettingsChanged)) { _ in
+            updateHandsFreeWakeListener()
+        }
+        .onChange(of: handsFreeModeEnabled) {
+            updateHandsFreeWakeListener()
+        }
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
                 if isActive {
                     amicaCoordinator?.setRuntimeActive(true)
+                    updateHandsFreeWakeListener()
                 }
             case .inactive:
                 break
@@ -338,6 +352,8 @@ struct HomeView: View {
                     .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
             }
             .buttonStyle(.plain)
+
+            handsFreeButton
 
             messageField
 
@@ -427,6 +443,13 @@ struct HomeView: View {
             messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var canListenForHandsFreeWake: Bool {
+        isActive &&
+            scenePhase == .active &&
+            handsFreeModeEnabled &&
+            canAttemptVoiceCapture
+    }
+
     private var isVoiceCaptureActive: Bool {
         voiceManager.state == .listening || voiceManager.state == .transcribing
     }
@@ -461,6 +484,25 @@ struct HomeView: View {
         canBeginVoiceCapture ? .amicaBlue : .secondary
     }
 
+    private var handsFreeButton: some View {
+        Button {
+            toggleHandsFreeMode()
+        } label: {
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .font(.system(size: 23, weight: .semibold))
+                .frame(width: 44, height: 48)
+                .foregroundStyle(handsFreeIconColor)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(handsFreeModeEnabled ? "Turn off hands-free mode" : "Turn on hands-free mode")
+        .accessibilityHint("Listens for hey Bella or the custom character name.")
+    }
+
+    private var handsFreeIconColor: Color {
+        guard handsFreeModeEnabled else { return .secondary }
+        return handsFreeWakeListener.isRunning ? .amicaBlue : .white.opacity(0.74)
+    }
+
     private var recordingStatusIconName: String {
         if isVoiceDragCancelArmed {
             return "xmark.circle.fill"
@@ -484,6 +526,8 @@ struct HomeView: View {
             return NSLocalizedString("Sending voice...", comment: "Voice recording send status")
         case .listening where isVoicePressActive:
             return NSLocalizedString("Release to send - slide left to cancel", comment: "Voice recording hold instruction")
+        case .listening where isHandsFreeCommandActive:
+            return NSLocalizedString("Hands-free recording...", comment: "Hands-free voice recording status")
         case .listening where isTapVoiceRecording:
             return NSLocalizedString("Recording... tap send when done", comment: "Tap voice recording instruction")
         case .listening:
@@ -536,6 +580,7 @@ struct HomeView: View {
 
     private func beginVoiceCapture() {
         guard canBeginVoiceCapture else { return }
+        handsFreeWakeListener.stop()
         messageFieldFocused = false
         isTapVoiceRecording = false
         InteractionFeedback.recordStart()
@@ -545,6 +590,7 @@ struct HomeView: View {
     private func sendVoiceCapture() {
         guard canSendVoiceCapture else { return }
         isTapVoiceRecording = false
+        isHandsFreeCommandActive = false
         voiceManager.finishCommandCapture()
         InteractionFeedback.send()
     }
@@ -552,6 +598,7 @@ struct HomeView: View {
     private func cancelVoiceCapture(playFeedback: Bool = true) {
         guard voiceManager.state == .listening || voiceManager.state == .transcribing else { return }
         isTapVoiceRecording = false
+        isHandsFreeCommandActive = false
         voicePressStartedAt = nil
         voicePressTranslation = .zero
         isVoicePressActive = false
@@ -579,6 +626,7 @@ struct HomeView: View {
         voicePressTranslation = .zero
         isVoicePressActive = false
         isTapVoiceRecording = false
+        isHandsFreeCommandActive = false
         wasVoiceDragCancelArmed = false
     }
 
@@ -655,6 +703,44 @@ struct HomeView: View {
         NotificationCenter.default.post(name: .showBillingTab, object: reason)
     }
 
+    private func toggleHandsFreeMode() {
+        handsFreeModeEnabled.toggle()
+        InteractionFeedback.tap()
+        updateHandsFreeWakeListener()
+    }
+
+    private func updateHandsFreeWakeListener() {
+        guard canListenForHandsFreeWake else {
+            handsFreeWakeListener.stop()
+            return
+        }
+
+        handsFreeWakeListener.start(wakeName: CharacterPack.resolveCharacterName()) {
+            handleHandsFreeWake()
+        }
+    }
+
+    private func handleHandsFreeWake() {
+        handsFreeWakeListener.stop()
+        guard handsFreeModeEnabled, canAttemptVoiceCapture else {
+            updateHandsFreeWakeListener()
+            return
+        }
+
+        guard billingStore.canSpendVoiceCredit else {
+            presentPaywall(reason: "You need voice credits to start a conversation.")
+            InteractionFeedback.tap()
+            updateHandsFreeWakeListener()
+            return
+        }
+
+        messageFieldFocused = false
+        isTapVoiceRecording = true
+        isHandsFreeCommandActive = true
+        InteractionFeedback.recordStart()
+        voiceManager.startCommandCapture(autoFinishOnSilence: true)
+    }
+
 
     // MARK: - Wake Word
 
@@ -671,6 +757,7 @@ struct HomeView: View {
         assistantSpeechUnlockTask = nil
         assistantSpeechEarliestEndAt = nil
         resetVoiceInteractionState()
+        handsFreeWakeListener.stop()
         voiceManager.cancelCommandCapture()
         isAwaitingAssistantResponse = false
         isAssistantSpeaking = false
@@ -699,6 +786,7 @@ struct HomeView: View {
         isAwaitingAssistantResponse = false
         isAssistantSpeaking = false
         voiceManager.onTTSDone()
+        updateHandsFreeWakeListener()
     }
 
     private func markAssistantSpeechStarted(estimatedDuration: TimeInterval) {

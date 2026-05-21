@@ -88,23 +88,25 @@ enum MessageRole: String, Codable, Sendable {
 struct CharacterPack: Identifiable, Codable, Sendable {
     let id: String
     let name: String
+    let displayName: String
     let fileName: String
     let description: String
 
     static let defaultPacks: [CharacterPack] = [
-        CharacterPack(id: "avatar_a", name: "Aria", fileName: "AvatarSample_A", description: "Elegant and composed"),
-        CharacterPack(id: "avatar_b", name: "Bella", fileName: "AvatarSample_B", description: "Warm and expressive"),
-        CharacterPack(id: "avatar_c", name: "Ciel", fileName: "AvatarSample_C", description: "Cool and collected"),
+        CharacterPack(id: "avatar_a", name: "Bella", displayName: "Character 1", fileName: "AvatarSample_A", description: "Elegant and composed"),
+        CharacterPack(id: "avatar_b", name: "Bella", displayName: "Character 2", fileName: "AvatarSample_B", description: "Warm and expressive"),
+        CharacterPack(id: "avatar_c", name: "Bella", displayName: "Character 3", fileName: "AvatarSample_C", description: "Cool and collected"),
     ]
 
     /// Get the name for a given avatar fileName
     static func nameForAvatar(_ fileName: String) -> String {
-        defaultPacks.first(where: { $0.fileName == fileName })?.name ?? "Stella"
+        defaultPacks.first(where: { $0.fileName == fileName })?.name ?? "Bella"
     }
 
     /// Resolve the effective character name: custom name if set, otherwise avatar's name
     static func resolveCharacterName() -> String {
-        let customName = UserDefaults.standard.string(forKey: "character_name") ?? ""
+        let customName = (UserDefaults.standard.string(forKey: "character_name") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         if !customName.isEmpty {
             return customName
         }
@@ -137,7 +139,7 @@ enum SystemPromptTemplate {
         }
     }
 
-    static func build(userName: String?, conversationContext: [String], visionDescription: String?, characterName: String = "Stella") -> String {
+    static func build(userName: String?, conversationContext: [String], visionDescription: String?, characterName: String = "Bella") -> String {
         let customPrompt = UserDefaults.standard.string(forKey: "system_prompt") ?? ""
         let personality = customPrompt.isEmpty
             ? "You are \(characterName), a friendly and expressive AI assistant with an anime avatar. You are warm, curious, and genuinely care about helping. You speak naturally and conversationally. You're cheerful and engaging, with a playful personality."

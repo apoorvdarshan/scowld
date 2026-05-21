@@ -52,6 +52,8 @@ final class VoiceManager: NSObject {
     private var isSpeechStatusLatched = false
     private var ambientNoiseDecibels: Float = -55
     private var speechActivityReadyAt = Date.distantPast
+    private var automaticallyFinishAfterSilence = false
+    private var automaticFinishWorkItem: DispatchWorkItem?
 
     // Cloud STT audio buffer storage
     private var audioBuffers: [AVAudioPCMBuffer] = []
@@ -71,6 +73,8 @@ final class VoiceManager: NSObject {
     private static let maxRecognitionDuration: TimeInterval = 55.0
     private static let cloudPreSpeechBufferLimit = 10
     private static let cloudMinimumSpeechBufferCount = 4
+    private static let automaticSilenceFinishDuration: TimeInterval = 1.4
+    private static let automaticNoSpeechTimeout: TimeInterval = 8
 
     /// Current STT backend from settings
     private var currentBackend: STTBackend {
@@ -84,8 +88,9 @@ final class VoiceManager: NSObject {
 
     // MARK: - Public API
 
-    func startCommandCapture() {
+    func startCommandCapture(autoFinishOnSilence: Bool = false) {
         guard state == .idle else { return }
+        automaticallyFinishAfterSilence = autoFinishOnSilence
         isEnabled = true
         startListening()
     }
@@ -93,6 +98,7 @@ final class VoiceManager: NSObject {
     func finishCommandCapture() {
         guard state == .listening else { return }
         isEnabled = false
+        cancelAutomaticFinish()
         if currentBackend.isCloudBased {
             finishCloudRecording()
         } else {
@@ -102,6 +108,8 @@ final class VoiceManager: NSObject {
 
     func cancelCommandCapture() {
         isEnabled = false
+        automaticallyFinishAfterSilence = false
+        cancelAutomaticFinish()
         stop()
     }
 
@@ -119,6 +127,7 @@ final class VoiceManager: NSObject {
         preSpeechAudioBuffers = []
         hasDetectedSpeech = false
         speechBufferCount = 0
+        cancelAutomaticFinish()
         ambientNoiseDecibels = Self.initialAmbientNoiseDecibels
         speechActivityReadyAt = Date().addingTimeInterval(Self.speechActivityCalibrationDuration)
         resetSpeechStatus()
@@ -139,6 +148,7 @@ final class VoiceManager: NSObject {
         isTTSPlaying = true
         transcriptText = ""
         resetSpeechStatus()
+        cancelAutomaticFinish()
         ScowldAudioSession.configureAmicaWebAudioPlayback()
         logger.info("[Voice] Paused for TTS")
     }
@@ -163,6 +173,8 @@ final class VoiceManager: NSObject {
         isTTSPlaying = false
         audioBuffers = []
         preSpeechAudioBuffers = []
+        automaticallyFinishAfterSilence = false
+        cancelAutomaticFinish()
         logger.info("[Voice] Stopped")
     }
 
@@ -267,7 +279,8 @@ final class VoiceManager: NSObject {
 
             // Auto-restart to prevent infinite recording
             restartTimer?.invalidate()
-            restartTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false) { [weak self] _ in
+            let noSpeechTimeout = automaticallyFinishAfterSilence ? Self.automaticNoSpeechTimeout : 30
+            restartTimer = Timer.scheduledTimer(withTimeInterval: noSpeechTimeout, repeats: false) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self, self.state == .listening else { return }
                     if self.hasDetectedSpeech {
@@ -288,8 +301,10 @@ final class VoiceManager: NSObject {
         let level = Self.audioLevel(for: buffer)
         handleSpeechActivity(level)
         guard let copy = copyAudioBuffer(buffer) else { return }
+        let speechLike = isSpeechLike(level)
 
-        if isSpeechLike(level) {
+        if speechLike {
+            cancelAutomaticFinish()
             if !hasDetectedSpeech {
                 audioBuffers.append(contentsOf: preSpeechAudioBuffers)
                 preSpeechAudioBuffers = []
@@ -300,6 +315,7 @@ final class VoiceManager: NSObject {
         } else if hasDetectedSpeech {
             // Still capture silence buffers (for natural speech gaps)
             audioBuffers.append(copy)
+            scheduleAutomaticFinishIfNeeded()
         } else {
             preSpeechAudioBuffers.append(copy)
             if preSpeechAudioBuffers.count > Self.cloudPreSpeechBufferLimit {
@@ -311,6 +327,7 @@ final class VoiceManager: NSObject {
     private func finishCloudRecording() {
         isEnabled = false
         stopRecognitionInternal()
+        cancelAutomaticFinish()
 
         // Need a few confirmed speech buffers to avoid sending background noise.
         guard !audioBuffers.isEmpty, let format = audioFormat, speechBufferCount >= Self.cloudMinimumSpeechBufferCount else {
@@ -374,6 +391,7 @@ final class VoiceManager: NSObject {
     private func scheduleRestart() {
         guard isEnabled, !isRestarting else { return }
         isRestarting = true
+        cancelAutomaticFinish()
         stopRecognitionInternal()
 
         Task { @MainActor [weak self] in
@@ -418,6 +436,33 @@ final class VoiceManager: NSObject {
         speechStatusText = ""
         readyCommand = text
         pauseForTTS()
+    }
+
+    private func scheduleAutomaticFinishIfNeeded() {
+        guard automaticallyFinishAfterSilence,
+              state == .listening,
+              automaticFinishWorkItem == nil,
+              hasCapturedSpeech
+        else { return }
+
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.automaticallyFinishAfterSilence,
+                      self.state == .listening
+                else { return }
+                self.automaticFinishWorkItem = nil
+                self.finishCommandCapture()
+            }
+        }
+
+        automaticFinishWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.automaticSilenceFinishDuration, execute: workItem)
+    }
+
+    private func cancelAutomaticFinish() {
+        automaticFinishWorkItem?.cancel()
+        automaticFinishWorkItem = nil
     }
 
     // MARK: - Local Speech Activity
@@ -481,6 +526,7 @@ final class VoiceManager: NSObject {
         }
 
         if isSpeechLike(level) {
+            cancelAutomaticFinish()
             speechEndWorkItem?.cancel()
             speechEndWorkItem = nil
 
@@ -506,6 +552,7 @@ final class VoiceManager: NSObject {
             speechStartWorkItem?.cancel()
             speechStartWorkItem = nil
             scheduleSpeechStatusRelease()
+            scheduleAutomaticFinishIfNeeded()
         }
     }
 
@@ -540,6 +587,8 @@ final class VoiceManager: NSObject {
     }
 
     private func restartListening(afterShowing message: String) {
+        stopRecognitionInternal()
+        cancelAutomaticFinish()
         resetSpeechStatus()
         speechStatusText = message
         state = .idle
