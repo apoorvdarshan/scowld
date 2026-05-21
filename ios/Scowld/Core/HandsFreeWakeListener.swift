@@ -146,7 +146,8 @@ final class HandsFreeWakeListener: NSObject {
         guard !normalizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
 
         return Self.nameCandidates(for: wakeName).contains { candidate in
-            normalizedText.contains(" hey \(candidate) ")
+            normalizedText.contains(" \(candidate) ") ||
+                normalizedText.contains(" hey \(candidate) ")
         }
     }
 
