@@ -153,6 +153,7 @@ final class HandsFreeWakeListener: NSObject {
     private static func nameCandidates(for name: String) -> [String] {
         let base = normalized(name)
         var candidates = Set<String>()
+        candidates.insert("bella")
         if !base.isEmpty {
             candidates.insert(base)
             if let first = base.split(separator: " ").first {
