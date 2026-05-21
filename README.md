@@ -5,7 +5,7 @@
 <h1 align="center">Scowld</h1>
 
 <p align="center">
-  A paid iOS AI voice companion with an animated character, hosted Gemini AI, Deepgram speech-to-text, ElevenLabs text-to-speech, vision, and saved conversations.
+  A paid iOS AI voice companion with an animated character, hands-free wake mode, hosted Gemini AI, Deepgram speech-to-text, ElevenLabs text-to-speech, vision, and saved conversations.
 </p>
 
 <p align="center">
@@ -27,6 +27,7 @@ This is a private Scowld repository for the iOS app, the hosted backend routes, 
 
 - **Animated companion** - VRM character rendering through the bundled Amica/Arbius frontend, with lip sync, idle animations, and expressions.
 - **Voice and text chat** - Send typed messages or voice input from the iOS composer.
+- **Hands-free wake mode** - When enabled, the app listens on device for Bella or the saved custom companion name to start voice recording.
 - **Hosted speech-to-text** - Deepgram Nova-3 routed through the Vercel backend.
 - **Hosted Gemini AI** - Gemini 3 Flash starts the response path with hosted fallback models.
 - **ElevenLabs text-to-speech** - Managed TTS with selectable voice IDs and bundled local voice previews.
@@ -163,6 +164,7 @@ See [web/.env.example](web/.env.example) for defaults.
 - Gemini, Deepgram, and ElevenLabs keys live in hosted backend environment variables.
 - Chat history and selected chat context are stored locally on device.
 - Voice audio, prompt text, optional image context, and generated speech text are routed through the hosted backend only to provide app features.
+- Hands-free wake detection is processed on device while the app is open and idle; it is not sent to the hosted backend before command recording starts.
 - Camera access is optional and used only when visual context is sent.
 - Scowld does not use Apple's TrueDepth API or ARKit face tracking and does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data.
 - Privacy Policy and Terms are published on the web and bundled as offline acceptance text in startup onboarding. Keep both copies in sync when legal text changes.

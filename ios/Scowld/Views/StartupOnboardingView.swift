@@ -293,9 +293,9 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
     var date: String {
         switch self {
         case .privacy:
-            return "Last updated: May 19, 2026"
+            return "Last updated: May 21, 2026"
         case .terms:
-            return "Last updated: May 19, 2026"
+            return "Last updated: May 21, 2026"
         }
     }
 
@@ -305,7 +305,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
             return [
                 LegalTextSection(
                     title: "Overview",
-                    body: "Scowld is an iOS AI companion app. It uses a hosted backend to route chat, speech-to-text, and text-to-speech requests to configured providers without putting provider API keys inside the iOS app."
+                    body: "Scowld is an iOS AI companion app. It uses a hosted backend to route chat, speech-to-text, and text-to-speech requests to configured providers without putting provider API keys inside the iOS app. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name."
                 ),
                 LegalTextSection(
                     title: "Account and analytics",
@@ -313,7 +313,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "AI and voice processing",
-                    body: "To provide app features, Scowld may process typed messages, selected conversation context, speech audio sent for transcription, recognized speech text, assistant response text sent for speech generation, and optional camera image context when you enable camera/vision and send a message."
+                    body: "To provide app features, Scowld may process typed messages, selected conversation context, speech audio sent for transcription, recognized speech text, assistant response text sent for speech generation, optional camera image context when you enable camera/vision and send a message, and hands-free wake detection audio processed on device while hands-free mode is enabled. Hands-free wake detection is not sent to Scowld's hosted backend before recording starts."
                 ),
                 LegalTextSection(
                     title: "Camera, vision, and face data",
@@ -321,7 +321,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Microphone access",
-                    body: "Scowld requests microphone access for voice input. When you record or send voice input, speech audio is sent through the hosted backend to Deepgram for transcription, and recognized text may be sent to Gemini as part of the conversation. Microphone permission can be revoked in iOS settings."
+                    body: "Scowld requests microphone access for voice input and optional hands-free wake mode. When you record or send voice input, speech audio is sent through the hosted backend to Deepgram for transcription, and recognized text may be sent to Gemini as part of the conversation. When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device for Bella or your saved custom companion name. Hands-free mode can be turned off in the composer, and microphone permission can be revoked in iOS settings."
                 ),
                 LegalTextSection(
                     title: "Third-party providers",
@@ -333,7 +333,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Local device storage",
-                    body: "Scowld stores app data locally on your device, including past chat messages, the selected active chat, character settings, voice and language preferences, caption preferences, and local purchase or credit state used by the app UI. Deleting the app removes local app data from the device, subject to normal iOS behavior and backups."
+                    body: "Scowld stores app data locally on your device, including past chat messages, the selected active chat, character settings, voice and language preferences, caption preferences, hands-free wake preferences, and local purchase or credit state used by the app UI. Deleting the app removes local app data from the device, subject to normal iOS behavior and backups."
                 ),
                 LegalTextSection(
                     title: "Voice samples, children, and contact",
@@ -348,7 +348,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Service",
-                    body: "Scowld is a paid iOS AI companion app with conversational AI through Scowld's hosted backend, an animated VRM companion, voice input using Deepgram, text-to-speech using ElevenLabs, optional camera/vision context, local saved chats, subscriptions, and extra credit packs."
+                    body: "Scowld is a paid iOS AI companion app with conversational AI through Scowld's hosted backend, an animated VRM companion, voice input using Deepgram, optional hands-free wake mode, text-to-speech using ElevenLabs, optional camera/vision context, local saved chats, subscriptions, and extra credit packs."
                 ),
                 LegalTextSection(
                     title: "Purchases, subscriptions, and credits",
@@ -360,11 +360,11 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Camera and microphone",
-                    body: "When you enable camera or microphone permissions, you consent to their use for the purposes described in the Privacy Policy. Scowld does not use Apple's TrueDepth API or collect face data. Camera vision is optional and microphone input is used only for voice input."
+                    body: "When you enable camera or microphone permissions, you consent to their use for the purposes described in the Privacy Policy. If hands-free mode is enabled, the microphone may remain active while the app is open and idle so Scowld can listen on device for Bella or your saved custom companion name. Scowld does not use Apple's TrueDepth API or collect face data. Camera vision is optional and microphone input is used only for voice input and hands-free wake detection."
                 ),
                 LegalTextSection(
                     title: "Service limits and availability",
-                    body: "AI, speech-to-text, and text-to-speech require an active internet connection. Third-party providers may change, fail, rate limit, or become unavailable. Scowld may enforce usage limits to control cost, prevent abuse, or protect service reliability."
+                    body: "AI, speech-to-text, and text-to-speech require an active internet connection. Hands-free wake detection requires microphone and speech recognition permission, may miss wake phrases, and may occasionally trigger unexpectedly. Third-party providers may change, fail, rate limit, or become unavailable. Scowld may enforce usage limits to control cost, prevent abuse, or protect service reliability."
                 ),
                 LegalTextSection(
                     title: "AI output disclaimer",

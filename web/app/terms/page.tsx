@@ -20,7 +20,7 @@ export default function Terms() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Terms of Service</h1>
-        <p className="legal__date">Last updated: May 19, 2026</p>
+        <p className="legal__date">Last updated: May 21, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -34,6 +34,7 @@ export default function Terms() {
             <ul>
               <li>Conversational AI powered by Google Gemini through Scowld&apos;s hosted backend.</li>
               <li>An animated VRM companion with lip sync, idle animations, and expression support.</li>
+              <li>Optional hands-free wake mode that can start voice recording when the selected companion name is detected.</li>
               <li>Voice input using Deepgram speech-to-text through Scowld&apos;s hosted backend.</li>
               <li>Text-to-speech output using ElevenLabs through Scowld&apos;s hosted backend.</li>
               <li>Optional camera/vision context.</li>
@@ -62,7 +63,7 @@ export default function Terms() {
               <li><strong className="legal__strong-dim">Lawful use:</strong> You agree not to use Scowld for illegal, harmful, abusive, harassing, threatening, exploitative, or otherwise objectionable purposes.</li>
               <li><strong className="legal__strong-dim">Content:</strong> You are responsible for content you submit and for how you use generated responses.</li>
               <li><strong className="legal__strong-dim">AI limitations:</strong> Do not rely on AI responses for medical, legal, financial, safety-critical, or emergency advice.</li>
-              <li><strong className="legal__strong-dim">Camera and microphone:</strong> When you enable these permissions, you consent to their use for the purposes described in the Privacy Policy. Scowld does not use Apple&apos;s TrueDepth API or collect face data.</li>
+              <li><strong className="legal__strong-dim">Camera and microphone:</strong> When you enable these permissions, you consent to their use for the purposes described in the Privacy Policy. If hands-free mode is enabled, the microphone may remain active while the app is open and idle so Scowld can listen on device for Bella or your saved custom companion name. Scowld does not use Apple&apos;s TrueDepth API or collect face data.</li>
               <li><strong className="legal__strong-dim">Third-party terms:</strong> You must comply with applicable terms and acceptable use policies of providers used by Scowld, including Gemini, Deepgram, ElevenLabs, Apple, and Vercel.</li>
             </ul>
           </div>
@@ -71,6 +72,7 @@ export default function Terms() {
             <h2>5. Service Limits and Availability</h2>
             <ul>
               <li>AI, speech-to-text, and text-to-speech require an active internet connection.</li>
+              <li>Hands-free wake detection requires microphone and speech recognition permission, may miss wake phrases, and may occasionally trigger unexpectedly.</li>
               <li>Third-party providers may change, fail, rate limit, or become unavailable.</li>
               <li>Scowld may enforce usage limits to control cost, prevent abuse, or protect service reliability.</li>
               <li>Features, providers, prices, and credit amounts may change over time.</li>

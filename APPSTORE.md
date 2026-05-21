@@ -1,6 +1,6 @@
 # App Store Listing
 
-App Store Connect submission details for Scowld v1.0. Each field is in a code block for easy copy-paste.
+App Store Connect submission details for Scowld v1.1. Each field is in a code block for easy copy-paste.
 
 ## App Name (30 chars max)
 
@@ -12,7 +12,7 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 
 ## Promotional Text (170 chars max)
 
-    Talk by voice or text with an animated AI companion. Gemini, Deepgram, and ElevenLabs run through Scowld's hosted backend.
+    Talk hands-free, by voice, or by text with an animated AI companion. Gemini, Deepgram, and ElevenLabs run through Scowld's hosted backend.
 
 ## Keywords (100 chars max)
 
@@ -29,6 +29,7 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 
     WHAT YOU GET
     - Animated AI companion with voice and text conversation
+    - Optional hands-free wake mode using Bella or your custom companion name
     - Hosted Gemini AI responses through Scowld's backend
     - Deepgram speech-to-text for voice input
     - ElevenLabs text-to-speech for expressive spoken replies
@@ -45,6 +46,7 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
     - No user account is required
     - No provider API keys are entered in the app
     - Provider API keys stay on Scowld's hosted backend, not inside the App Store binary
+    - Hands-free wake detection is processed on device while enabled and is not sent to Scowld's backend before command recording starts
     - Microphone audio is sent for speech recognition only when voice input is used
     - Camera frames are used only when you enable camera and send visual context
     - Provider keys can be rotated on the hosted backend without an App Store update
@@ -53,7 +55,7 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 
     HOW IT WORKS
     1. Choose a subscription plan to unlock Scowld
-    2. Talk with the animated companion by voice or type a message
+    2. Talk with the animated companion hands-free, by voice, or by typing a message
     3. Scowld transcribes speech, sends the message to Gemini, and speaks the response with ElevenLabs
     4. Save and switch between past chats when you want separate conversation contexts
     5. Buy extra voice credits if you need more voice turns
@@ -83,7 +85,13 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 
     Not affiliated with Google, Deepgram, ElevenLabs, Apple, or Vercel.
 
-## What's New (v1.0)
+## What's New (v1.1)
+
+    - Added hands-free wake mode with a composer toggle
+    - Wake recording can start from Bella, a saved custom companion name, or "hey" plus that name
+    - Default character names now resolve to Bella unless a custom name is saved
+    - Updated character picker labels to Character 1, Character 2, and Character 3
+    - Updated bundled Privacy Policy and Terms for hands-free wake behavior
 
 ## Privacy URL
 
@@ -110,15 +118,16 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
     2. Choose a subscription plan on the startup paywall using Apple sandbox purchase flow.
     3. Open Chat and send a typed message.
     4. Grant microphone permission and test voice input.
-    5. Optionally grant camera permission and ask a visual question with camera enabled.
-    6. Open Chats to confirm conversations are saved and can be selected as context.
-    7. Open Settings to test language, voice selection, local voice previews, captions, avatar, custom name, and system prompt.
-    8. Open Billing to view active subscription, restore purchases, credit balance, manage subscription, and extra credit packs.
-    9. Open About to test update check, rating prompt, sharing, contact, social, support, privacy, and terms links.
+    5. Use the hands-free toggle beside the eye icon and say "Bella" or "hey Bella" while the app is idle to start recording.
+    6. Optionally grant camera permission and ask a visual question with camera enabled.
+    7. Open Chats to confirm conversations are saved and can be selected as context.
+    8. Open Settings to test language, voice selection, local voice previews, captions, avatar, custom name, and system prompt.
+    9. Open Billing to view active subscription, restore purchases, credit balance, manage subscription, and extra credit packs.
+    10. Open About to test update check, rating prompt, sharing, contact, social, support, privacy, and terms links.
 
     Network access is required. The app routes AI chat, speech-to-text, and text-to-speech through Scowld's hosted backend so provider API keys are not shipped in the app binary.
 
-    The app uses the microphone for voice input and the camera only when the user enables vision/camera context.
+    The app uses the microphone for voice input and optional hands-free wake detection. Hands-free wake detection runs on device while enabled and does not send audio to Scowld's hosted backend before command recording starts. The app uses the camera only when the user enables vision/camera context.
     The startup onboarding includes bundled offline Privacy Policy and Terms of Service text with a required acceptance checkbox before the paywall.
     The paywall includes a distinct Restore button in the top-right toolbar, and Billing includes Restore Purchases for users returning later.
 
@@ -127,7 +136,10 @@ App Store Connect submission details for Scowld v1.0. Each field is in a code bl
 ## App Review Response Notes
 
     Restore Purchases:
-    Build 1.0 (6) adds a distinct Restore button in the top-right toolbar of the startup paywall and a Restore Purchases row in the Billing tab. Tapping either initiates RevenueCat's restore purchases flow.
+    Build 1.1 (7) keeps the distinct Restore button in the top-right toolbar of the startup paywall and a Restore Purchases row in the Billing tab. Tapping either initiates RevenueCat's restore purchases flow.
+
+    Hands-free wake mode:
+    Build 1.1 (7) adds an optional hands-free wake toggle in the composer. While enabled and the app is open and idle, Scowld listens on device for Bella or the saved custom companion name. Once detected, the app starts normal voice recording and sends only the command recording for speech-to-text.
 
     Age Rating:
     Set App Store Connect age rating to 18+ using "Override to Higher Age Rating" because the AI companion can generate general AI content.

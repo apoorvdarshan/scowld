@@ -20,12 +20,12 @@ export default function Privacy() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Privacy Policy</h1>
-        <p className="legal__date">Last updated: May 19, 2026</p>
+        <p className="legal__date">Last updated: May 21, 2026</p>
 
         <div className="legal__body">
           <div>
             <h2>1. Overview</h2>
-            <p>Scowld is an iOS AI companion app. It uses a hosted backend to route chat, speech-to-text, and text-to-speech requests to configured providers without putting provider API keys inside the iOS app.</p>
+            <p>Scowld is an iOS AI companion app. It uses a hosted backend to route chat, speech-to-text, and text-to-speech requests to configured providers without putting provider API keys inside the iOS app. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name.</p>
             <p>This policy explains what information is processed when you use the app, website, and hosted backend.</p>
           </div>
 
@@ -46,11 +46,12 @@ export default function Privacy() {
             <ul>
               <li>Typed messages and selected conversation context.</li>
               <li>Voice audio sent for speech-to-text.</li>
+              <li>Hands-free wake detection audio processed on device while hands-free mode is enabled.</li>
               <li>Recognized speech text sent to Gemini for a response.</li>
               <li>Assistant response text sent to ElevenLabs for speech generation.</li>
               <li>Optional camera image context when you enable camera/vision and send a message.</li>
             </ul>
-            <p>The hosted backend is not designed to store conversation content, speech audio, generated speech, images, or provider API keys in a database.</p>
+            <p>The hosted backend is not designed to store conversation content, speech audio, generated speech, images, or provider API keys in a database. Hands-free wake detection is not sent to Scowld&apos;s hosted backend before recording starts.</p>
           </div>
 
           <div>
@@ -79,12 +80,14 @@ export default function Privacy() {
 
           <div>
             <h2>6. Microphone Access</h2>
-            <p>Scowld requests microphone access for voice input. When you record or send voice input:</p>
+            <p>Scowld requests microphone access for voice input and optional hands-free wake mode. When you record or send voice input:</p>
             <ul>
               <li>Speech audio is sent through the hosted backend to Deepgram for transcription.</li>
               <li>The recognized text is sent to Gemini as part of the conversation.</li>
+              <li>When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device for Bella or your saved custom companion name.</li>
+              <li>After the wake name is detected, Scowld starts normal voice recording; that command audio may be sent for transcription.</li>
               <li>The microphone is not needed for typed messages.</li>
-              <li>Microphone permission can be revoked from iOS settings.</li>
+              <li>Hands-free mode can be turned off in the composer, and microphone permission can be revoked from iOS settings.</li>
             </ul>
           </div>
 
@@ -118,7 +121,7 @@ export default function Privacy() {
               <li>Past chat messages and assistant replies.</li>
               <li>The selected active chat.</li>
               <li>Character settings such as avatar, custom name, and system prompt.</li>
-              <li>Voice, language, and caption preferences.</li>
+              <li>Voice, language, caption, and hands-free wake preferences.</li>
               <li>Local purchase/credit state used by the app UI.</li>
             </ul>
             <p>Deleting the app removes local app data from the device, subject to normal iOS behavior and backups.</p>

@@ -17,6 +17,7 @@ const links = {
 
 const features = [
   { icon: "fa-microphone-lines", title: "Voice input", desc: "Speak from the iOS composer. Deepgram turns your voice into text through Scowld's hosted backend." },
+  { icon: "fa-bell", title: "Hands-free wake", desc: "When enabled, Scowld can listen locally for Bella or your custom name to start voice recording." },
   { icon: "fa-wand-magic-sparkles", title: "Animated companion", desc: "A VRM character with lip sync, idle animation, and expressive response playback." },
   { icon: "fa-eye", title: "Optional vision", desc: "Enable camera context when you want the AI to respond to what you are seeing." },
   { icon: "fa-comments", title: "Past chats", desc: "Save conversations locally, switch between chats, and reuse one as context for future replies." },
@@ -25,7 +26,7 @@ const features = [
 ];
 
 const tags = [
-  "SCOWLD PLUS", "VOICE CREDITS", "GEMINI", "ELEVENLABS", "DEEPGRAM STT",
+  "SCOWLD PLUS", "HANDS-FREE WAKE", "VOICE CREDITS", "GEMINI", "ELEVENLABS", "DEEPGRAM STT",
   "ANIMATED AVATAR", "VISION", "PAST CHATS", "IOS", "PRIVACY FIRST",
 ];
 
@@ -119,7 +120,7 @@ export default function Home() {
             </h1>
 
             <p className="sr sr-delay-2 hero__desc">
-              A paid AI voice companion with an animated character, Gemini chat, Deepgram speech-to-text, ElevenLabs speech, optional vision, and saved past chats.
+              A paid AI voice companion with an animated character, hands-free wake mode, Gemini chat, Deepgram speech-to-text, ElevenLabs speech, optional vision, and saved past chats.
             </p>
 
             <div className="sr sr-delay-3 hero__buttons">
@@ -179,7 +180,7 @@ export default function Home() {
           </p>
           <h2 className="sr sr-delay-2 features__title">Built for voice-first companion chat.</h2>
           <p className="sr sr-delay-3 features__subtitle">
-            Hosted AI, speech, voice, camera context, billing, and local conversation history in one iOS app.
+            Hosted AI, speech, voice, hands-free wake, camera context, billing, and local conversation history in one iOS app.
           </p>
         </div>
 
