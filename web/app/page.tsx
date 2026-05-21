@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 
 const links = {
+  appStore: "https://apps.apple.com/in/app/scowld-ai-voice-companion/id6760672848",
   productHunt: "https://www.producthunt.com/products/scowld",
   linkedIn: "https://www.linkedin.com/company/scowld",
   instagram: "https://www.instagram.com/scowld_/",
@@ -122,14 +123,15 @@ export default function Home() {
             </p>
 
             <div className="sr sr-delay-3 hero__buttons">
-              <button
-                type="button"
+              <a
+                href={links.appStore}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn-primary btn-appstore"
-                onClick={() => window.alert("Available soon")}
               >
                 <i className="fa-brands fa-apple" aria-hidden="true" />
                 Download on App Store
-              </button>
+              </a>
               <a href={links.productHunt} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 Vote on Product Hunt
               </a>
