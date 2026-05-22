@@ -112,60 +112,27 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
 
 ## Reviewer Notes
 
-    Scowld requires an active subscription to enter the app. Extra credits extend voice usage after subscription credits are used. Purchases are processed through Apple in-app purchase and can be tested with Apple sandbox purchase flow.
+    Scowld requires an active subscription. Please use Apple sandbox purchase flow on the startup paywall, or Restore Purchases if a sandbox entitlement already exists.
 
-    To test:
-    1. Launch the app.
-    2. Choose a subscription plan on the startup paywall using Apple sandbox purchase flow.
-    3. Open Chat and send a typed message.
-    4. Grant microphone permission and test voice input.
-    5. Use the hands-free toggle beside the eye icon and say "Bella" or "hey Bella" while the app is idle to start recording.
-    6. Tap the top-right info button on Home to view wake phrase and composer control tips.
-    7. Optionally grant camera permission and ask a visual question with camera enabled.
-    8. Open Chats to confirm conversations are saved and can be selected as context.
-    9. Open Settings to test language, voice selection, local voice previews, captions, avatar, custom name, and system prompt.
-    10. Open Billing to view active subscription, restore purchases, credit balance, manage subscription, and extra credit packs.
-    11. Open About to test update check, rating prompt, sharing, contact, social, support, privacy, and terms links.
+    Quick test path:
+    1. Subscribe or restore from the paywall.
+    2. Send a typed message.
+    3. Grant microphone permission and test voice input.
+    4. Use the hands-free toggle beside the eye icon, then say "Bella" or "hey Bella" while the app is idle.
+    5. Tap the top-right info button on Home to view control tips.
 
-    Network access is required. The app routes AI chat, speech-to-text, and text-to-speech through Scowld's hosted backend so provider API keys are not shipped in the app binary.
-
-    The app uses the microphone for voice input and optional hands-free wake detection. Hands-free wake detection runs on device while enabled and does not send audio to Scowld's hosted backend before command recording starts. The app uses the camera only when the user enables vision/camera context.
-    The startup onboarding includes bundled offline Privacy Policy and Terms of Service text with a required acceptance checkbox before the paywall.
-    The paywall includes a distinct Restore button in the top-right toolbar, and Billing includes Restore Purchases for users returning later.
-
-    The app is designed for iPhone and iPad.
+    Network access is required. AI chat, speech-to-text, and text-to-speech are routed through Scowld's hosted backend so provider API keys are not included in the app binary. The app is designed for iPhone and iPad.
 
 ## App Review Response Notes
 
-    Restore Purchases:
-    Build 1.1 (9) keeps the distinct Restore button in the top-right toolbar of the startup paywall and a Restore Purchases row in the Billing tab. Tapping either initiates RevenueCat's restore purchases flow.
+    Hello App Review,
 
-    Hands-free wake mode:
-    Build 1.1 (9) adds an optional hands-free wake toggle in the composer. While enabled and the app is open and idle, Scowld listens on device for Bella or the saved custom companion name. Once detected, the app starts normal voice recording and sends only the command recording for speech-to-text.
+    This resubmission addresses the two issues from Submission ID a6fcf69a-48c6-4caa-86c2-5fe0513fab37.
 
-    Crash fix:
-    Build 1.1 (9) fixes a launch/restart crash in hands-free wake listening by waiting for microphone and speech permissions before starting the listener, validating the input audio format, and removing stale audio input taps before restarting recognition.
+    Guideline 1.1:
+    We updated the app metadata to remove keyword/marketing references that could imply objectionable content. Current keywords are: ai companion, voice chat, avatar, tts, stt, gemini, deepgram, elevenlabs, chatbot, assistant.
 
-    Home tips:
-    Build 1.1 (9) adds an info button on the Home screen. It opens a compact guide for hands-free wake phrases and the eye, hands-free, voice, send, and trash controls.
+    Guideline 2.1(a):
+    We fixed the launch crash in build 1.1 (9). The crash logs pointed to hands-free wake audio input setup, so the app now waits for microphone/speech permissions, validates the input audio format, and removes stale audio taps before restarting recognition.
 
-    Age Rating:
-    Set App Store Connect age rating to 18+ using "Override to Higher Age Rating" because the AI companion can generate general AI content.
-
-    TrueDepth / Face Data:
-    Scowld does not use Apple's TrueDepth API or ARKit face tracking. The previous unused ARKit face-tracking code path was removed from the app target.
-
-    What information is collected using TrueDepth API?
-    None. Scowld does not collect TrueDepth API information.
-
-    For what purpose is this information collected?
-    No TrueDepth information is collected, so there is no planned use.
-
-    Will the data be shared with any third parties? Where is it stored?
-    No TrueDepth or face data is shared with third parties or stored anywhere by Scowld, because Scowld does not collect it.
-
-    Privacy policy location:
-    Privacy Policy section 5, "Face Data and TrueDepth API," explains collection, use, disclosure, sharing, and retention of face data.
-
-    Privacy policy quote:
-    "Scowld does not use Apple's TrueDepth API. The app does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data."
+    Please review version 1.1 build 9.
