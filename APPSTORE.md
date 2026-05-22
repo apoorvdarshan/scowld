@@ -135,6 +135,6 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
     We updated the app metadata to remove keyword/marketing references that could imply objectionable content. Current keywords are: ai companion, voice chat, avatar, tts, stt, gemini, deepgram, elevenlabs, chatbot, assistant.
 
     Guideline 2.1(a):
-    We fixed the launch crash in build 1.1 (9). The crash logs pointed to hands-free wake audio input setup, so the app now waits for microphone/speech permissions, validates the input audio format, and removes stale audio taps before restarting recognition.
+    We fixed the launch crash in build 1.1 (10). The crash logs pointed to hands-free wake audio input setup, so the app now waits for microphone/speech permissions, validates the input audio format, and removes stale audio taps before restarting recognition.
 
-    Please review version 1.1 build 9.
+    Please review version 1.1 build 10.
