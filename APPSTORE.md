@@ -120,11 +120,12 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
     3. Open Chat and send a typed message.
     4. Grant microphone permission and test voice input.
     5. Use the hands-free toggle beside the eye icon and say "Bella" or "hey Bella" while the app is idle to start recording.
-    6. Optionally grant camera permission and ask a visual question with camera enabled.
-    7. Open Chats to confirm conversations are saved and can be selected as context.
-    8. Open Settings to test language, voice selection, local voice previews, captions, avatar, custom name, and system prompt.
-    9. Open Billing to view active subscription, restore purchases, credit balance, manage subscription, and extra credit packs.
-    10. Open About to test update check, rating prompt, sharing, contact, social, support, privacy, and terms links.
+    6. Tap the top-right info button on Home to view wake phrase and composer control tips.
+    7. Optionally grant camera permission and ask a visual question with camera enabled.
+    8. Open Chats to confirm conversations are saved and can be selected as context.
+    9. Open Settings to test language, voice selection, local voice previews, captions, avatar, custom name, and system prompt.
+    10. Open Billing to view active subscription, restore purchases, credit balance, manage subscription, and extra credit packs.
+    11. Open About to test update check, rating prompt, sharing, contact, social, support, privacy, and terms links.
 
     Network access is required. The app routes AI chat, speech-to-text, and text-to-speech through Scowld's hosted backend so provider API keys are not shipped in the app binary.
 

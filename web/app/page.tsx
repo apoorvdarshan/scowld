@@ -18,6 +18,7 @@ const links = {
 const features = [
   { icon: "fa-microphone-lines", title: "Voice input", desc: "Speak from the iOS composer. Deepgram turns your voice into text through Scowld's hosted backend." },
   { icon: "fa-bell", title: "Hands-free wake", desc: "When enabled, Scowld can listen locally for Bella or your custom name to start voice recording." },
+  { icon: "fa-circle-info", title: "Home tips", desc: "A compact in-app guide explains wake phrases and the eye, hands-free, voice, send, and cancel controls." },
   { icon: "fa-wand-magic-sparkles", title: "Animated companion", desc: "A VRM character with lip sync, idle animation, and expressive response playback." },
   { icon: "fa-eye", title: "Optional vision", desc: "Enable camera context when you want the AI to respond to what you are seeing." },
   { icon: "fa-comments", title: "Past chats", desc: "Save conversations locally, switch between chats, and reuse one as context for future replies." },

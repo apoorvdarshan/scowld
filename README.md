@@ -28,6 +28,7 @@ This is a private Scowld repository for the iOS app, the hosted backend routes, 
 - **Animated companion** - VRM character rendering through the bundled Amica/Arbius frontend, with lip sync, idle animations, and expressions.
 - **Voice and text chat** - Send typed messages or voice input from the iOS composer.
 - **Hands-free wake mode** - When enabled, the app listens on device for Bella or the saved custom companion name to start voice recording.
+- **Home tips** - A top-right info button explains the wake phrases and composer controls.
 - **Hosted speech-to-text** - Deepgram Nova-3 routed through the Vercel backend.
 - **Hosted Gemini AI** - Gemini 3 Flash starts the response path with hosted fallback models.
 - **ElevenLabs text-to-speech** - Managed TTS with selectable voice IDs and bundled local voice previews.
@@ -53,6 +54,7 @@ APPSTORE.md      - App Store Connect copy
 ```
 Native iOS (Swift/SwiftUI)
 ├── HomeView             - Main chat UI and WKWebView bridge
+├── HomeTipsSheet        - In-app guide for wake phrases and composer controls
 ├── BillingStore         - RevenueCat, StoreKit products, subscriptions, and voice credits
 ├── CloudSTTProvider     - Hosted Deepgram speech-to-text
 ├── HostedGeminiProvider - Hosted Gemini chat requests
