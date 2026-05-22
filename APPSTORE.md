@@ -72,6 +72,7 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
     - Yearly: $299.99/year, 2,340 credits included, refilled as 45 credits/week
     - Extra credits: 10, 50, 100, 200, and 500 credit packs
     - Purchases are handled by Apple and can be managed from Apple ID settings
+    - Refund requests are handled by Apple. Scowld's RevenueCat/App Store refund request preference is Always prefer declining refunds, subject to Apple's final decision, Apple's terms, and applicable law.
 
     Built with SwiftUI, StoreKit, RevenueCat, Gemini, Deepgram, ElevenLabs, and a hosted Vercel backend.
     Website: https://scowld.xyz
@@ -83,7 +84,7 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
     Terms of Service: https://scowld.xyz/terms
     Contact: ad13dtu@gmail.com
 
-    Not affiliated with Google, Deepgram, ElevenLabs, Apple, or Vercel.
+    Not affiliated with Google, Deepgram, ElevenLabs, RevenueCat, Apple, or Vercel.
 
 ## What's New (v1.1)
 
@@ -93,6 +94,7 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
     - Default character names now resolve to Bella unless a custom name is saved
     - Updated character picker labels to Character 1, Character 2, and Character 3
     - Updated bundled Privacy Policy and Terms for hands-free wake behavior
+    - Updated bundled Privacy Policy and Terms for refund request handling
 
 ## Privacy URL
 
