@@ -20,7 +20,7 @@ export default function Terms() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Terms of Service</h1>
-        <p className="legal__date">Last updated: May 21, 2026</p>
+        <p className="legal__date">Last updated: May 22, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -47,6 +47,7 @@ export default function Terms() {
           <div>
             <h2>3. Purchases, Subscriptions, and Credits</h2>
             <p>Scowld uses Apple in-app purchase for subscriptions and extra voice credit packs. Payments, renewals, cancellations, refunds, and subscription management are handled by Apple under Apple&apos;s App Store terms.</p>
+            <p>Scowld&apos;s RevenueCat/App Store refund request setting is Always prefer declining refunds, subject to Apple&apos;s final decision, Apple&apos;s terms, and applicable law.</p>
             <ul>
               <li>1 voice credit means 1 full voice turn.</li>
               <li>Subscription credits refill weekly according to the selected plan.</li>
@@ -64,7 +65,7 @@ export default function Terms() {
               <li><strong className="legal__strong-dim">Content:</strong> You are responsible for content you submit and for how you use generated responses.</li>
               <li><strong className="legal__strong-dim">AI limitations:</strong> Do not rely on AI responses for medical, legal, financial, safety-critical, or emergency advice.</li>
               <li><strong className="legal__strong-dim">Camera and microphone:</strong> When you enable these permissions, you consent to their use for the purposes described in the Privacy Policy. If hands-free mode is enabled, the microphone may remain active while the app is open and idle so Scowld can listen on device for Bella or your saved custom companion name. Scowld does not use Apple&apos;s TrueDepth API or collect face data.</li>
-              <li><strong className="legal__strong-dim">Third-party terms:</strong> You must comply with applicable terms and acceptable use policies of providers used by Scowld, including Gemini, Deepgram, ElevenLabs, Apple, and Vercel.</li>
+              <li><strong className="legal__strong-dim">Third-party terms:</strong> You must comply with applicable terms and acceptable use policies of providers used by Scowld, including Gemini, Deepgram, ElevenLabs, RevenueCat, Apple, and Vercel.</li>
             </ul>
           </div>
 
@@ -86,7 +87,7 @@ export default function Terms() {
 
           <div>
             <h2>7. Third-Party Services</h2>
-            <p>The App integrates with third-party services not owned or controlled by the developer, including Google Gemini, Deepgram, ElevenLabs, Apple services, and Vercel hosting. The developer is not responsible for third-party service content, policies, availability, or data practices.</p>
+            <p>The App integrates with third-party services not owned or controlled by the developer, including Google Gemini, Deepgram, ElevenLabs, RevenueCat, Apple services, and Vercel hosting. The developer is not responsible for third-party service content, policies, availability, or data practices.</p>
           </div>
 
           <div>

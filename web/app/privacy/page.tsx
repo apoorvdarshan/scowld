@@ -20,7 +20,7 @@ export default function Privacy() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Privacy Policy</h1>
-        <p className="legal__date">Last updated: May 21, 2026</p>
+        <p className="legal__date">Last updated: May 22, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -98,10 +98,11 @@ export default function Privacy() {
               <li><strong className="legal__strong-dim">Google Gemini</strong> for AI chat and optional image understanding.</li>
               <li><strong className="legal__strong-dim">Deepgram</strong> for speech-to-text.</li>
               <li><strong className="legal__strong-dim">ElevenLabs</strong> for text-to-speech.</li>
+              <li><strong className="legal__strong-dim">RevenueCat</strong> for subscription, entitlement, purchase, and refund request handling.</li>
               <li><strong className="legal__strong-dim">Apple</strong> for in-app purchases and subscription management.</li>
               <li><strong className="legal__strong-dim">Vercel</strong> for website and hosted backend deployment.</li>
             </ul>
-            <p>These third-party services have their own privacy policies and terms.</p>
+            <p>For Apple refund request handling through RevenueCat, Scowld&apos;s refund preference is Always prefer declining refunds. Apple makes the final refund decision under Apple&apos;s terms and applicable law. These third-party services have their own privacy policies and terms.</p>
           </div>
 
           <div>

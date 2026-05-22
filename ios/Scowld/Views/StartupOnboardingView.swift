@@ -325,7 +325,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Third-party providers",
-                    body: "Scowld uses managed third-party providers through the hosted backend: Google Gemini for AI chat and optional image understanding, Deepgram for speech-to-text, ElevenLabs for text-to-speech, Apple for in-app purchases and subscription management, and Vercel for website and backend deployment."
+                    body: "Scowld uses managed third-party providers through the hosted backend: Google Gemini for AI chat and optional image understanding, Deepgram for speech-to-text, ElevenLabs for text-to-speech, RevenueCat for subscription, entitlement, purchase, and refund request handling, Apple for in-app purchases and subscription management, and Vercel for website and backend deployment."
                 ),
                 LegalTextSection(
                     title: "Provider API keys",
@@ -352,7 +352,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Purchases, subscriptions, and credits",
-                    body: "Scowld uses Apple in-app purchase for subscriptions and extra voice credit packs. Payments, renewals, cancellations, refunds, restore purchases, and subscription management are handled by Apple. One voice credit means one full voice turn. Subscription credits refill weekly according to the selected plan, and extra credits are used after subscription credits."
+                    body: "Scowld uses Apple in-app purchase for subscriptions and extra voice credit packs. Payments, renewals, cancellations, refunds, restore purchases, and subscription management are handled by Apple. Scowld's RevenueCat/App Store refund request setting is Always prefer declining refunds, subject to Apple's final decision, Apple's terms, and applicable law. One voice credit means one full voice turn. Subscription credits refill weekly according to the selected plan, and extra credits are used after subscription credits."
                 ),
                 LegalTextSection(
                     title: "Your responsibilities",
@@ -372,7 +372,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Third-party services",
-                    body: "The app integrates with services not owned or controlled by the developer, including Google Gemini, Deepgram, ElevenLabs, Apple services, and Vercel hosting. The developer is not responsible for third-party service content, policies, availability, or data practices."
+                    body: "The app integrates with services not owned or controlled by the developer, including Google Gemini, Deepgram, ElevenLabs, RevenueCat, Apple services, and Vercel hosting. The developer is not responsible for third-party service content, policies, availability, or data practices."
                 ),
                 LegalTextSection(
                     title: "Ownership and termination",
