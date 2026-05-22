@@ -22,6 +22,14 @@ private struct VoiceAudioLevel: Sendable {
     }
 }
 
+private enum VoiceAudioStartError: LocalizedError {
+    case invalidInputFormat
+
+    var errorDescription: String? {
+        "Microphone input format is unavailable"
+    }
+}
+
 @Observable
 @MainActor
 final class VoiceManager: NSObject {
@@ -59,6 +67,7 @@ final class VoiceManager: NSObject {
     private var audioBuffers: [AVAudioPCMBuffer] = []
     private var preSpeechAudioBuffers: [AVAudioPCMBuffer] = []
     private var audioFormat: AVAudioFormat?
+    private var hasInstalledInputTap = false
     private var hasDetectedSpeech = false
     private var speechBufferCount = 0
 
@@ -216,6 +225,9 @@ final class VoiceManager: NSObject {
 
             let inputNode = audioEngine.inputNode
             let recordingFormat = inputNode.outputFormat(forBus: 0)
+            guard recordingFormat.sampleRate > 0, recordingFormat.channelCount > 0 else {
+                throw VoiceAudioStartError.invalidInputFormat
+            }
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
                 self?.recognitionRequest?.append(buffer)
                 let level = Self.audioLevel(for: buffer)
@@ -223,6 +235,7 @@ final class VoiceManager: NSObject {
                     self?.handleSpeechActivity(level)
                 }
             }
+            hasInstalledInputTap = true
 
             audioEngine.prepare()
             try audioEngine.start()
@@ -237,6 +250,7 @@ final class VoiceManager: NSObject {
                 }
             }
         } catch {
+            stopRecognitionInternal()
             logger.error("[Voice] Failed to start recognition: \(error.localizedDescription)")
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(1))
@@ -263,6 +277,9 @@ final class VoiceManager: NSObject {
 
             let inputNode = audioEngine.inputNode
             let recordingFormat = inputNode.outputFormat(forBus: 0)
+            guard recordingFormat.sampleRate > 0, recordingFormat.channelCount > 0 else {
+                throw VoiceAudioStartError.invalidInputFormat
+            }
             audioFormat = recordingFormat
 
             inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
@@ -270,6 +287,7 @@ final class VoiceManager: NSObject {
                     self?.handleCloudAudioBuffer(buffer)
                 }
             }
+            hasInstalledInputTap = true
 
             audioEngine.prepare()
             try audioEngine.start()
@@ -293,6 +311,7 @@ final class VoiceManager: NSObject {
                 }
             }
         } catch {
+            stopRecognitionInternal()
             logger.error("[Voice] Failed to start cloud recording: \(error.localizedDescription)")
         }
     }
@@ -380,8 +399,14 @@ final class VoiceManager: NSObject {
 
         if audioEngine.isRunning {
             audioEngine.stop()
-            audioEngine.inputNode.removeTap(onBus: 0)
         }
+
+        if hasInstalledInputTap {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasInstalledInputTap = false
+        }
+
+        audioEngine.reset()
         recognitionRequest?.endAudio()
         recognitionRequest = nil
         recognitionTask?.cancel()

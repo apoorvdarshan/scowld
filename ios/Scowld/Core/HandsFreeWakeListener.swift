@@ -19,6 +19,7 @@ final class HandsFreeWakeListener: NSObject {
     private var normalizedWakeName = ""
     private var onWake: (() -> Void)?
     private var isStoppingForWake = false
+    private var hasInstalledInputTap = false
     private var lastWakeAt = Date.distantPast
 
     private static let recognitionRestartInterval: TimeInterval = 55
@@ -48,10 +49,7 @@ final class HandsFreeWakeListener: NSObject {
         restartTimer?.invalidate()
         restartTimer = nil
 
-        if audioEngine.isRunning {
-            audioEngine.stop()
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
+        stopAudioEngine()
 
         recognitionRequest?.endAudio()
         recognitionRequest = nil
@@ -60,6 +58,19 @@ final class HandsFreeWakeListener: NSObject {
         isRunning = false
         heardText = ""
         isStoppingForWake = false
+    }
+
+    private func stopAudioEngine() {
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+
+        if hasInstalledInputTap {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasInstalledInputTap = false
+        }
+
+        audioEngine.reset()
     }
 
     private func startRecognition() {
@@ -96,9 +107,17 @@ final class HandsFreeWakeListener: NSObject {
 
             let inputNode = audioEngine.inputNode
             let format = inputNode.outputFormat(forBus: 0)
+            guard format.sampleRate > 0, format.channelCount > 0 else {
+                handsFreeLogger.error("[HandsFree] Invalid input format")
+                stop()
+                return
+            }
+
+            stopAudioEngine()
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
                 self?.recognitionRequest?.append(buffer)
             }
+            hasInstalledInputTap = true
 
             audioEngine.prepare()
             try audioEngine.start()

@@ -8,7 +8,7 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
 
 ## Subtitle (30 chars max)
 
-    Anime Chat With Memory
+    AI Voice Chat With Memory
 
 ## Promotional Text (170 chars max)
 
@@ -16,7 +16,7 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
 
 ## Keywords (100 chars max)
 
-    ai companion,voice chat,anime avatar,tts,stt,gemini,deepgram,elevenlabs,chatbot,roleplay
+    ai companion,voice chat,avatar,tts,stt,gemini,deepgram,elevenlabs,chatbot,assistant
 
 ## Category
 
@@ -136,10 +136,13 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
 ## App Review Response Notes
 
     Restore Purchases:
-    Build 1.1 (7) keeps the distinct Restore button in the top-right toolbar of the startup paywall and a Restore Purchases row in the Billing tab. Tapping either initiates RevenueCat's restore purchases flow.
+    Build 1.1 (8) keeps the distinct Restore button in the top-right toolbar of the startup paywall and a Restore Purchases row in the Billing tab. Tapping either initiates RevenueCat's restore purchases flow.
 
     Hands-free wake mode:
-    Build 1.1 (7) adds an optional hands-free wake toggle in the composer. While enabled and the app is open and idle, Scowld listens on device for Bella or the saved custom companion name. Once detected, the app starts normal voice recording and sends only the command recording for speech-to-text.
+    Build 1.1 (8) adds an optional hands-free wake toggle in the composer. While enabled and the app is open and idle, Scowld listens on device for Bella or the saved custom companion name. Once detected, the app starts normal voice recording and sends only the command recording for speech-to-text.
+
+    Crash fix:
+    Build 1.1 (8) fixes a launch/restart crash in hands-free wake listening by waiting for microphone and speech permissions before starting the listener, validating the input audio format, and removing stale audio input taps before restarting recognition.
 
     Age Rating:
     Set App Store Connect age rating to 18+ using "Override to Higher Age Rating" because the AI companion can generate general AI content.

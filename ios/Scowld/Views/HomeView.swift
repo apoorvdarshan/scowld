@@ -155,6 +155,7 @@ struct HomeView: View {
     @State private var wasVoiceDragCancelArmed = false
     @State private var isHandsFreeCommandActive = false
     @State private var isAssistantSpeaking = false
+    @State private var voicePermissionsGranted = false
     @State private var assistantSpeechUnlockTask: Task<Void, Never>?
     @State private var assistantSpeechEarliestEndAt: Date?
     @AppStorage("show_ai_caption") private var showAICaption = false
@@ -203,8 +204,11 @@ struct HomeView: View {
             ScowldAudioSession.configureAmicaWebAudioPlayback()
 
             Task {
-                _ = await SpeechManager().requestPermissions()
-                updateHandsFreeWakeListener()
+                let granted = await SpeechManager().requestPermissions()
+                await MainActor.run {
+                    voicePermissionsGranted = granted
+                    updateHandsFreeWakeListener()
+                }
             }
 
             setupVoice()
@@ -447,6 +451,7 @@ struct HomeView: View {
         isActive &&
             scenePhase == .active &&
             handsFreeModeEnabled &&
+            voicePermissionsGranted &&
             canAttemptVoiceCapture
     }
 
