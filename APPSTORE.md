@@ -88,6 +88,7 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
 ## What's New (v1.1)
 
     - Added hands-free wake mode with a composer toggle
+    - Added a Home tips button that explains hands-free wake and composer controls
     - Wake recording can start from Bella, a saved custom companion name, or "hey" plus that name
     - Default character names now resolve to Bella unless a custom name is saved
     - Updated character picker labels to Character 1, Character 2, and Character 3
@@ -136,13 +137,16 @@ App Store Connect submission details for Scowld v1.1. Each field is in a code bl
 ## App Review Response Notes
 
     Restore Purchases:
-    Build 1.1 (8) keeps the distinct Restore button in the top-right toolbar of the startup paywall and a Restore Purchases row in the Billing tab. Tapping either initiates RevenueCat's restore purchases flow.
+    Build 1.1 (9) keeps the distinct Restore button in the top-right toolbar of the startup paywall and a Restore Purchases row in the Billing tab. Tapping either initiates RevenueCat's restore purchases flow.
 
     Hands-free wake mode:
-    Build 1.1 (8) adds an optional hands-free wake toggle in the composer. While enabled and the app is open and idle, Scowld listens on device for Bella or the saved custom companion name. Once detected, the app starts normal voice recording and sends only the command recording for speech-to-text.
+    Build 1.1 (9) adds an optional hands-free wake toggle in the composer. While enabled and the app is open and idle, Scowld listens on device for Bella or the saved custom companion name. Once detected, the app starts normal voice recording and sends only the command recording for speech-to-text.
 
     Crash fix:
-    Build 1.1 (8) fixes a launch/restart crash in hands-free wake listening by waiting for microphone and speech permissions before starting the listener, validating the input audio format, and removing stale audio input taps before restarting recognition.
+    Build 1.1 (9) fixes a launch/restart crash in hands-free wake listening by waiting for microphone and speech permissions before starting the listener, validating the input audio format, and removing stale audio input taps before restarting recognition.
+
+    Home tips:
+    Build 1.1 (9) adds an info button on the Home screen. It opens a compact guide for hands-free wake phrases and the eye, hands-free, voice, send, and trash controls.
 
     Age Rating:
     Set App Store Connect age rating to 18+ using "Override to Higher Age Rating" because the AI companion can generate general AI content.

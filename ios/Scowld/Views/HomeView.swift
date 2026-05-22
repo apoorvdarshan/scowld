@@ -156,6 +156,7 @@ struct HomeView: View {
     @State private var isHandsFreeCommandActive = false
     @State private var isAssistantSpeaking = false
     @State private var voicePermissionsGranted = false
+    @State private var showHomeTips = false
     @State private var assistantSpeechUnlockTask: Task<Void, Never>?
     @State private var assistantSpeechEarliestEndAt: Date?
     @AppStorage("show_ai_caption") private var showAICaption = false
@@ -196,9 +197,26 @@ struct HomeView: View {
             }
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showHomeTips = true
+                        InteractionFeedback.tap()
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    .accessibilityLabel("Show home tips")
+                }
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 composerBar
             }
+        }
+        .sheet(isPresented: $showHomeTips) {
+            HomeTipsSheet(wakeName: CharacterPack.resolveCharacterName())
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .onAppear {
             ScowldAudioSession.configureAmicaWebAudioPlayback()
@@ -856,6 +874,72 @@ struct HomeView: View {
                 }
             })();
         """)
+    }
+}
+
+private struct HomeTipsSheet: View {
+    let wakeName: String
+    @Environment(\.dismiss) private var dismiss
+
+    private var trimmedWakeName: String {
+        let trimmed = wakeName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Bella" : trimmed
+    }
+
+    private var wakeText: String {
+        if trimmedWakeName.caseInsensitiveCompare("Bella") == .orderedSame {
+            return "Say \"Bella\" or \"hey Bella\". If you set a custom name, say that name or \"hey\" plus it."
+        }
+
+        return "Say \"\(trimmedWakeName)\" or \"hey \(trimmedWakeName)\" while hands-free is on. \"Bella\" still works too."
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    tipRow(icon: "dot.radiowaves.left.and.right", title: "Hands-free wake", text: wakeText)
+                    tipRow(icon: "eye.fill", title: "Eye", text: "Turns camera vision on or off. When on, Bella can use the camera frame with your next message.")
+                    tipRow(icon: "mic.circle.fill", title: "Voice", text: "Tap to start recording, or hold and release to send. Slide left while holding to cancel.")
+                    tipRow(icon: "arrow.up.circle.fill", title: "Send", text: "Sends typed text or the recorded voice command when it is ready.")
+                    tipRow(icon: "trash.circle.fill", title: "Trash", text: "Cancels the current voice recording.")
+                }
+
+                Section {
+                    Text("Hands-free only listens when the app is open, idle, and the hands-free icon is enabled.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Home Tips")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func tipRow(icon: String, title: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.amicaBlue)
+                .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(text)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 3)
     }
 }
 
