@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "ElevenLabs Ses Kimliği";
 "Where to get a custom voice ID" = "Özel ses kimliği nereden alınır";
 "Preset samples are bundled in the app and play locally from this device." = "Hazır örnekler uygulamaya dahildir ve bu cihazdan yerel olarak oynatılır.";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "Seçilen ses kimliği, barındırılan arka uç üzerinden üretim ElevenLabs konuşması için kullanılır.";
 "Play sample" = "Örneği oynat";
 "Sample unavailable" = "Örnek kullanılamıyor";
 "No bundled sample is available for this custom voice ID." = "Bu özel ses kimliği için dahili örnek yok.";
@@ -69,8 +68,6 @@
 "Save Character" = "Karakteri Kaydet";
 "Character" = "Karakter";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "Avatar hemen kaydedilir. Özel adı veya sistem istemini değiştirdikten sonra Karakteri Kaydet'i kullanın.";
-"Managed Services" = "Yönetilen Hizmetler";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "Sağlayıcı anahtarları Scowld'un barındırılan arka ucu tarafından yönetilir, böylece App Store güncellemesi olmadan döndürülebilir.";
 "AI" = "Yapay Zeka";
 "Speech-to-Text" = "Konuşmadan Metne";
 "Text-to-Speech" = "Metinden Konuşmaya";

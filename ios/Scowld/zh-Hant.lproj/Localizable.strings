@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "ElevenLabs 語音 ID";
 "Where to get a custom voice ID" = "從哪裡取得自訂語音 ID";
 "Preset samples are bundled in the app and play locally from this device." = "預設範例已隨 App 內建，並會從此裝置在本機播放。";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "所選語音 ID 會透過託管後端用於正式環境的 ElevenLabs 語音。";
 "Play sample" = "播放範例";
 "Sample unavailable" = "範例無法使用";
 "No bundled sample is available for this custom voice ID." = "此自訂語音 ID 沒有可用的內建範例。";
@@ -69,8 +68,6 @@
 "Save Character" = "儲存角色";
 "Character" = "角色";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "頭像會立即儲存。變更自訂名稱或系統提示詞後，請使用儲存角色。";
-"Managed Services" = "代管服務";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "供應商金鑰由 Scowld 的託管後端處理，因此無需 App Store 更新即可輪替。";
 "AI" = "AI";
 "Speech-to-Text" = "語音轉文字";
 "Text-to-Speech" = "文字轉語音";

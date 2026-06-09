@@ -1,9 +1,8 @@
 import Foundation
 
-// MARK: - Hosted Provider Configuration
+// MARK: - Local Provider Configuration
 
 enum HostedServiceConfig {
-    static let baseURLString = "https://www.scowld.xyz"
     static let serviceLanguageDefaultsKey = "scowld_service_language"
     static let autoLanguageID = "__auto_language__"
     static let deviceLanguageID = "__device_language__"
@@ -23,46 +22,49 @@ enum HostedServiceConfig {
     static let defaultElevenLabsModel = "eleven_flash_v2_5"
     static let defaultDeepgramModel = "nova-3"
 
-    static var chatURL: URL {
-        URL(string: "\(baseURLString)/api/chat")!
-    }
-
-    static var elevenLabsTTSURL: URL {
-        URL(string: "\(baseURLString)/api/tts/elevenlabs")!
-    }
-
-    static var billingConfigURL: URL {
-        URL(string: "\(baseURLString)/api/billing/config")!
-    }
-
-    static func deepgramSTTURL(model: String) -> URL {
-        var components = URLComponents(string: "\(baseURLString)/api/stt/deepgram")!
-        var queryItems = [
-            URLQueryItem(name: "model", value: model.isEmpty ? defaultDeepgramModel : model)
-        ]
-        if let languageCode = selectedServiceLanguageCode() {
-            queryItems.append(URLQueryItem(name: "language", value: languageCode))
-        } else {
-            queryItems.append(URLQueryItem(name: "detect_language", value: "true"))
-        }
-        components.queryItems = queryItems
-        return components.url!
-    }
-
-    static func applyManagedDefaults() {
+    static func applyBYOKDefaults() {
         let defaults = UserDefaults.standard
-        defaults.set(AIProvider.gemini.rawValue, forKey: "selectedProvider")
-        defaults.set(defaultGeminiModel, forKey: "selectedModel")
-        defaults.set("elevenlabs", forKey: "amica_tts_backend")
-        defaults.set(defaultElevenLabsModel, forKey: "amica_elevenlabs_model")
-        defaults.set(STTBackend.deepgram.rawValue, forKey: "amica_stt_backend")
-        defaults.set(defaultDeepgramModel, forKey: STTBackend.deepgram.modelDefaultsKey)
+
+        let provider = AIProvider(rawValue: defaults.string(forKey: "selectedProvider") ?? "") ?? .gemini
+        if defaults.string(forKey: "selectedProvider") == nil {
+            defaults.set(provider.rawValue, forKey: "selectedProvider")
+        }
+        if defaults.string(forKey: provider.modelDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
+            defaults.set(provider.defaultModel, forKey: provider.modelDefaultsKey)
+        }
+        defaults.set(selectedModel(for: provider), forKey: "selectedModel")
+
+        if defaults.string(forKey: "amica_tts_backend") == nil {
+            defaults.set(TTSBackend.elevenLabs.rawValue, forKey: "amica_tts_backend")
+        }
+        if defaults.string(forKey: TTSBackend.elevenLabs.modelDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
+            defaults.set(defaultElevenLabsModel, forKey: TTSBackend.elevenLabs.modelDefaultsKey)
+        }
+        defaults.set(TTSBackend.selectedModel(for: .elevenLabs), forKey: "amica_elevenlabs_model")
+
+        if defaults.string(forKey: "amica_stt_backend") == nil {
+            defaults.set(STTBackend.nativeIOS.rawValue, forKey: "amica_stt_backend")
+        }
+        for backend in STTBackend.allCases where !backend.availableModels.isEmpty {
+            if defaults.string(forKey: backend.modelDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
+                defaults.set(backend.defaultModel, forKey: backend.modelDefaultsKey)
+            }
+        }
 
         let voiceID = defaults.string(forKey: "amica_elevenlabs_voiceid")?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if voiceID.isEmpty {
             defaults.set(defaultElevenLabsVoiceID, forKey: "amica_elevenlabs_voiceid")
         }
+    }
+
+    static func selectedModel(for provider: AIProvider) -> String {
+        let saved = UserDefaults.standard.string(forKey: provider.modelDefaultsKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !saved.isEmpty {
+            return saved
+        }
+        return provider.defaultModel
     }
 
     static func selectedElevenLabsVoiceID() -> String {

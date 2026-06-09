@@ -87,8 +87,8 @@ final class VoiceManager: NSObject {
 
     /// Current STT backend from settings
     private var currentBackend: STTBackend {
-        let raw = UserDefaults.standard.string(forKey: "amica_stt_backend") ?? STTBackend.deepgram.rawValue
-        return STTBackend(rawValue: raw) ?? .deepgram
+        let raw = UserDefaults.standard.string(forKey: "amica_stt_backend") ?? STTBackend.nativeIOS.rawValue
+        return STTBackend(rawValue: raw) ?? .nativeIOS
     }
 
     override init() {

@@ -162,7 +162,6 @@ struct HomeView: View {
     @AppStorage("show_ai_caption") private var showAICaption = false
     @AppStorage("hands_free_mode_enabled") private var handsFreeModeEnabled = true
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(BillingStore.self) private var billingStore
     @FocusState private var messageFieldFocused: Bool
 
     private let voiceTapMaximumDuration: TimeInterval = 0.95
@@ -319,7 +318,7 @@ struct HomeView: View {
         } label: {
             Image(systemName: "arrow.up.circle.fill")
                 .font(.system(size: 32, weight: .semibold))
-                .foregroundColor(canSendText && billingStore.canSpendVoiceCredit ? .amicaBlue : .secondary)
+                .foregroundColor(canSendText ? .amicaBlue : .secondary)
                 .frame(width: 48, height: 48)
         }
         .buttonStyle(.plain)
@@ -454,7 +453,7 @@ struct HomeView: View {
     }
 
     private var canBeginVoiceCapture: Bool {
-        canAttemptVoiceCapture && billingStore.canSpendVoiceCredit
+        canAttemptVoiceCapture
     }
 
     private var canAttemptVoiceCapture: Bool {
@@ -496,9 +495,6 @@ struct HomeView: View {
     private var voiceIconName: String {
         if canBeginVoiceCapture {
             return "mic.circle.fill"
-        }
-        if canAttemptVoiceCapture {
-            return "lock.circle.fill"
         }
         return "mic.slash.circle.fill"
     }
@@ -562,11 +558,6 @@ struct HomeView: View {
 
     private func beginVoicePress() {
         guard canAttemptVoiceCapture else { return }
-        guard billingStore.canSpendVoiceCredit else {
-            presentPaywall(reason: "You need voice credits to start a conversation.")
-            InteractionFeedback.tap()
-            return
-        }
         voicePressStartedAt = Date()
         isVoicePressActive = true
         voicePressTranslation = .zero
@@ -694,10 +685,6 @@ struct HomeView: View {
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        guard billingStore.spendVoiceCredit() else {
-            presentPaywall(reason: "You are out of voice credits. Subscribe or add extra credits to continue.")
-            return
-        }
         messageText = ""
         InteractionFeedback.send()
         isAwaitingAssistantResponse = true
@@ -720,10 +707,6 @@ struct HomeView: View {
                 logger.info("[HomeView] Message sent OK")
             }
         }
-    }
-
-    private func presentPaywall(reason: String) {
-        NotificationCenter.default.post(name: .showBillingTab, object: reason)
     }
 
     private func toggleHandsFreeMode() {
@@ -750,13 +733,6 @@ struct HomeView: View {
             return
         }
 
-        guard billingStore.canSpendVoiceCredit else {
-            presentPaywall(reason: "You need voice credits to start a conversation.")
-            InteractionFeedback.tap()
-            updateHandsFreeWakeListener()
-            return
-        }
-
         messageFieldFocused = false
         isTapVoiceRecording = true
         isHandsFreeCommandActive = true
@@ -768,7 +744,7 @@ struct HomeView: View {
     // MARK: - Wake Word
 
     private func setupVoice() {
-        HostedServiceConfig.applyManagedDefaults()
+        HostedServiceConfig.applyBYOKDefaults()
         voiceManager.cancelCommandCapture()
     }
 
@@ -940,6 +916,85 @@ private struct HomeTipsSheet: View {
             }
         }
         .padding(.vertical, 3)
+    }
+}
+
+private enum ElevenLabsBYOKRequestBuilder {
+    static func makeRequest(voiceID: String, body: Data?) throws -> URLRequest {
+        guard let apiKey = KeychainManager.load(key: TTSBackend.elevenLabs.keychainKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !apiKey.isEmpty
+        else {
+            throw ElevenLabsBYOKError.missingAPIKey
+        }
+
+        let selectedVoiceID = voiceID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? HostedServiceConfig.selectedElevenLabsVoiceID()
+            : voiceID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let escapedVoiceID = selectedVoiceID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "https://api.elevenlabs.io/v1/text-to-speech/\(escapedVoiceID)?output_format=mp3_44100_128")
+        else {
+            throw ElevenLabsBYOKError.invalidVoiceID
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+        request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: providerBody(from: body))
+        return request
+    }
+
+    static func errorResponseBody(_ error: Error) -> Data {
+        let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        return Data("{\"error\":\"\(jsonEscaped(message))\"}".utf8)
+    }
+
+    private static func providerBody(from data: Data?) -> [String: Any] {
+        var body: [String: Any] = [:]
+
+        if let data,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            body = json
+        }
+
+        body["model_id"] = TTSBackend.selectedModel(for: .elevenLabs)
+        if let languageCode = HostedServiceConfig.selectedServiceLanguageCode() {
+            body["language_code"] = languageCode
+        }
+        if body["voice_settings"] == nil {
+            body["voice_settings"] = [
+                "stability": 0.55,
+                "similarity_boost": 0.8,
+                "style": 0.35,
+                "use_speaker_boost": true,
+            ]
+        }
+
+        return body
+    }
+
+    private static func jsonEscaped(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+    }
+}
+
+private enum ElevenLabsBYOKError: LocalizedError {
+    case missingAPIKey
+    case invalidVoiceID
+
+    var errorDescription: String? {
+        switch self {
+        case .missingAPIKey:
+            "ElevenLabs API key is missing. Add it in Settings > Text-to-Speech."
+        case .invalidVoiceID:
+            "The selected ElevenLabs voice ID is invalid."
+        }
     }
 }
 
@@ -1173,21 +1228,21 @@ class AmicaLocalServer {
         }
         let voiceID = pathParts[1]
 
-        var urlRequest = URLRequest(url: HostedServiceConfig.elevenLabsTTSURL)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-        var payload: [String: Any] = [
-            "voiceId": voiceID,
-            "body": String(data: body ?? Data(), encoding: .utf8) ?? "{}",
-            "model": HostedServiceConfig.defaultElevenLabsModel,
-        ]
-        if let languageCode = HostedServiceConfig.selectedServiceLanguageCode() {
-            payload["languageCode"] = languageCode
+        let urlRequest: URLRequest
+        do {
+            urlRequest = try ElevenLabsBYOKRequestBuilder.makeRequest(voiceID: voiceID, body: body)
+        } catch {
+            logger.error("[Proxy] ElevenLabs BYOK setup error: \(error.localizedDescription)")
+            sendResponse(
+                client: client,
+                data: ElevenLabsBYOKRequestBuilder.errorResponseBody(error),
+                mimeType: "application/json",
+                statusCode: 401
+            )
+            return
         }
-        urlRequest.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
-        logger.info("[Proxy] Hosted ElevenLabs \(method) \(fullPath) bodyLen=\(body?.count ?? 0)")
+        logger.info("[Proxy] ElevenLabs BYOK \(method) \(fullPath) bodyLen=\(body?.count ?? 0)")
 
         let semaphore = DispatchSemaphore(value: 0)
         var responseData = Data()
@@ -1205,9 +1260,9 @@ class AmicaLocalServer {
         task.resume()
         semaphore.wait()
 
-        logger.info("[Proxy] Hosted ElevenLabs \(method) \(fullPath) -> \(responseCode) (\(responseData.count) bytes)")
+        logger.info("[Proxy] ElevenLabs BYOK \(method) \(fullPath) -> \(responseCode) (\(responseData.count) bytes)")
         if responseCode != 200, let errStr = String(data: responseData, encoding: .utf8) {
-            logger.error("[Proxy] Hosted ElevenLabs error: \(errStr.prefix(300))")
+            logger.error("[Proxy] ElevenLabs BYOK error: \(errStr.prefix(300))")
         }
         sendResponse(client: client, data: responseData, mimeType: responseMime, statusCode: responseCode)
     }
@@ -1336,14 +1391,14 @@ struct AmicaFullView: UIViewRepresentable {
 
         // Inject native config before page loads
         let defaults = UserDefaults.standard
-        HostedServiceConfig.applyManagedDefaults()
-        let ttsBackend = "elevenlabs"
-        let sttBackend = STTBackend.deepgram.rawValue
+        HostedServiceConfig.applyBYOKDefaults()
+        let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? TTSBackend.elevenLabs.rawValue
+        let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? STTBackend.nativeIOS.rawValue
         let visionEnabledJS = "true"
         let visionBackend = "native_ios"
         let elevenLabsVoiceId = HostedServiceConfig.selectedElevenLabsVoiceID()
-        let elevenLabsModel = HostedServiceConfig.defaultElevenLabsModel
-        let managedKeySentinel = "managed_by_scowld_backend"
+        let elevenLabsModel = TTSBackend.selectedModel(for: .elevenLabs)
+        let keychainSentinel = "stored_in_ios_keychain"
         let characterName = CharacterPack.resolveCharacterName()
         let selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
 
@@ -1370,7 +1425,7 @@ struct AmicaFullView: UIViewRepresentable {
                 tts_backend: '\(ttsBackend)',
                 stt_backend: '\(sttBackend)',
                 vision_backend: '\(visionBackend)',
-                elevenlabs_apikey: '\(managedKeySentinel)',
+                elevenlabs_apikey: '\(keychainSentinel)',
                 elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                 elevenlabs_model: '\(elevenLabsModel)',
                 rvc_enabled: 'false',
@@ -1822,12 +1877,12 @@ struct AmicaFullView: UIViewRepresentable {
 
         private func pushUpdatedConfig() {
             let defaults = UserDefaults.standard
-            HostedServiceConfig.applyManagedDefaults()
-            let ttsBackend = "elevenlabs"
-            let sttBackend = STTBackend.deepgram.rawValue
+            HostedServiceConfig.applyBYOKDefaults()
+            let ttsBackend = defaults.string(forKey: "amica_tts_backend") ?? TTSBackend.elevenLabs.rawValue
+            let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? STTBackend.nativeIOS.rawValue
             let elevenLabsVoiceId = HostedServiceConfig.selectedElevenLabsVoiceID()
-            let elevenLabsModel = HostedServiceConfig.defaultElevenLabsModel
-            let managedKeySentinel = "managed_by_scowld_backend"
+            let elevenLabsModel = TTSBackend.selectedModel(for: .elevenLabs)
+            let keychainSentinel = "stored_in_ios_keychain"
             let visionEnabledJS = "true"
             let visionBackend = "native_ios"
             let characterName = CharacterPack.resolveCharacterName()
@@ -1848,7 +1903,7 @@ struct AmicaFullView: UIViewRepresentable {
                     tts_backend: '\(ttsBackend)',
                     stt_backend: '\(sttBackend)',
                     vision_backend: '\(visionBackend)',
-                    elevenlabs_apikey: '\(managedKeySentinel)',
+                    elevenlabs_apikey: '\(keychainSentinel)',
                     elevenlabs_voiceid: '\(elevenLabsVoiceId)',
                     elevenlabs_model: '\(elevenLabsModel)',
                     rvc_enabled: 'false',
@@ -2010,7 +2065,6 @@ struct AmicaFullView: UIViewRepresentable {
 
         private func handleChatRequest(callbackId: String, messages: [[String: String]], imageData: String? = nil, generation: Int) async {
             guard canDeliver(generation) else { return }
-            let provider = buildCurrentProvider()
 
             let chatMessages = messages.compactMap { dict -> ChatMessage? in
                 guard let roleStr = dict["role"], let content = dict["content"] else { return nil }
@@ -2018,26 +2072,25 @@ struct AmicaFullView: UIViewRepresentable {
                 return ChatMessage(role: role, content: content)
             }
 
-            let supportsVision = true
-
             // Build system prompt with active saved-chat context and character name
             let contextBuilder = ContextBuilder(memoryStore: memoryStore)
             let systemPrompt = contextBuilder.buildSystemPrompt()
 
             do {
+                let runtimeProvider = try buildCurrentProvider()
                 let response: String
-                if supportsVision,
+                if runtimeProvider.supportsVision,
                    let imageBase64 = imageData,
                    !imageBase64.isEmpty,
                    let imgData = Data(base64Encoded: imageBase64),
                    let image = UIImage(data: imgData) {
                     // Vision request — send image with the message
                     logger.info("[Amica] Vision request with image: \(imgData.count) bytes")
-                    response = try await provider.generateWithVision(
+                    response = try await runtimeProvider.provider.generateWithVision(
                         messages: chatMessages, systemPrompt: systemPrompt, image: image
                     )
                 } else {
-                    response = try await provider.generate(messages: chatMessages, systemPrompt: systemPrompt)
+                    response = try await runtimeProvider.provider.generate(messages: chatMessages, systemPrompt: systemPrompt)
                 }
 
                 let finalResponse = response
@@ -2063,21 +2116,24 @@ struct AmicaFullView: UIViewRepresentable {
 
         private func handleElevenLabsTTS(callbackId: String, voiceId: String, body: String, generation: Int) async {
             guard canDeliver(generation) else { return }
-            var request = URLRequest(url: HostedServiceConfig.elevenLabsTTSURL)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-            var payload: [String: Any] = [
-                "voiceId": voiceId.isEmpty ? HostedServiceConfig.selectedElevenLabsVoiceID() : voiceId,
-                "body": body,
-                "model": HostedServiceConfig.defaultElevenLabsModel,
-            ]
-            if let languageCode = HostedServiceConfig.selectedServiceLanguageCode() {
-                payload["languageCode"] = languageCode
+            let request: URLRequest
+            do {
+                request = try ElevenLabsBYOKRequestBuilder.makeRequest(
+                    voiceID: voiceId.isEmpty ? HostedServiceConfig.selectedElevenLabsVoiceID() : voiceId,
+                    body: Data(body.utf8)
+                )
+            } catch {
+                logger.error("[TTS] ElevenLabs BYOK setup error: \(error.localizedDescription)")
+                await MainActor.run {
+                    guard self.canDeliver(generation) else { return }
+                    let escaped = error.localizedDescription.replacingOccurrences(of: "'", with: "\\'")
+                    webView?.evaluateJavaScript("window['__ttsError_\(callbackId)'] && window['__ttsError_\(callbackId)']('\(escaped)')")
+                    notifyTTSFailed()
+                }
+                return
             }
-            request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
-            logger.info("[TTS] Hosted ElevenLabs request: voice=\(voiceId) bodyLen=\(body.count)")
+            logger.info("[TTS] ElevenLabs BYOK request: voice=\(voiceId) bodyLen=\(body.count)")
 
             do {
                 let (data, response) = try await URLSession.shared.data(for: request)
@@ -2091,7 +2147,7 @@ struct AmicaFullView: UIViewRepresentable {
 
                 if httpResponse.statusCode == 200 {
                     let base64 = data.base64EncodedString()
-                    logger.info("[TTS] Hosted ElevenLabs success: \(data.count) bytes")
+                    logger.info("[TTS] ElevenLabs BYOK success: \(data.count) bytes")
                     await MainActor.run {
                         guard self.canDeliver(generation) else { return }
                         guard let webView else {
@@ -2138,7 +2194,7 @@ struct AmicaFullView: UIViewRepresentable {
                     }
                 } else {
                     let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
-                    logger.error("[TTS] Hosted ElevenLabs error \(httpResponse.statusCode): \(errorBody)")
+                    logger.error("[TTS] ElevenLabs BYOK error \(httpResponse.statusCode): \(errorBody)")
                     await MainActor.run {
                         guard self.canDeliver(generation) else { return }
                         let detail = errorBody.replacingOccurrences(of: "'", with: "").replacingOccurrences(of: "\n", with: " ").prefix(200)
@@ -2147,7 +2203,7 @@ struct AmicaFullView: UIViewRepresentable {
                     }
                 }
             } catch {
-                logger.error("[TTS] Hosted ElevenLabs network error: \(error.localizedDescription)")
+                logger.error("[TTS] ElevenLabs BYOK network error: \(error.localizedDescription)")
                 await MainActor.run {
                     guard self.canDeliver(generation) else { return }
                     let escaped = error.localizedDescription.replacingOccurrences(of: "'", with: "\\'")
@@ -2199,11 +2255,70 @@ struct AmicaFullView: UIViewRepresentable {
             webView?.evaluateJavaScript("window.nativeAIError && window.nativeAIError('\(callbackId)', '\(escaped)')")
         }
 
-        private func buildCurrentProvider() -> any LLMProvider {
-            HostedServiceConfig.applyManagedDefaults()
-            return HostedGeminiProvider(model: HostedServiceConfig.defaultGeminiModel)
+        private func buildCurrentProvider() throws -> RuntimeLLMProvider {
+            HostedServiceConfig.applyBYOKDefaults()
+            let defaults = UserDefaults.standard
+            let providerID = defaults.string(forKey: "selectedProvider") ?? AIProvider.gemini.rawValue
+            let provider = AIProvider(rawValue: providerID) ?? .gemini
+            let model = HostedServiceConfig.selectedModel(for: provider)
+
+            switch provider {
+            case .gemini:
+                return RuntimeLLMProvider(
+                    provider: GeminiProvider(apiKey: try apiKey(for: provider), model: model),
+                    supportsVision: provider.supportsVision
+                )
+            case .openai:
+                return RuntimeLLMProvider(
+                    provider: OpenAIProvider(apiKey: try apiKey(for: provider), model: model),
+                    supportsVision: provider.supportsVision
+                )
+            case .claude:
+                return RuntimeLLMProvider(
+                    provider: ClaudeProvider(apiKey: try apiKey(for: provider), model: model),
+                    supportsVision: provider.supportsVision
+                )
+            case .ollama:
+                let baseURL = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
+                return RuntimeLLMProvider(
+                    provider: OllamaProvider(baseURL: baseURL, model: model),
+                    supportsVision: provider.supportsVision
+                )
+            case .groq, .openRouter, .xai, .togetherAI, .huggingFace, .veniceAI, .moonshot:
+                guard let baseURL = provider.baseURL else {
+                    throw LLMError.invalidResponse
+                }
+                return RuntimeLLMProvider(
+                    provider: OpenAICompatibleProvider(
+                        baseURL: baseURL,
+                        apiKey: try apiKey(for: provider),
+                        model: model,
+                        includeTemperature: provider.includesSamplingTemperature
+                    ),
+                    supportsVision: provider.supportsVision
+                )
+            }
+        }
+
+        private func apiKey(for provider: AIProvider) throws -> String {
+            guard !provider.requiresAPIKey else {
+                guard let key = KeychainManager.load(key: provider.keychainKey)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                      !key.isEmpty
+                else {
+                    throw LLMError.noAPIKey
+                }
+                return key
+            }
+
+            return ""
         }
     }
+}
+
+private struct RuntimeLLMProvider {
+    let provider: any LLMProvider
+    let supportsVision: Bool
 }
 
 private extension View {
@@ -2231,5 +2346,4 @@ extension Notification.Name {
     static let ttsFailed = Notification.Name("ttsFailed")
     static let aiResponseReady = Notification.Name("aiResponseReady")
     static let appReady = Notification.Name("appReady")
-    static let showBillingTab = Notification.Name("showBillingTab")
 }

@@ -16,18 +16,18 @@ const links = {
 };
 
 const features = [
-  { icon: "fa-microphone-lines", title: "Voice input", desc: "Speak from the iOS composer. Deepgram turns your voice into text through Scowld's hosted backend." },
+  { icon: "fa-microphone-lines", title: "Voice input", desc: "Speak from the iOS composer using native iOS speech or your configured cloud STT provider." },
   { icon: "fa-bell", title: "Hands-free wake", desc: "When enabled, Scowld can listen locally for Bella or your custom name to start voice recording." },
   { icon: "fa-circle-info", title: "Home tips", desc: "A compact in-app guide explains wake phrases and the eye, hands-free, voice, send, and cancel controls." },
   { icon: "fa-wand-magic-sparkles", title: "Animated companion", desc: "A VRM character with lip sync, idle animation, and expressive response playback." },
   { icon: "fa-eye", title: "Optional vision", desc: "Enable camera context when you want the AI to respond to what you are seeing." },
   { icon: "fa-comments", title: "Past chats", desc: "Save conversations locally, switch between chats, and reuse one as context for future replies." },
-  { icon: "fa-bolt", title: "Hosted Gemini", desc: "Gemini 3 Flash starts the response path with hosted fallback models for reliability." },
-  { icon: "fa-volume-high", title: "ElevenLabs voice", desc: "Selectable ElevenLabs voices, custom voice ID support, and bundled local voice previews." },
+  { icon: "fa-key", title: "Bring your own keys", desc: "Use your own AI, speech-to-text, and ElevenLabs keys. Keys stay in the iOS Keychain." },
+  { icon: "fa-volume-high", title: "ElevenLabs voice", desc: "Celine, Claire, bundled voice presets, custom voice ID support, and local voice previews." },
 ];
 
 const tags = [
-  "SCOWLD PLUS", "HANDS-FREE WAKE", "VOICE CREDITS", "GEMINI", "ELEVENLABS", "DEEPGRAM STT",
+  "BYOK", "NO PAYWALL", "HANDS-FREE WAKE", "GEMINI", "OPENAI", "CLAUDE", "ELEVENLABS", "DEEPGRAM STT",
   "ANIMATED AVATAR", "VISION", "PAST CHATS", "IOS", "PRIVACY FIRST",
 ];
 
@@ -111,7 +111,7 @@ export default function Home() {
                 <span className="hero__badge-dot-ping" />
                 <span className="hero__badge-dot-solid" />
               </span>
-              <span className="hero__badge-text">Scowld Plus for iOS</span>
+                <span className="hero__badge-text">Scowld 2.0 for iOS</span>
             </div>
 
             <h1 className="hero__heading">
@@ -121,7 +121,7 @@ export default function Home() {
             </h1>
 
             <p className="sr sr-delay-2 hero__desc">
-              A paid AI voice companion with an animated character, hands-free wake mode, Gemini chat, Deepgram speech-to-text, ElevenLabs speech, optional vision, and saved past chats.
+              An AI voice companion with an animated character, hands-free wake mode, bring-your-own-key AI providers, ElevenLabs speech, optional vision, and saved past chats.
             </p>
 
             <div className="sr sr-delay-3 hero__buttons">
@@ -181,7 +181,7 @@ export default function Home() {
           </p>
           <h2 className="sr sr-delay-2 features__title">Built for voice-first companion chat.</h2>
           <p className="sr sr-delay-3 features__subtitle">
-            Hosted AI, speech, voice, hands-free wake, camera context, billing, and local conversation history in one iOS app.
+            BYOK AI, speech, voice, hands-free wake, camera context, and local conversation history in one iOS app.
           </p>
         </div>
 

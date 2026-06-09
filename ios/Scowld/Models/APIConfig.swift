@@ -163,6 +163,10 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
         "com.scowld.apikey.\(rawValue)"
     }
 
+    var modelDefaultsKey: String {
+        "com.scowld.ai.model.\(rawValue)"
+    }
+
     /// Whether this provider supports vision (image input)
     var supportsVision: Bool {
         switch self {
@@ -205,4 +209,51 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
 enum OllamaConfig {
     static let defaultURL = "http://localhost:11434"
     static let keychainURLKey = "com.scowld.ollama.url"
+}
+
+// MARK: - Text-to-Speech Configuration
+
+enum TTSBackend: String, CaseIterable, Codable, Sendable {
+    case elevenLabs = "elevenlabs"
+
+    var displayName: String {
+        switch self {
+        case .elevenLabs: "ElevenLabs"
+        }
+    }
+
+    var keychainKey: String {
+        "com.scowld.tts.\(rawValue)"
+    }
+
+    var modelDefaultsKey: String {
+        "com.scowld.tts.model.\(rawValue)"
+    }
+
+    var availableModels: [String] {
+        switch self {
+        case .elevenLabs:
+            [
+                "eleven_flash_v2_5",
+                "eleven_multilingual_v2",
+                "eleven_turbo_v2_5",
+                "eleven_flash_v2",
+            ]
+        }
+    }
+
+    var defaultModel: String {
+        switch self {
+        case .elevenLabs: HostedServiceConfig.defaultElevenLabsModel
+        }
+    }
+
+    static func selectedModel(for backend: TTSBackend) -> String {
+        let saved = UserDefaults.standard.string(forKey: backend.modelDefaultsKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !saved.isEmpty {
+            return saved
+        }
+        return backend.defaultModel
+    }
 }

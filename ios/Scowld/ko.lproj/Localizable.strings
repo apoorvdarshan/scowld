@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "ElevenLabs 음성 ID";
 "Where to get a custom voice ID" = "사용자 지정 음성 ID를 얻는 곳";
 "Preset samples are bundled in the app and play locally from this device." = "프리셋 샘플은 앱에 포함되어 있으며 이 기기에서 로컬로 재생됩니다.";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "선택한 음성 ID는 호스팅 백엔드를 통해 프로덕션 ElevenLabs 음성에 사용됩니다.";
 "Play sample" = "샘플 재생";
 "Sample unavailable" = "샘플을 사용할 수 없음";
 "No bundled sample is available for this custom voice ID." = "이 사용자 지정 음성 ID에는 포함된 샘플이 없습니다.";
@@ -69,8 +68,6 @@
 "Save Character" = "캐릭터 저장";
 "Character" = "캐릭터";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "아바타는 즉시 저장됩니다. 사용자 지정 이름이나 시스템 프롬프트를 변경한 뒤 캐릭터 저장을 사용하세요.";
-"Managed Services" = "관리형 서비스";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "제공업체 키는 Scowld의 호스팅 백엔드에서 처리되므로 App Store 업데이트 없이 교체할 수 있습니다.";
 "AI" = "AI";
 "Speech-to-Text" = "음성-텍스트 변환";
 "Text-to-Speech" = "텍스트-음성 변환";

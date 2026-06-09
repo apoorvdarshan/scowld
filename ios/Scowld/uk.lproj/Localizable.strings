@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "Voice ID ElevenLabs";
 "Where to get a custom voice ID" = "Де отримати користувацький Voice ID";
 "Preset samples are bundled in the app and play locally from this device." = "Попередньо налаштовані зразки вбудовані в застосунок і відтворюються локально з цього пристрою.";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "Вибраний Voice ID використовується для робочого мовлення ElevenLabs через розміщений бекенд.";
 "Play sample" = "Відтворити зразок";
 "Sample unavailable" = "Зразок недоступний";
 "No bundled sample is available for this custom voice ID." = "Для цього користувацького Voice ID немає вбудованого зразка.";
@@ -69,8 +68,6 @@
 "Save Character" = "Зберегти персонажа";
 "Character" = "Персонаж";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "Аватар зберігається одразу. Використовуйте «Зберегти персонажа» після зміни користувацької назви або системної інструкції.";
-"Managed Services" = "Керовані сервіси";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "Ключі провайдерів обробляються розміщеним бекендом Scowld, тому їх можна змінювати без оновлення в App Store.";
 "AI" = "ШІ";
 "Speech-to-Text" = "Мовлення в текст";
 "Text-to-Speech" = "Текст у мовлення";

@@ -102,7 +102,7 @@ struct StartupOnboardingView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Choose her vibe.")
                         .font(.system(size: 38, weight: .bold, design: .rounded))
-                    Text("Preview the animated companions before you unlock Scowld Plus.")
+                    Text("Preview the animated companions before you start Scowld.")
                         .font(.headline)
                         .foregroundStyle(.secondary)
                 }
@@ -160,7 +160,7 @@ struct StartupOnboardingView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Before you continue")
                         .font(.system(size: 36, weight: .bold, design: .rounded))
-                    Text("Review Scowld's Privacy Policy and Terms of Service, then accept them to continue to plans.")
+                    Text("Review Scowld's Privacy Policy and Terms of Service, then accept them to continue.")
                         .font(.headline)
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -268,7 +268,7 @@ struct StartupOnboardingView: View {
 
     private var footerButtonTitle: String {
         if selectedPage == pageCount - 1 {
-            return hasAcceptedLegal ? "Continue to Plans" : "Accept to Continue"
+            return hasAcceptedLegal ? "Start Scowld" : "Accept to Continue"
         }
 
         return "Continue"
@@ -305,7 +305,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
             return [
                 LegalTextSection(
                     title: "Overview",
-                    body: "Scowld is an iOS AI companion app. It uses a hosted backend to route chat, speech-to-text, and text-to-speech requests to configured providers without putting provider API keys inside the iOS app. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name."
+                    body: "Scowld is an iOS AI companion app. It uses bring-your-own-key provider settings for AI chat, optional cloud speech-to-text, and ElevenLabs text-to-speech. API keys you enter are stored in the iOS Keychain on your device. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name."
                 ),
                 LegalTextSection(
                     title: "Account and analytics",
@@ -313,27 +313,27 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "AI and voice processing",
-                    body: "To provide app features, Scowld may process typed messages, selected conversation context, speech audio sent for transcription, recognized speech text, assistant response text sent for speech generation, optional camera image context when you enable camera/vision and send a message, and hands-free wake detection audio processed on device while hands-free mode is enabled. Hands-free wake detection is not sent to Scowld's hosted backend before recording starts."
+                    body: "To provide app features, Scowld may process typed messages, selected conversation context, speech audio sent for transcription, recognized speech text, assistant response text sent for speech generation, optional camera image context when you enable camera/vision and send a message, and hands-free wake detection audio processed on device while hands-free mode is enabled. Provider requests are sent directly from the app to the provider you configure. Hands-free wake detection is not sent to external providers before recording starts."
                 ),
                 LegalTextSection(
                     title: "Camera, vision, and face data",
-                    body: "Scowld requests camera access only for optional vision context. Frames are captured on device and sent through the hosted backend to Gemini only when visual context is used in a message. Images are not saved to your photo library by Scowld. Scowld does not use Apple's TrueDepth API or ARKit face tracking. Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data."
+                    body: "Scowld requests camera access only for optional vision context. Frames are captured on device and sent to the selected AI provider only when visual context is used in a message. Images are not saved to your photo library by Scowld. Scowld does not use Apple's TrueDepth API or ARKit face tracking. Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data."
                 ),
                 LegalTextSection(
                     title: "Microphone access",
-                    body: "Scowld requests microphone access for voice input and optional hands-free wake mode. When you record or send voice input, speech audio is sent through the hosted backend to Deepgram for transcription, and recognized text may be sent to Gemini as part of the conversation. When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device for Bella or your saved custom companion name. Hands-free mode can be turned off in the composer, and microphone permission can be revoked in iOS settings."
+                    body: "Scowld requests microphone access for voice input and optional hands-free wake mode. When you record or send voice input, speech audio is transcribed using native iOS speech recognition or the cloud STT provider you configure, and recognized text may be sent to the selected AI provider as part of the conversation. When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device for Bella or your saved custom companion name. Hands-free mode can be turned off in the composer, and microphone permission can be revoked in iOS settings."
                 ),
                 LegalTextSection(
                     title: "Third-party providers",
-                    body: "Scowld uses managed third-party providers through the hosted backend: Google Gemini for AI chat and optional image understanding, Deepgram for speech-to-text, ElevenLabs for text-to-speech, RevenueCat for subscription, entitlement, purchase, and refund request handling, Apple for in-app purchases and subscription management, and Vercel for website and backend deployment."
+                    body: "Scowld can integrate with third-party providers you configure, including Google Gemini, OpenAI, Anthropic Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, Moonshot AI, Deepgram, AssemblyAI, Google Cloud Speech-to-Text, and ElevenLabs. The marketing website is deployed on Vercel."
                 ),
                 LegalTextSection(
                     title: "Provider API keys",
-                    body: "Scowld does not ask users to enter Gemini, Deepgram, or ElevenLabs API keys. Provider keys are stored as hosted backend environment variables and are not included in the App Store binary. They can be rotated from the hosted deployment without an App Store update."
+                    body: "Scowld lets you enter your own provider API keys. Keys are stored in the iOS Keychain on your device and are not included in the App Store binary. Delete the app or remove keys from Settings to stop using saved keys."
                 ),
                 LegalTextSection(
                     title: "Local device storage",
-                    body: "Scowld stores app data locally on your device, including past chat messages, the selected active chat, character settings, voice and language preferences, caption preferences, hands-free wake preferences, and local purchase or credit state used by the app UI. Deleting the app removes local app data from the device, subject to normal iOS behavior and backups."
+                    body: "Scowld stores app data locally on your device, including past chat messages, the selected active chat, character settings, voice and language preferences, caption preferences, hands-free wake preferences, provider choices, and model choices. Provider API keys are stored in Keychain. Deleting the app removes local app data from the device, subject to normal iOS behavior and backups."
                 ),
                 LegalTextSection(
                     title: "Voice samples, children, and contact",
@@ -344,15 +344,15 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
             return [
                 LegalTextSection(
                     title: "Acceptance",
-                    body: "By downloading, installing, purchasing, subscribing to, or using Scowld, you agree to these Terms of Service. If you do not agree, do not use the app."
+                    body: "By downloading, installing, or using Scowld, you agree to these Terms of Service. If you do not agree, do not use the app."
                 ),
                 LegalTextSection(
                     title: "Service",
-                    body: "Scowld is a paid iOS AI companion app with conversational AI through Scowld's hosted backend, an animated VRM companion, voice input using Deepgram, optional hands-free wake mode, text-to-speech using ElevenLabs, optional camera/vision context, local saved chats, subscriptions, and extra credit packs."
+                    body: "Scowld is an iOS AI companion app with bring-your-own-key conversational AI, an animated VRM companion, voice input using native iOS speech recognition or configured cloud STT providers, optional hands-free wake mode, ElevenLabs text-to-speech, optional camera/vision context, and local saved chats."
                 ),
                 LegalTextSection(
-                    title: "Purchases, subscriptions, and credits",
-                    body: "Scowld uses Apple in-app purchase for subscriptions and extra voice credit packs. Payments, renewals, cancellations, refunds, restore purchases, and subscription management are handled by Apple. Scowld's RevenueCat/App Store refund request setting is Always prefer declining refunds, subject to Apple's final decision, Apple's terms, and applicable law. One voice credit means one full voice turn. Subscription credits refill weekly according to the selected plan, and extra credits are used after subscription credits."
+                    title: "Bring your own keys",
+                    body: "Scowld does not include subscriptions, paywalls, voice credits, or extra credit packs. You are responsible for the provider accounts, API keys, provider billing, usage limits, and acceptable use policies for the AI, speech-to-text, and text-to-speech services you configure."
                 ),
                 LegalTextSection(
                     title: "Your responsibilities",
@@ -364,7 +364,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Service limits and availability",
-                    body: "AI, speech-to-text, and text-to-speech require an active internet connection. Hands-free wake detection requires microphone and speech recognition permission, may miss wake phrases, and may occasionally trigger unexpectedly. Third-party providers may change, fail, rate limit, or become unavailable. Scowld may enforce usage limits to control cost, prevent abuse, or protect service reliability."
+                    body: "Cloud AI, cloud speech-to-text, and ElevenLabs text-to-speech require an active internet connection and valid provider API keys. Hands-free wake detection requires microphone and speech recognition permission, may miss wake phrases, and may occasionally trigger unexpectedly. Third-party providers may change, fail, rate limit, bill your account, or become unavailable."
                 ),
                 LegalTextSection(
                     title: "AI output disclaimer",
@@ -372,7 +372,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Third-party services",
-                    body: "The app integrates with services not owned or controlled by the developer, including Google Gemini, Deepgram, ElevenLabs, RevenueCat, Apple services, and Vercel hosting. The developer is not responsible for third-party service content, policies, availability, or data practices."
+                    body: "The app integrates with services not owned or controlled by the developer, including AI, speech-to-text, text-to-speech, Apple platform services, and Vercel hosting. The developer is not responsible for third-party service content, policies, pricing, billing, availability, or data practices."
                 ),
                 LegalTextSection(
                     title: "Ownership and termination",

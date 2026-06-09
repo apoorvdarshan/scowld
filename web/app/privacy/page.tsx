@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - Scowld",
-  description: "Privacy policy for Scowld, an iOS AI voice companion with hosted AI, speech, voice, optional vision, and local saved chats.",
+  description: "Privacy policy for Scowld, an iOS AI voice companion with BYOK AI, speech, voice, optional vision, and local saved chats.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -25,8 +25,8 @@ export default function Privacy() {
         <div className="legal__body">
           <div>
             <h2>1. Overview</h2>
-            <p>Scowld is an iOS AI companion app. It uses a hosted backend to route chat, speech-to-text, and text-to-speech requests to configured providers without putting provider API keys inside the iOS app. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name.</p>
-            <p>This policy explains what information is processed when you use the app, website, and hosted backend.</p>
+            <p>Scowld is an iOS AI companion app. It uses bring-your-own-key provider settings for AI chat, optional cloud speech-to-text, and ElevenLabs text-to-speech. API keys you enter are stored in the iOS Keychain on your device. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name.</p>
+            <p>This policy explains what information is processed when you use the app and website.</p>
           </div>
 
           <div>
@@ -42,23 +42,23 @@ export default function Privacy() {
 
           <div>
             <h2>3. AI and Voice Processing</h2>
-            <p>To provide the app features, Scowld may process the following through the hosted backend:</p>
+            <p>To provide the app features, Scowld may process the following directly with the providers you configure:</p>
             <ul>
               <li>Typed messages and selected conversation context.</li>
-              <li>Voice audio sent for speech-to-text.</li>
+              <li>Voice audio sent for cloud speech-to-text when you choose a cloud STT provider.</li>
               <li>Hands-free wake detection audio processed on device while hands-free mode is enabled.</li>
-              <li>Recognized speech text sent to Gemini for a response.</li>
+              <li>Recognized speech text sent to the selected AI provider for a response.</li>
               <li>Assistant response text sent to ElevenLabs for speech generation.</li>
               <li>Optional camera image context when you enable camera/vision and send a message.</li>
             </ul>
-            <p>The hosted backend is not designed to store conversation content, speech audio, generated speech, images, or provider API keys in a database. Hands-free wake detection is not sent to Scowld&apos;s hosted backend before recording starts.</p>
+            <p>Scowld does not operate a hosted AI/speech proxy for app conversations in version 2.0. Hands-free wake detection is not sent to external providers before recording starts.</p>
           </div>
 
           <div>
             <h2>4. Camera Access</h2>
             <p>Scowld requests camera access for the optional vision feature. When camera context is enabled:</p>
             <ul>
-              <li>Frames are captured on device and sent through the hosted backend to Gemini only when visual context is used in a message.</li>
+              <li>Frames are captured on device and sent to the selected AI provider only when visual context is used in a message.</li>
               <li>Images are not saved to your photo library by Scowld.</li>
               <li>Camera access can be disabled from the app or iOS settings.</li>
               <li>When camera is disabled, Scowld does not capture camera frames.</li>
@@ -72,8 +72,8 @@ export default function Privacy() {
             <ul>
               <li>No TrueDepth information is collected by Scowld.</li>
               <li>No TrueDepth or face data is used by Scowld for any purpose.</li>
-              <li>No TrueDepth or face data is stored locally by Scowld or on Scowld&apos;s hosted backend.</li>
-              <li>No TrueDepth or face data is disclosed or shared with Gemini, Deepgram, ElevenLabs, Vercel, Apple, or any other third party by Scowld.</li>
+              <li>No TrueDepth or face data is stored locally by Scowld or on Scowld servers.</li>
+              <li>No TrueDepth or face data is disclosed or shared with AI, speech, hosting, Apple, or any other third party by Scowld.</li>
               <li>No TrueDepth or face data is retained because Scowld does not collect it.</li>
             </ul>
           </div>
@@ -82,8 +82,8 @@ export default function Privacy() {
             <h2>6. Microphone Access</h2>
             <p>Scowld requests microphone access for voice input and optional hands-free wake mode. When you record or send voice input:</p>
             <ul>
-              <li>Speech audio is sent through the hosted backend to Deepgram for transcription.</li>
-              <li>The recognized text is sent to Gemini as part of the conversation.</li>
+              <li>Speech audio is transcribed using native iOS speech recognition or the cloud STT provider you configure.</li>
+              <li>The recognized text is sent to the selected AI provider as part of the conversation.</li>
               <li>When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device for Bella or your saved custom companion name.</li>
               <li>After the wake name is detected, Scowld starts normal voice recording; that command audio may be sent for transcription.</li>
               <li>The microphone is not needed for typed messages.</li>
@@ -93,25 +93,24 @@ export default function Privacy() {
 
           <div>
             <h2>7. Third-Party Providers</h2>
-            <p>Scowld uses managed third-party providers through the hosted backend. These providers may process data needed to provide app features:</p>
+            <p>Scowld can integrate with third-party providers you configure. These providers may process data needed to provide app features:</p>
             <ul>
-              <li><strong className="legal__strong-dim">Google Gemini</strong> for AI chat and optional image understanding.</li>
-              <li><strong className="legal__strong-dim">Deepgram</strong> for speech-to-text.</li>
+              <li><strong className="legal__strong-dim">AI providers</strong>, including Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.</li>
+              <li><strong className="legal__strong-dim">Speech-to-text providers</strong>, including native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
               <li><strong className="legal__strong-dim">ElevenLabs</strong> for text-to-speech.</li>
-              <li><strong className="legal__strong-dim">RevenueCat</strong> for subscription, entitlement, purchase, and refund request handling.</li>
-              <li><strong className="legal__strong-dim">Apple</strong> for in-app purchases and subscription management.</li>
-              <li><strong className="legal__strong-dim">Vercel</strong> for website and hosted backend deployment.</li>
+              <li><strong className="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, speech recognition, camera, microphone, and app distribution.</li>
+              <li><strong className="legal__strong-dim">Vercel</strong> for website deployment.</li>
             </ul>
-            <p>For Apple refund request handling through RevenueCat, Scowld&apos;s refund preference is Always prefer declining refunds. Apple makes the final refund decision under Apple&apos;s terms and applicable law. These third-party services have their own privacy policies and terms.</p>
+            <p>These third-party services have their own privacy policies and terms. You are responsible for the provider accounts and API keys you configure.</p>
           </div>
 
           <div>
             <h2>8. Provider API Keys</h2>
-            <p>Scowld does not ask users to enter Gemini, Deepgram, or ElevenLabs API keys. Provider keys are stored as hosted backend environment variables and are not included in the App Store binary.</p>
+            <p>Scowld lets you enter your own provider API keys. Provider keys are stored in the iOS Keychain on your device and are not included in the App Store binary.</p>
             <ul>
-              <li>Provider keys are not shown in the iOS app UI.</li>
+              <li>Provider keys are not stored in UserDefaults or bundled files.</li>
               <li>Provider keys are not committed to the source repository.</li>
-              <li>Provider keys can be rotated from the hosted deployment without an App Store update.</li>
+              <li>Delete the app or remove keys from Settings to stop using saved keys.</li>
             </ul>
           </div>
 
@@ -123,7 +122,7 @@ export default function Privacy() {
               <li>The selected active chat.</li>
               <li>Character settings such as avatar, custom name, and system prompt.</li>
               <li>Voice, language, caption, and hands-free wake preferences.</li>
-              <li>Local purchase/credit state used by the app UI.</li>
+              <li>Provider choices, model choices, and local Keychain references.</li>
             </ul>
             <p>Deleting the app removes local app data from the device, subject to normal iOS behavior and backups.</p>
           </div>

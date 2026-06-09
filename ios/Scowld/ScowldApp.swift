@@ -1,19 +1,14 @@
-import StoreKit
 import SwiftUI
+import StoreKit
 
 @main
 struct ScowldApp: App {
     @State private var memoryStore = MemoryStore()
-    @State private var billingStore = BillingStore()
 
     var body: some Scene {
         WindowGroup {
             ScowldRootView(memoryStore: memoryStore)
-                .environment(billingStore)
                 .preferredColorScheme(.dark)
-                .task {
-                    await billingStore.start()
-                }
         }
     }
 }
@@ -22,7 +17,6 @@ private enum ScowldTab: Hashable {
     case chat
     case pastChats
     case settings
-    case billing
     case about
 }
 
@@ -31,40 +25,19 @@ struct ScowldRootView: View {
     @AppStorage("startup_onboarding_completed") private var hasCompletedStartupOnboarding = false
     @State private var selectedTab: ScowldTab = .chat
     @State private var appUpdateState: AppUpdateState = .idle
-    @Environment(BillingStore.self) private var billingStore
 
     var body: some View {
         Group {
-            if !billingStore.hasLoadedEntitlements {
-                loadingBillingView
-            } else if !billingStore.hasPaidAccess && !hasCompletedStartupOnboarding {
+            if !hasCompletedStartupOnboarding {
                 StartupOnboardingView {
                     hasCompletedStartupOnboarding = true
                 }
-            } else if !billingStore.hasPaidAccess {
-                PaywallView(
-                    reason: "Choose a plan to start using Scowld.",
-                    showsCloseButton: false,
-                    title: "Scowld Plus",
-                    isStartupGate: true
-                )
             } else {
                 appTabs
             }
         }
-        .task(id: billingStore.hasPaidAccess) {
-            guard billingStore.hasPaidAccess else { return }
+        .task {
             await checkForAppUpdateIfNeeded()
-        }
-        .onChange(of: billingStore.hasPaidAccess) { _, hasPaidAccess in
-            if hasPaidAccess {
-                selectedTab = .chat
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showBillingTab)) { _ in
-            if billingStore.hasPaidAccess {
-                selectedTab = .billing
-            }
         }
     }
 
@@ -90,27 +63,13 @@ struct ScowldRootView: View {
                 }
                 .tag(ScowldTab.settings)
 
-            BillingView()
-            .tabItem {
-                Label("Billing", systemImage: "creditcard.fill")
-            }
-            .tag(ScowldTab.billing)
-
             AboutView(updateState: $appUpdateState)
                 .tabItem {
                     Label("About", systemImage: "info.circle.fill")
                 }
-                .tag(ScowldTab.about)
+            .tag(ScowldTab.about)
                 .aboutUpdateBadge(isVisible: appUpdateState.isUpdateAvailable)
         }
-    }
-
-    private var loadingBillingView: some View {
-        Color.black
-            .ignoresSafeArea()
-            .overlay {
-                ProgressView("Loading billing...")
-            }
     }
 
     @MainActor
@@ -125,6 +84,7 @@ struct AboutView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.requestReview) private var requestReview
     @Binding var updateState: AppUpdateState
+    @State private var showsWhatsNew = false
 
     private let websiteURL = URL(string: "https://scowld.xyz")!
     private let privacyURL = URL(string: "https://scowld.xyz/privacy")!
@@ -151,6 +111,15 @@ struct AboutView: View {
                             subtitleColor: updateStatusColor
                         ) {
                             handleUpdateTap()
+                        }
+
+                        aboutActionRow(
+                            title: "What's New",
+                            subtitle: "Version 2.0",
+                            systemImage: "sparkles",
+                            trailing: .chevron
+                        ) {
+                            showsWhatsNew = true
                         }
 
                         aboutActionRow(title: "Rate Scowld", systemImage: "star.fill") {
@@ -258,6 +227,11 @@ struct AboutView: View {
             .background(Color.black.ignoresSafeArea())
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showsWhatsNew) {
+                WhatsNewView()
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
         }
     }
 
@@ -488,6 +462,52 @@ private enum AboutRowTrailing {
     case chevron
     case progress
     case none
+}
+
+private struct WhatsNewView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Version 2.0") {
+                    whatsNewRow(icon: "key.fill", title: "Bring your own keys", text: "Use your own AI, speech-to-text, and ElevenLabs API keys from Settings.")
+                    whatsNewRow(icon: "lock.open.fill", title: "No paywall", text: "Subscriptions, paywalls, and voice credits have been removed.")
+                    whatsNewRow(icon: "brain.head.profile", title: "More AI providers", text: "Choose Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, or Moonshot.")
+                    whatsNewRow(icon: "waveform.badge.mic", title: "Speech provider controls", text: "Pick native iOS speech or cloud STT providers such as Deepgram, OpenAI Whisper, Groq Whisper, AssemblyAI, and Google Cloud.")
+                    whatsNewRow(icon: "speaker.wave.3.fill", title: "ElevenLabs voice control", text: "Choose Celine, Claire, another bundled voice, or a custom ElevenLabs voice ID and model.")
+                }
+            }
+            .navigationTitle("What's New")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func whatsNewRow(icon: String, title: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.amicaBlue)
+                .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(text)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 3)
+    }
 }
 
 enum AppUpdateState: Equatable {

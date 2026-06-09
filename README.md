@@ -5,7 +5,7 @@
 <h1 align="center">Scowld</h1>
 
 <p align="center">
-  A paid iOS AI voice companion with an animated character, hands-free wake mode, hosted Gemini AI, Deepgram speech-to-text, ElevenLabs text-to-speech, vision, and saved conversations.
+  An iOS AI voice companion with an animated character, hands-free wake mode, bring-your-own-key AI providers, speech-to-text, ElevenLabs text-to-speech, vision, and saved conversations.
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
 
 ## Status
 
-This is a private Scowld repository for the iOS app, the hosted backend routes, and the marketing website at [scowld.xyz](https://scowld.xyz).
+This is a private Scowld repository for the iOS app and the marketing website at [scowld.xyz](https://scowld.xyz).
 
 ## Features
 
@@ -29,22 +29,22 @@ This is a private Scowld repository for the iOS app, the hosted backend routes, 
 - **Voice and text chat** - Send typed messages or voice input from the iOS composer.
 - **Hands-free wake mode** - When enabled, the app listens on device for Bella or the saved custom companion name to start voice recording.
 - **Home tips** - A top-right info button explains the wake phrases and composer controls.
-- **Hosted speech-to-text** - Deepgram Nova-3 routed through the Vercel backend.
-- **Hosted Gemini AI** - Gemini 3 Flash starts the response path with hosted fallback models.
-- **ElevenLabs text-to-speech** - Managed TTS with selectable voice IDs and bundled local voice previews.
+- **BYOK AI providers** - Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.
+- **BYOK speech-to-text** - Native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, Google Cloud STT, browser Whisper, or text-only mode.
+- **BYOK ElevenLabs text-to-speech** - Celine, Claire, bundled voice presets, custom voice IDs, model selection, and bundled local voice previews.
 - **Vision** - Optional front-camera context can be sent to the AI when enabled.
 - **Past chats** - Conversations are saved locally and can be selected as context for future replies.
 - **Character settings** - Avatar, custom name, and system prompt controls.
 - **Multilingual speech settings** - Defaults to the iPhone language, with supported language overrides.
-- **Billing and credits** - RevenueCat-backed StoreKit subscriptions, restore purchases, extra credit packs, and Apple subscription management.
-- **Startup onboarding** - Local videos, rating prompt, offline Privacy/Terms acceptance, and locked paywall.
+- **Local key storage** - Provider API keys are stored in iOS Keychain; provider/model choices are stored in local preferences.
+- **Startup onboarding** - Local videos, rating prompt, and offline Privacy/Terms acceptance.
 - **About actions** - Update check, rating prompt, share, contact, Product Hunt, Ko-fi, LinkedIn, Instagram, privacy, and terms.
 
 ## Repo Structure
 
 ```
 ios/             - iOS app (open ios/Scowld.xcodeproj in Xcode)
-web/             - Next.js website and hosted backend routes
+web/             - Next.js marketing website
 assets/          - README assets
 APPSTORE.md      - App Store Connect copy
 ```
@@ -55,11 +55,10 @@ APPSTORE.md      - App Store Connect copy
 Native iOS (Swift/SwiftUI)
 ├── HomeView             - Main chat UI and WKWebView bridge
 ├── HomeTipsSheet        - In-app guide for wake phrases and composer controls
-├── BillingStore         - RevenueCat, StoreKit products, subscriptions, and voice credits
-├── CloudSTTProvider     - Hosted Deepgram speech-to-text
-├── HostedGeminiProvider - Hosted Gemini chat requests
+├── CloudSTTProvider     - Native/cloud speech-to-text providers
+├── AI providers         - BYOK Gemini, OpenAI, Claude, Ollama, and OpenAI-compatible clients
 ├── MemoryStore          - Local CoreData chat history and selected chat context
-├── SettingsView         - Voice, language, avatar, prompt, and managed service settings
+├── SettingsView         - BYOK AI/STT/TTS, voice, language, avatar, and prompt settings
 └── AboutView            - App actions, update check, links, and support
 
 WKWebView (bundled Amica/Arbius frontend)
@@ -68,55 +67,23 @@ WKWebView (bundled Amica/Arbius frontend)
 ├── AudioContext         - TTS audio playback
 └── Native bridge        - JavaScript to Swift message passing
 
-Vercel / Next.js backend
-├── /api/chat            - Gemini model fallback route
-├── /api/stt/deepgram    - Deepgram speech-to-text proxy
-├── /api/tts/elevenlabs  - ElevenLabs text-to-speech proxy
-└── /api/billing/config  - Public RevenueCat billing configuration and product metadata
+Vercel / Next.js website
+└── Marketing, privacy, and terms pages only
 ```
 
 ## Requirements
 
 - iOS 17.0+
 - Xcode 16+
-- Node.js for the website/backend
-- Vercel environment variables for Gemini, ElevenLabs, Deepgram, and RevenueCat billing config
-- App Store Connect and RevenueCat products matching the StoreKit product IDs below
+- Node.js for the website
+- No Vercel environment variables are required for app AI, speech, billing, or RevenueCat services.
+- Users bring their own provider API keys inside the iOS app.
 
 ## Monetization
 
-Voice usage is modeled as one simple unit:
+Scowld 2.0 removes subscriptions, Billing, RevenueCat, StoreKit purchases, paywalls, voice credits, and extra credit packs.
 
-**1 voice credit = 1 full voice turn**
-
-| Subscription | Price | Included credits |
-| --- | ---: | ---: |
-| Weekly | $9.99/week | 40 credits/week |
-| Monthly | $34.99/month | 180 credits/month, refilled as 45/week |
-| Yearly | $299.99/year | 2,340 credits/year, refilled as 45/week |
-
-| Extra credit pack | Price |
-| ---: | ---: |
-| 10 credits | $3.99 |
-| 50 credits | $14.99 |
-| 100 credits | $27.99 |
-| 200 credits | $49.99 |
-| 500 credits | $119.99 |
-
-Extra credits are used after subscription credits. They do not bypass safety limits such as one active reply at a time, capped audio input length, capped TTS reply length, or reply-rate limits.
-
-Refund handling: configure RevenueCat's Apple refund request preference to **Always prefer declining refunds**. Apple still makes the final refund decision under Apple's terms and applicable law.
-
-StoreKit product IDs:
-
-- `scowld.sub.weekly`
-- `scowld.sub.monthly`
-- `scowld.sub.yearly`
-- `scowld.credits.10`
-- `scowld.credits.50`
-- `scowld.credits.100`
-- `scowld.credits.200`
-- `scowld.credits.500`
+Users are responsible for provider accounts, API keys, provider billing, rate limits, and acceptable use policies for the AI, speech-to-text, and text-to-speech providers they configure.
 
 ## Setup
 
@@ -128,9 +95,9 @@ StoreKit product IDs:
    ```
 2. Select the Scowld scheme and your device.
 3. Build and run from Xcode.
-4. Use Xcode StoreKit testing or App Store sandbox for purchase flow testing.
+4. Add provider API keys in Settings after launch.
 
-### Website and Hosted Routes
+### Website
 
 ```bash
 cd web
@@ -140,36 +107,19 @@ npm run dev
 
 Next.js runs at `http://localhost:3000`.
 
-### Hosted Environment Variables
+### Website Environment Variables
 
-The iOS app does not embed provider API keys. Add these environment variables to the Vercel deployment for `web/`:
-
-```bash
-GEMINI_API_KEY
-GEMINI_MODEL_FALLBACKS
-ELEVENLABS_API_KEY
-ELEVENLABS_DEFAULT_VOICE_ID
-ELEVENLABS_MODEL
-DEEPGRAM_API_KEY
-DEEPGRAM_MODEL
-REVENUECAT_IOS_API_KEY
-REVENUECAT_ENTITLEMENT_ID
-REVENUECAT_OFFERING_ID
-APP_STORE_APP_ID
-```
-
-`REVENUECAT_IOS_API_KEY` is the public RevenueCat SDK key returned by `/api/billing/config`. Provider API keys remain server-side only.
+The website does not require hosted AI, speech, billing, or RevenueCat environment variables.
 
 See [web/.env.example](web/.env.example) for defaults.
 
 ## Privacy Model
 
-- No user provider API keys are shown in the app.
-- Gemini, Deepgram, and ElevenLabs keys live in hosted backend environment variables.
+- Provider API keys are entered by the user and stored in iOS Keychain.
+- Provider/model choices are stored locally in app preferences.
 - Chat history and selected chat context are stored locally on device.
-- Voice audio, prompt text, optional image context, and generated speech text are routed through the hosted backend only to provide app features.
-- Hands-free wake detection is processed on device while the app is open and idle; it is not sent to the hosted backend before command recording starts.
-- RevenueCat handles subscription, entitlement, purchase, and refund request state for Apple in-app purchases.
+- Voice audio, prompt text, optional image context, and generated speech text are sent directly to the providers configured by the user.
+- Hands-free wake detection is processed on device while the app is open and idle; it is not sent to external providers before command recording starts.
 - Camera access is optional and used only when visual context is sent.
 - Scowld does not use Apple's TrueDepth API or ARKit face tracking and does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data.
 - Privacy Policy and Terms are published on the web and bundled as offline acceptance text in startup onboarding. Keep both copies in sync when legal text changes.

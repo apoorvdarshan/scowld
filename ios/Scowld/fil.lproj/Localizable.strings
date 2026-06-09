@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "ElevenLabs Voice ID";
 "Where to get a custom voice ID" = "Saan kukuha ng custom na voice ID";
 "Preset samples are bundled in the app and play locally from this device." = "Naka-bundle sa app ang mga preset na sample at lokal na tumutugtog mula sa device na ito.";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "Ginagamit ang napiling voice ID para sa production na ElevenLabs speech sa pamamagitan ng naka-host na backend.";
 "Play sample" = "Patugtugin ang sample";
 "Sample unavailable" = "Hindi available ang sample";
 "No bundled sample is available for this custom voice ID." = "Walang naka-bundle na sample para sa custom na voice ID na ito.";
@@ -69,8 +68,6 @@
 "Save Character" = "I-save ang Character";
 "Character" = "Character";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "Agad na nase-save ang avatar. Gamitin ang I-save ang Character pagkatapos baguhin ang custom na pangalan o system prompt.";
-"Managed Services" = "Mga Pinamamahalaang Serbisyo";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "Pinangangasiwaan ng hosted backend ng Scowld ang mga provider key, kaya maaaring i-rotate ang mga ito nang walang update sa App Store.";
 "AI" = "AI";
 "Speech-to-Text" = "Pagsasalita tungo sa Teksto";
 "Text-to-Speech" = "Teksto tungo sa Pagsasalita";

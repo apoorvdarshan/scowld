@@ -14,6 +14,22 @@ struct SettingsView: View {
     @State private var selectedLanguageID = HostedServiceConfig.deviceLanguageID
     @State private var showAICaption = false
     @State private var isLoadingSettings = false
+    @State private var selectedAIProviderID = AIProvider.gemini.rawValue
+    @State private var selectedAIModel = AIProvider.gemini.defaultModel
+    @State private var aiAPIKey = ""
+    @State private var hasSavedAIAPIKey = false
+    @State private var ollamaURL = OllamaConfig.defaultURL
+    @State private var aiSettingsMessage: String?
+    @State private var selectedSTTBackendID = STTBackend.nativeIOS.rawValue
+    @State private var selectedSTTModel = STTBackend.nativeIOS.defaultModel
+    @State private var sttAPIKey = ""
+    @State private var hasSavedSTTAPIKey = false
+    @State private var sttSettingsMessage: String?
+    @State private var selectedTTSBackendID = TTSBackend.elevenLabs.rawValue
+    @State private var selectedTTSModel = TTSBackend.elevenLabs.defaultModel
+    @State private var ttsAPIKey = ""
+    @State private var hasSavedTTSAPIKey = false
+    @State private var ttsSettingsMessage: String?
 
     // MARK: - Character Settings
     @State private var hasCharacterChanges = false
@@ -34,7 +50,7 @@ struct SettingsView: View {
                     settingsSection(
                         "Conversation",
                         icon: "bubble.left.and.bubble.right",
-                        footer: "Language applies to both Deepgram speech recognition and ElevenLabs speech. Captions control the assistant's spoken response overlay."
+                        footer: "Language helps supported speech providers choose transcription and voice output language. Captions control the assistant's spoken response overlay."
                     ) {
                         settingRow {
                             Picker("Language", selection: $selectedLanguageID) {
@@ -73,11 +89,42 @@ struct SettingsView: View {
                         }
                     }
 
+                    aiProviderSection
+                    sttProviderSection
+
                     settingsSection(
-                        "Voice",
+                        "Text-to-Speech",
                         icon: "speaker.wave.3",
-                        footer: "The selected voice ID is used for production ElevenLabs speech through the hosted backend."
+                        footer: "ElevenLabs speech uses your API key from Keychain. Celine, Claire, and custom voice IDs are supported."
                     ) {
+                        settingRow {
+                            Picker("Provider", selection: $selectedTTSBackendID) {
+                                ForEach(TTSBackend.allCases, id: \.rawValue) { backend in
+                                    Text(backend.displayName).tag(backend.rawValue)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .onChange(of: selectedTTSBackendID) {
+                                guard !isLoadingSettings else { return }
+                                loadTTSBackendSettings()
+                            }
+                        }
+
+                        settingRow {
+                            Picker("Model", selection: $selectedTTSModel) {
+                                ForEach(selectedTTSBackend.availableModels, id: \.self) { model in
+                                    Text(model).tag(model)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+
+                        settingRow {
+                            SecureField(ttsAPIKeyPlaceholder, text: $ttsAPIKey)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        }
+
                         settingRow {
                             Picker("Voice", selection: $selectedVoicePickerID) {
                                 ForEach(ScowldVoiceLibrary.presetVoices) { voice in
@@ -144,6 +191,15 @@ struct SettingsView: View {
                             title: "Preset samples are bundled in the app and play locally from this device.",
                             systemImage: "speaker.wave.2.fill"
                         )
+
+                        settingsActionRow(
+                            title: "Save Text-to-Speech",
+                            subtitle: ttsSettingsMessage ?? ttsSaveSubtitle,
+                            systemImage: "key.fill",
+                            tint: .amicaBlue
+                        ) {
+                            saveTTSSettings()
+                        }
                     }
 
                     settingsSection(
@@ -208,15 +264,6 @@ struct SettingsView: View {
                         }
                     }
 
-                    settingsSection(
-                        "Managed Services",
-                        icon: "cloud",
-                        footer: "Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update."
-                    ) {
-                        labeledValue("AI", value: "Gemini 3 Flash")
-                        labeledValue("Speech-to-Text", value: "Deepgram Nova-3")
-                        labeledValue("Text-to-Speech", value: "ElevenLabs")
-                    }
                 }
                 .padding(20)
                 .padding(.bottom, 96)
@@ -236,6 +283,124 @@ struct SettingsView: View {
             }
         }
         .onAppear { loadSettings() }
+    }
+
+    private var aiProviderSection: some View {
+        settingsSection(
+            "BYOK AI",
+            icon: "brain.head.profile",
+            footer: "Scowld sends chat and optional vision requests directly to your selected provider using the key saved in Keychain."
+        ) {
+            settingRow {
+                Picker("Provider", selection: $selectedAIProviderID) {
+                    ForEach(AIProvider.allCases, id: \.rawValue) { provider in
+                        Text(provider.displayName).tag(provider.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .onChange(of: selectedAIProviderID) {
+                    guard !isLoadingSettings else { return }
+                    loadAIProviderSettings()
+                }
+            }
+
+            if selectedAIProvider == .ollama {
+                settingRow {
+                    TextField("Ollama URL", text: $ollamaURL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+
+            settingRow {
+                Picker("Model", selection: $selectedAIModel) {
+                    ForEach(selectedAIProvider.availableModels, id: \.self) { model in
+                        Text(model).tag(model)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            settingRow {
+                TextField("Custom model", text: $selectedAIModel)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+
+            if selectedAIProvider.requiresAPIKey {
+                settingRow {
+                    SecureField(aiAPIKeyPlaceholder, text: $aiAPIKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+
+            settingsActionRow(
+                title: "Save AI Provider",
+                subtitle: aiSettingsMessage ?? aiSaveSubtitle,
+                systemImage: "key.fill",
+                tint: .amicaBlue
+            ) {
+                saveAISettings()
+            }
+        }
+    }
+
+    private var sttProviderSection: some View {
+        settingsSection(
+            "Speech-to-Text",
+            icon: "waveform.badge.mic",
+            footer: "Native iOS uses no API key. Cloud STT providers use your API key from Keychain."
+        ) {
+            settingRow {
+                Picker("Provider", selection: $selectedSTTBackendID) {
+                    ForEach(STTBackend.allCases, id: \.rawValue) { backend in
+                        Text(backend.displayName).tag(backend.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .onChange(of: selectedSTTBackendID) {
+                    guard !isLoadingSettings else { return }
+                    loadSTTBackendSettings()
+                }
+            }
+
+            if !selectedSTTBackend.availableModels.isEmpty {
+                settingRow {
+                    Picker("Model", selection: $selectedSTTModel) {
+                        ForEach(selectedSTTBackend.availableModels, id: \.self) { model in
+                            Text(model).tag(model)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                settingRow {
+                    TextField("Custom model", text: $selectedSTTModel)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+
+            if selectedSTTBackend.requiresAPIKey {
+                settingRow {
+                    SecureField(sttAPIKeyPlaceholder, text: $sttAPIKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+
+            settingsInfoRow(title: selectedSTTBackend.footerText, systemImage: "info.circle")
+
+            settingsActionRow(
+                title: "Save Speech-to-Text",
+                subtitle: sttSettingsMessage ?? sttSaveSubtitle,
+                systemImage: "key.fill",
+                tint: .amicaBlue
+            ) {
+                saveSTTSettings()
+            }
+        }
     }
 
     private func labeledValue(_ label: String, value: String) -> some View {
@@ -409,13 +574,59 @@ struct SettingsView: View {
         }
     }
 
+    private var selectedAIProvider: AIProvider {
+        AIProvider(rawValue: selectedAIProviderID) ?? .gemini
+    }
+
+    private var selectedSTTBackend: STTBackend {
+        STTBackend(rawValue: selectedSTTBackendID) ?? .nativeIOS
+    }
+
+    private var selectedTTSBackend: TTSBackend {
+        TTSBackend(rawValue: selectedTTSBackendID) ?? .elevenLabs
+    }
+
+    private var aiAPIKeyPlaceholder: String {
+        hasSavedAIAPIKey ? "Saved API key - type to replace" : "\(selectedAIProvider.displayName) API key"
+    }
+
+    private var sttAPIKeyPlaceholder: String {
+        hasSavedSTTAPIKey ? "Saved API key - type to replace" : "\(selectedSTTBackend.displayName) API key"
+    }
+
+    private var ttsAPIKeyPlaceholder: String {
+        hasSavedTTSAPIKey ? "Saved API key - type to replace" : "ElevenLabs API key"
+    }
+
+    private var aiSaveSubtitle: String {
+        selectedAIProvider.requiresAPIKey
+            ? (hasSavedAIAPIKey ? "Key saved in Keychain" : "Add a key before chatting")
+            : "No API key required"
+    }
+
+    private var sttSaveSubtitle: String {
+        selectedSTTBackend.requiresAPIKey
+            ? (hasSavedSTTAPIKey ? "Key saved in Keychain" : "Add a key for cloud STT")
+            : "No API key required"
+    }
+
+    private var ttsSaveSubtitle: String {
+        hasSavedTTSAPIKey ? "Key saved in Keychain" : "Add a key for spoken replies"
+    }
+
     // MARK: - Settings Persistence
 
     private func loadSettings() {
         isLoadingSettings = true
-        HostedServiceConfig.applyManagedDefaults()
+        HostedServiceConfig.applyBYOKDefaults()
 
         let defaults = UserDefaults.standard
+        selectedAIProviderID = defaults.string(forKey: "selectedProvider") ?? AIProvider.gemini.rawValue
+        loadAIProviderSettings(resetMessage: false)
+        selectedSTTBackendID = defaults.string(forKey: "amica_stt_backend") ?? STTBackend.nativeIOS.rawValue
+        loadSTTBackendSettings(resetMessage: false)
+        selectedTTSBackendID = defaults.string(forKey: "amica_tts_backend") ?? TTSBackend.elevenLabs.rawValue
+        loadTTSBackendSettings(resetMessage: false)
         let voiceID = HostedServiceConfig.selectedElevenLabsVoiceID()
         selectedVoicePickerID = ScowldVoiceLibrary.pickerID(for: voiceID)
         customVoiceID = selectedVoicePickerID == ScowldVoiceLibrary.customID ? voiceID : ""
@@ -435,9 +646,102 @@ struct SettingsView: View {
         }
     }
 
+    private func loadAIProviderSettings(resetMessage: Bool = true) {
+        let provider = selectedAIProvider
+        selectedAIModel = HostedServiceConfig.selectedModel(for: provider)
+        aiAPIKey = ""
+        hasSavedAIAPIKey = provider.requiresAPIKey && KeychainManager.exists(key: provider.keychainKey)
+        ollamaURL = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
+        if resetMessage {
+            aiSettingsMessage = nil
+        }
+    }
+
+    private func loadSTTBackendSettings(resetMessage: Bool = true) {
+        let backend = selectedSTTBackend
+        selectedSTTModel = STTBackend.selectedModel(for: backend)
+        sttAPIKey = ""
+        hasSavedSTTAPIKey = backend.requiresAPIKey && KeychainManager.exists(key: backend.keychainKey)
+        if resetMessage {
+            sttSettingsMessage = nil
+        }
+    }
+
+    private func loadTTSBackendSettings(resetMessage: Bool = true) {
+        let backend = selectedTTSBackend
+        selectedTTSModel = TTSBackend.selectedModel(for: backend)
+        ttsAPIKey = ""
+        hasSavedTTSAPIKey = KeychainManager.exists(key: backend.keychainKey)
+        if resetMessage {
+            ttsSettingsMessage = nil
+        }
+    }
+
+    private func saveAISettings() {
+        let defaults = UserDefaults.standard
+        let provider = selectedAIProvider
+        let model = selectedAIModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        defaults.set(provider.rawValue, forKey: "selectedProvider")
+        defaults.set(model.isEmpty ? provider.defaultModel : model, forKey: provider.modelDefaultsKey)
+        defaults.set(model.isEmpty ? provider.defaultModel : model, forKey: "selectedModel")
+
+        if provider == .ollama {
+            let url = ollamaURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            _ = KeychainManager.save(key: OllamaConfig.keychainURLKey, value: url.isEmpty ? OllamaConfig.defaultURL : url)
+        } else {
+            saveKeyIfNeeded(aiAPIKey, key: provider.keychainKey)
+        }
+
+        aiAPIKey = ""
+        hasSavedAIAPIKey = provider.requiresAPIKey && KeychainManager.exists(key: provider.keychainKey)
+        aiSettingsMessage = "Saved"
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+    }
+
+    private func saveSTTSettings() {
+        let defaults = UserDefaults.standard
+        let backend = selectedSTTBackend
+        let model = selectedSTTModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        defaults.set(backend.rawValue, forKey: "amica_stt_backend")
+        if !backend.availableModels.isEmpty {
+            defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: backend.modelDefaultsKey)
+        }
+
+        if backend.requiresAPIKey {
+            saveKeyIfNeeded(sttAPIKey, key: backend.keychainKey)
+        }
+
+        sttAPIKey = ""
+        hasSavedSTTAPIKey = backend.requiresAPIKey && KeychainManager.exists(key: backend.keychainKey)
+        sttSettingsMessage = "Saved"
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+    }
+
+    private func saveTTSSettings() {
+        let defaults = UserDefaults.standard
+        let backend = selectedTTSBackend
+        let model = selectedTTSModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        defaults.set(backend.rawValue, forKey: "amica_tts_backend")
+        defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: backend.modelDefaultsKey)
+        defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: "amica_elevenlabs_model")
+        saveSelectedVoice()
+        saveKeyIfNeeded(ttsAPIKey, key: backend.keychainKey)
+
+        ttsAPIKey = ""
+        hasSavedTTSAPIKey = KeychainManager.exists(key: backend.keychainKey)
+        ttsSettingsMessage = "Saved"
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+    }
+
+    private func saveKeyIfNeeded(_ value: String, key: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        _ = KeychainManager.save(key: key, value: trimmed)
+    }
+
     private func saveSelectedVoice() {
         let defaults = UserDefaults.standard
-        HostedServiceConfig.applyManagedDefaults()
+        HostedServiceConfig.applyBYOKDefaults()
         defaults.set(
             ScowldVoiceLibrary.voiceID(for: selectedVoicePickerID, customVoiceID: customVoiceID),
             forKey: "amica_elevenlabs_voiceid"
@@ -469,7 +773,7 @@ struct SettingsView: View {
 
     private func saveCharacterSettings() {
         let defaults = UserDefaults.standard
-        HostedServiceConfig.applyManagedDefaults()
+        HostedServiceConfig.applyBYOKDefaults()
         let trimmedCharacterName = characterName.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedName = trimmedCharacterName.isEmpty ? "Bella" : trimmedCharacterName
         characterName = savedName

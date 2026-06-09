@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "معرف صوت ElevenLabs";
 "Where to get a custom voice ID" = "أين تحصل على معرف صوت مخصص";
 "Preset samples are bundled in the app and play locally from this device." = "العينات المحددة مسبقا مضمنة في التطبيق وتعمل محليا من هذا الجهاز.";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "يستخدم معرف الصوت المحدد لكلام ElevenLabs في الإنتاج عبر الواجهة الخلفية المستضافة.";
 "Play sample" = "تشغيل العينة";
 "Sample unavailable" = "العينة غير متاحة";
 "No bundled sample is available for this custom voice ID." = "لا توجد عينة مضمنة متاحة لمعرف الصوت المخصص هذا.";
@@ -69,8 +68,6 @@
 "Save Character" = "حفظ الشخصية";
 "Character" = "الشخصية";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "تحفظ الصورة الرمزية فورا. استخدم حفظ الشخصية بعد تغيير الاسم المخصص أو موجه النظام.";
-"Managed Services" = "الخدمات المدارة";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "تتعامل الواجهة الخلفية المستضافة من Scowld مع مفاتيح المزودين، لذلك يمكن تدويرها دون تحديث App Store.";
 "AI" = "الذكاء الاصطناعي";
 "Speech-to-Text" = "تحويل الكلام إلى نص";
 "Text-to-Speech" = "تحويل النص إلى كلام";

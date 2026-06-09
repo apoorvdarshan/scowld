@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "ElevenLabs-Stimmen-ID";
 "Where to get a custom voice ID" = "Wo du eine benutzerdefinierte Stimmen-ID erhältst";
 "Preset samples are bundled in the app and play locally from this device." = "Voreingestellte Beispiele sind in der App enthalten und werden lokal auf diesem Gerät abgespielt.";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "Die ausgewählte Stimmen-ID wird für die ElevenLabs-Sprachausgabe in Produktion über das gehostete Backend verwendet.";
 "Play sample" = "Beispiel abspielen";
 "Sample unavailable" = "Beispiel nicht verfügbar";
 "No bundled sample is available for this custom voice ID." = "Für diese benutzerdefinierte Stimmen-ID ist kein enthaltenes Beispiel verfügbar.";
@@ -69,8 +68,6 @@
 "Save Character" = "Charakter sichern";
 "Character" = "Charakter";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "Der Avatar wird sofort gespeichert. Verwende Charakter sichern, nachdem du den benutzerdefinierten Namen oder den System-Prompt geändert hast.";
-"Managed Services" = "Verwaltete Dienste";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "Anbieterschlüssel werden vom gehosteten Backend von Scowld verwaltet, sodass sie ohne App-Store-Update rotiert werden können.";
 "AI" = "KI";
 "Speech-to-Text" = "Sprache zu Text";
 "Text-to-Speech" = "Text zu Sprache";

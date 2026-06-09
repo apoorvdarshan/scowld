@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "ElevenLabs आवाज़ ID";
 "Where to get a custom voice ID" = "कस्टम आवाज़ ID कहाँ प्राप्त करें";
 "Preset samples are bundled in the app and play locally from this device." = "प्रीसेट नमूने ऐप में बंडल हैं और इस डिवाइस से स्थानीय रूप से चलते हैं।";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "चुनी गई आवाज़ ID का उपयोग होस्टेड बैकएंड के माध्यम से उत्पादन ElevenLabs स्पीच के लिए किया जाता है।";
 "Play sample" = "नमूना चलाएँ";
 "Sample unavailable" = "नमूना उपलब्ध नहीं";
 "No bundled sample is available for this custom voice ID." = "इस कस्टम आवाज़ ID के लिए कोई बंडल नमूना उपलब्ध नहीं है।";
@@ -69,8 +68,6 @@
 "Save Character" = "कैरेक्टर सहेजें";
 "Character" = "कैरेक्टर";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "अवतार तुरंत सहेजता है। कस्टम नाम या सिस्टम प्रॉम्प्ट बदलने के बाद कैरेक्टर सहेजें का उपयोग करें।";
-"Managed Services" = "प्रबंधित सेवाएँ";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "प्रदाता कुंजियाँ Scowld के होस्टेड बैकएंड द्वारा संभाली जाती हैं, इसलिए उन्हें App Store अपडेट के बिना बदला जा सकता है।";
 "AI" = "AI";
 "Speech-to-Text" = "स्पीच-टू-टेक्स्ट";
 "Text-to-Speech" = "टेक्स्ट-टू-स्पीच";

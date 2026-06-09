@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service - Scowld",
-  description: "Terms of Service for Scowld, an iOS AI voice companion with subscriptions, voice credits, hosted AI, speech, and voice.",
+  description: "Terms of Service for Scowld, an iOS AI voice companion with BYOK AI, speech, and voice.",
   alternates: { canonical: "/terms" },
 };
 
@@ -25,36 +25,32 @@ export default function Terms() {
         <div className="legal__body">
           <div>
             <h2>1. Acceptance of Terms</h2>
-            <p>By downloading, installing, purchasing, subscribing to, or using Scowld (&quot;the App&quot;), you agree to these Terms of Service. If you do not agree, do not use the App.</p>
+            <p>By downloading, installing, or using Scowld (&quot;the App&quot;), you agree to these Terms of Service. If you do not agree, do not use the App.</p>
           </div>
 
           <div>
             <h2>2. Description of Service</h2>
-            <p>Scowld is a paid iOS AI companion app with the following features:</p>
+            <p>Scowld is an iOS AI companion app with the following features:</p>
             <ul>
-              <li>Conversational AI powered by Google Gemini through Scowld&apos;s hosted backend.</li>
+              <li>Bring-your-own-key conversational AI with multiple provider options.</li>
               <li>An animated VRM companion with lip sync, idle animations, and expression support.</li>
               <li>Optional hands-free wake mode that can start voice recording when the selected companion name is detected.</li>
-              <li>Voice input using Deepgram speech-to-text through Scowld&apos;s hosted backend.</li>
-              <li>Text-to-speech output using ElevenLabs through Scowld&apos;s hosted backend.</li>
+              <li>Voice input using native iOS speech recognition or configured cloud STT providers.</li>
+              <li>Text-to-speech output using your ElevenLabs API key.</li>
               <li>Optional camera/vision context.</li>
               <li>Saved past chats and selectable conversation context stored locally on device.</li>
-              <li>Subscriptions and extra credit packs handled by Apple in-app purchase.</li>
             </ul>
             <p>The App is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind.</p>
           </div>
 
           <div>
-            <h2>3. Purchases, Subscriptions, and Credits</h2>
-            <p>Scowld uses Apple in-app purchase for subscriptions and extra voice credit packs. Payments, renewals, cancellations, refunds, and subscription management are handled by Apple under Apple&apos;s App Store terms.</p>
-            <p>Scowld&apos;s RevenueCat/App Store refund request setting is Always prefer declining refunds, subject to Apple&apos;s final decision, Apple&apos;s terms, and applicable law.</p>
+            <h2>3. Bring Your Own Keys</h2>
+            <p>Scowld does not include subscriptions, paywalls, voice credits, extra credit packs, RevenueCat, or Apple in-app purchases in version 2.0.</p>
             <ul>
-              <li>1 voice credit means 1 full voice turn.</li>
-              <li>Subscription credits refill weekly according to the selected plan.</li>
-              <li>Extra credits are used after subscription credits.</li>
-              <li>Previously purchased subscriptions can be restored from the paywall or Billing screen using Restore Purchases.</li>
-              <li>Credits and plans may be adjusted for abuse prevention, provider cost changes, or operational reasons.</li>
-              <li>Extra credits do not bypass safety limits such as one active reply at a time, audio length limits, TTS length limits, or reply-rate limits.</li>
+              <li>You are responsible for provider accounts, API keys, provider billing, rate limits, and acceptable use policies.</li>
+              <li>Provider API keys are stored in the iOS Keychain on your device.</li>
+              <li>Third-party providers may charge your provider account based on your usage.</li>
+              <li>Scowld is not responsible for third-party provider billing, credits, quotas, or refunds.</li>
             </ul>
           </div>
 
@@ -65,18 +61,17 @@ export default function Terms() {
               <li><strong className="legal__strong-dim">Content:</strong> You are responsible for content you submit and for how you use generated responses.</li>
               <li><strong className="legal__strong-dim">AI limitations:</strong> Do not rely on AI responses for medical, legal, financial, safety-critical, or emergency advice.</li>
               <li><strong className="legal__strong-dim">Camera and microphone:</strong> When you enable these permissions, you consent to their use for the purposes described in the Privacy Policy. If hands-free mode is enabled, the microphone may remain active while the app is open and idle so Scowld can listen on device for Bella or your saved custom companion name. Scowld does not use Apple&apos;s TrueDepth API or collect face data.</li>
-              <li><strong className="legal__strong-dim">Third-party terms:</strong> You must comply with applicable terms and acceptable use policies of providers used by Scowld, including Gemini, Deepgram, ElevenLabs, RevenueCat, Apple, and Vercel.</li>
+              <li><strong className="legal__strong-dim">Third-party terms:</strong> You must comply with applicable terms and acceptable use policies of providers you configure, including AI, speech-to-text, text-to-speech, Apple platform services, and Vercel.</li>
             </ul>
           </div>
 
           <div>
             <h2>5. Service Limits and Availability</h2>
             <ul>
-              <li>AI, speech-to-text, and text-to-speech require an active internet connection.</li>
+              <li>Cloud AI, cloud speech-to-text, and ElevenLabs text-to-speech require an active internet connection and valid provider API keys.</li>
               <li>Hands-free wake detection requires microphone and speech recognition permission, may miss wake phrases, and may occasionally trigger unexpectedly.</li>
               <li>Third-party providers may change, fail, rate limit, or become unavailable.</li>
-              <li>Scowld may enforce usage limits to control cost, prevent abuse, or protect service reliability.</li>
-              <li>Features, providers, prices, and credit amounts may change over time.</li>
+              <li>Features and provider options may change over time.</li>
             </ul>
           </div>
 
@@ -87,7 +82,7 @@ export default function Terms() {
 
           <div>
             <h2>7. Third-Party Services</h2>
-            <p>The App integrates with third-party services not owned or controlled by the developer, including Google Gemini, Deepgram, ElevenLabs, RevenueCat, Apple services, and Vercel hosting. The developer is not responsible for third-party service content, policies, availability, or data practices.</p>
+            <p>The App integrates with third-party services not owned or controlled by the developer, including AI providers, speech-to-text providers, ElevenLabs, Apple services, and Vercel hosting. The developer is not responsible for third-party service content, policies, pricing, billing, availability, or data practices.</p>
           </div>
 
           <div>

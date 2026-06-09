@@ -57,7 +57,6 @@
 "ElevenLabs Voice ID" = "ID Suara ElevenLabs";
 "Where to get a custom voice ID" = "Tempat mendapatkan ID suara kustom";
 "Preset samples are bundled in the app and play locally from this device." = "Sampel preset disertakan dalam app dan diputar secara lokal dari perangkat ini.";
-"The selected voice ID is used for production ElevenLabs speech through the hosted backend." = "ID suara yang dipilih digunakan untuk suara ElevenLabs produksi melalui backend terhosting.";
 "Play sample" = "Putar sampel";
 "Sample unavailable" = "Sampel tidak tersedia";
 "No bundled sample is available for this custom voice ID." = "Tidak ada sampel bawaan yang tersedia untuk ID suara kustom ini.";
@@ -69,8 +68,6 @@
 "Save Character" = "Simpan Karakter";
 "Character" = "Karakter";
 "Avatar saves immediately. Use Save Character after changing the custom name or system prompt." = "Avatar langsung disimpan. Gunakan Simpan Karakter setelah mengubah nama kustom atau prompt sistem.";
-"Managed Services" = "Layanan Terkelola";
-"Provider keys are handled by Scowld's hosted backend, so they can be rotated without an App Store update." = "Kunci penyedia ditangani oleh backend terhosting Scowld, sehingga dapat dirotasi tanpa pembaruan App Store.";
 "AI" = "AI";
 "Speech-to-Text" = "Ucapan-ke-Teks";
 "Text-to-Speech" = "Teks-ke-Ucapan";
