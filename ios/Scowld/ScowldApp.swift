@@ -91,6 +91,7 @@ struct AboutView: View {
     private let termsURL = URL(string: "https://scowld.xyz/terms")!
     private let koFiURL = URL(string: "https://ko-fi.com/apoorvdarshan")!
     private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld")!
+    private let githubRepoURL = URL(string: "https://github.com/apoorvdarshan/scowld")!
     private let githubIssuesURL = URL(string: "https://github.com/apoorvdarshan/scowld/issues")!
     private let contactURL = URL(string: "mailto:ad13dtu@gmail.com?subject=Scowld%20Contact")!
     private let developerXURL = URL(string: "https://x.com/apoorvdarshan")!
@@ -197,6 +198,20 @@ struct AboutView: View {
                     }
 
                     aboutSection("Credits", icon: "doc.plaintext") {
+                        linkRow(
+                            title: "Open Source on GitHub",
+                            subtitle: "github.com/apoorvdarshan/scowld",
+                            systemImage: "chevron.left.forwardslash.chevron.right",
+                            url: githubRepoURL
+                        )
+
+                        linkRow(
+                            title: "Star the Repo",
+                            subtitle: "Support the project on GitHub",
+                            systemImage: "star.fill",
+                            url: githubRepoURL
+                        )
+
                         aboutInfoRow(
                             title: "Character model",
                             subtitle: "Arbius AI (MIT)",
