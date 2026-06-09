@@ -46,7 +46,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 26) {
                     settingsSection(
                         "Conversation",
                         icon: "bubble.left.and.bubble.right",
@@ -119,7 +119,7 @@ struct SettingsView: View {
                             .pickerStyle(.menu)
                         }
 
-                        settingRow {
+                        settingsFieldRow(icon: "key.fill") {
                             SecureField(ttsAPIKeyPlaceholder, text: $ttsAPIKey)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
@@ -141,7 +141,7 @@ struct SettingsView: View {
                         }
 
                         if selectedVoicePickerID == ScowldVoiceLibrary.customID {
-                            settingRow {
+                            settingsFieldRow(icon: "waveform") {
                                 TextField("ElevenLabs Voice ID", text: $customVoiceID)
                                     .autocorrectionDisabled()
                                     .textInputAutocapitalization(.never)
@@ -196,7 +196,8 @@ struct SettingsView: View {
                             title: "Save Text-to-Speech",
                             subtitle: ttsSettingsMessage ?? ttsSaveSubtitle,
                             systemImage: "key.fill",
-                            tint: .amicaBlue
+                            tint: .amicaBlue,
+                            isPrimary: true
                         ) {
                             saveTTSSettings()
                         }
@@ -220,35 +221,38 @@ struct SettingsView: View {
                             }
                         }
 
-                        settingRow {
-                            HStack(spacing: 8) {
-                                TextField("Add custom name", text: $characterName)
-                                    .autocorrectionDisabled()
-                                    .onChange(of: characterName) { markCharacterChanged() }
+                        settingsFieldRow(icon: "person.fill") {
+                            TextField("Add custom name", text: $characterName)
+                                .autocorrectionDisabled()
+                                .onChange(of: characterName) { markCharacterChanged() }
 
-                                if !characterName.isEmpty {
-                                    Button {
-                                        characterName = ""
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Clear custom name")
+                            if !characterName.isEmpty {
+                                Button {
+                                    characterName = ""
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
                                 }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Clear custom name")
                             }
                         }
 
                         settingRow {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("System Prompt")
-                                    .font(.caption)
+                                Label("System Prompt", systemImage: "text.alignleft")
+                                    .font(.caption.weight(.medium))
                                     .foregroundStyle(.secondary)
                                 TextEditor(text: $systemPrompt)
-                                    .frame(minHeight: 112)
+                                    .frame(minHeight: 120)
                                     .font(.body)
                                     .scrollContentBackground(.hidden)
-                                    .background(.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .padding(10)
+                                    .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .strokeBorder(.white.opacity(0.09), lineWidth: 0.5)
+                                    )
                                     .onChange(of: systemPrompt) { markCharacterChanged() }
                             }
                         }
@@ -258,6 +262,7 @@ struct SettingsView: View {
                             subtitle: hasCharacterChanges ? "Unsaved changes" : "No changes",
                             systemImage: "checkmark.circle.fill",
                             tint: hasCharacterChanges ? .amicaBlue : .secondary,
+                            isPrimary: hasCharacterChanges,
                             isDisabled: !hasCharacterChanges
                         ) {
                             saveCharacterSettings()
@@ -268,7 +273,9 @@ struct SettingsView: View {
                 .padding(20)
                 .padding(.bottom, 96)
             }
-            .background(Color.black.ignoresSafeArea())
+            .tint(.amicaBlue)
+            .scrollIndicators(.hidden)
+            .background(settingsBackground)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .background(KeyboardDismissInstaller())
@@ -305,7 +312,7 @@ struct SettingsView: View {
             }
 
             if selectedAIProvider == .ollama {
-                settingRow {
+                settingsFieldRow(icon: "link") {
                     TextField("Ollama URL", text: $ollamaURL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -321,14 +328,14 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
             }
 
-            settingRow {
+            settingsFieldRow(icon: "cpu") {
                 TextField("Custom model", text: $selectedAIModel)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
 
             if selectedAIProvider.requiresAPIKey {
-                settingRow {
+                settingsFieldRow(icon: "key.fill") {
                     SecureField(aiAPIKeyPlaceholder, text: $aiAPIKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -339,7 +346,8 @@ struct SettingsView: View {
                 title: "Save AI Provider",
                 subtitle: aiSettingsMessage ?? aiSaveSubtitle,
                 systemImage: "key.fill",
-                tint: .amicaBlue
+                tint: .amicaBlue,
+                isPrimary: true
             ) {
                 saveAISettings()
             }
@@ -375,7 +383,7 @@ struct SettingsView: View {
                     .pickerStyle(.menu)
                 }
 
-                settingRow {
+                settingsFieldRow(icon: "cpu") {
                     TextField("Custom model", text: $selectedSTTModel)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -383,7 +391,7 @@ struct SettingsView: View {
             }
 
             if selectedSTTBackend.requiresAPIKey {
-                settingRow {
+                settingsFieldRow(icon: "key.fill") {
                     SecureField(sttAPIKeyPlaceholder, text: $sttAPIKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -396,7 +404,8 @@ struct SettingsView: View {
                 title: "Save Speech-to-Text",
                 subtitle: sttSettingsMessage ?? sttSaveSubtitle,
                 systemImage: "key.fill",
-                tint: .amicaBlue
+                tint: .amicaBlue,
+                isPrimary: true
             ) {
                 saveSTTSettings()
             }
@@ -412,47 +421,108 @@ struct SettingsView: View {
         }
     }
 
+    private var settingsBackground: some View {
+        ZStack {
+            Color.black
+            LinearGradient(
+                colors: [Color(red: 0.05, green: 0.07, blue: 0.11), .black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            RadialGradient(
+                colors: [Color.amicaBlue.opacity(0.13), .clear],
+                center: .top,
+                startRadius: 0,
+                endRadius: 360
+            )
+        }
+        .ignoresSafeArea()
+    }
+
     private func settingsSection<Content: View>(
         _ title: String,
         icon: String,
         footer: String? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(title, systemImage: icon)
-                .font(.headline)
-                .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(spacing: 11) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        LinearGradient(
+                            colors: [.amicaBlue, .amicaBlue.opacity(0.6)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    )
+                    .shadow(color: .amicaBlue.opacity(0.35), radius: 6, y: 2)
+
+                Text(title)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+            .padding(.horizontal, 4)
 
             VStack(spacing: 0) {
                 content()
             }
-            .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.35), radius: 14, y: 8)
 
             if let footer {
                 Text(footer)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
-        )
     }
 
     private func settingRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 12) {
             content()
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .bottom) {
             settingsRowDivider
         }
+    }
+
+    private func settingsFieldRow<Content: View>(
+        icon: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(spacing: 10) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.amicaBlue.opacity(0.9))
+                    .frame(width: 20)
+            }
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 12)
+        .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(.white.opacity(0.09), lineWidth: 0.5)
+        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
     }
 
     private func settingsActionRow(
@@ -460,21 +530,36 @@ struct SettingsView: View {
         subtitle: String? = nil,
         systemImage: String,
         tint: Color = .primary,
+        isPrimary: Bool = false,
         isDisabled: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .frame(width: 34, height: 34)
-                    .background(.white.opacity(0.08), in: Circle())
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isPrimary ? Color.white : tint)
+                    .frame(width: 32, height: 32)
+                    .background {
+                        if isPrimary {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [tint, tint.opacity(0.66)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: tint.opacity(0.35), radius: 5, y: 2)
+                        } else {
+                            Circle().fill(.white.opacity(0.08))
+                        }
+                    }
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(tint)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(isPrimary ? .primary : tint)
                     if let subtitle {
                         Text(subtitle)
                             .font(.caption)
@@ -484,21 +569,22 @@ struct SettingsView: View {
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
+                Image(systemName: isPrimary ? "arrow.up.circle.fill" : "chevron.right")
+                    .font(isPrimary ? .title3 : .caption.weight(.bold))
+                    .foregroundStyle(isPrimary ? AnyShapeStyle(tint) : AnyShapeStyle(.tertiary))
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .padding(.vertical, 13)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isPrimary ? tint.opacity(0.1) : Color.clear)
             .overlay(alignment: .bottom) {
-                settingsRowDivider
+                if !isPrimary { settingsRowDivider }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
-        .opacity(isDisabled ? 0.72 : 1)
+        .opacity(isDisabled ? 0.6 : 1)
     }
 
     private func settingsInfoRow(
@@ -508,15 +594,16 @@ struct SettingsView: View {
     ) -> some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(color)
-                .frame(width: 34, height: 34)
-                .background(.white.opacity(0.08), in: Circle())
+                .frame(width: 32, height: 32)
+                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
 
             Text(title)
                 .font(.caption)
                 .foregroundStyle(color)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -527,9 +614,9 @@ struct SettingsView: View {
 
     private var settingsRowDivider: some View {
         Rectangle()
-            .fill(.white.opacity(0.08))
+            .fill(.white.opacity(0.06))
             .frame(height: 0.5)
-            .padding(.leading, 62)
+            .padding(.horizontal, 16)
     }
 
     private var selectedPreviewVoiceID: String {
