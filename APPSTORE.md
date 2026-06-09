@@ -47,7 +47,7 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
     - No user account is required
     - Provider API keys are entered by you and stored in iOS Keychain
     - Provider API keys are not bundled in the app and are not stored in plain app preferences
-    - No subscriptions, paywall, Billing tab, RevenueCat, StoreKit purchases, voice credits, or extra credit packs
+    - No subscriptions, paywall, Billing tab, StoreKit purchases, voice credits, or extra credit packs
     - Hands-free wake detection is processed on device while enabled and is not sent to external providers before command recording starts
     - Microphone audio is transcribed only when voice input is used
     - Camera frames are used only when you enable camera and send visual context
@@ -75,7 +75,7 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
 
 ## What's New (v2.0)
 
-    - Removed subscriptions, paywall, Billing, RevenueCat, StoreKit purchases, voice credits, and extra credit packs
+    - Removed subscriptions, paywall, Billing, StoreKit purchases, voice credits, and extra credit packs
     - Added bring-your-own-key provider settings
     - Added AI provider selection for Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI
     - Added STT provider selection for native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud STT
@@ -101,7 +101,7 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
 
 ## Reviewer Notes
 
-    Scowld 2.0 has no subscription, paywall, Billing tab, RevenueCat, StoreKit purchase flow, voice credits, or extra credit packs.
+    Scowld 2.0 has no subscription, paywall, Billing tab, StoreKit purchase flow, voice credits, or extra credit packs.
 
     Quick test path:
     1. Complete onboarding and accept Privacy/Terms.
@@ -119,6 +119,6 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
 
     This resubmission updates Scowld to version 2.0 build 11.
 
-    Scowld no longer includes subscriptions, a paywall, Billing, RevenueCat, StoreKit purchases, voice credits, or extra credit packs. The app now uses bring-your-own-key provider settings, with user-entered provider keys stored in iOS Keychain.
+    Scowld no longer includes subscriptions, a paywall, Billing, StoreKit purchases, voice credits, or extra credit packs. The app now uses bring-your-own-key provider settings, with user-entered provider keys stored in iOS Keychain.
 
     We also updated the bundled Privacy Policy, Terms, website, metadata, and reviewer notes to reflect the new BYOK behavior.

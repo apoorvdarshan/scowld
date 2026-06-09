@@ -20,12 +20,12 @@ export default function Privacy() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Privacy Policy</h1>
-        <p className="legal__date">Last updated: May 22, 2026</p>
+        <p className="legal__date">Last updated: June 10, 2026</p>
 
         <div className="legal__body">
           <div>
             <h2>1. Overview</h2>
-            <p>Scowld is an iOS AI companion app. It uses bring-your-own-key provider settings for AI chat, optional cloud speech-to-text, and ElevenLabs text-to-speech. API keys you enter are stored in the iOS Keychain on your device. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name.</p>
+            <p>Scowld is a free, open-source iOS AI companion app. It uses bring-your-own-key provider settings for AI chat, optional cloud speech-to-text, and ElevenLabs or OpenAI text-to-speech. API keys you enter are stored in the iOS Keychain on your device. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name.</p>
             <p>This policy explains what information is processed when you use the app and website.</p>
           </div>
 
@@ -48,7 +48,7 @@ export default function Privacy() {
               <li>Voice audio sent for cloud speech-to-text when you choose a cloud STT provider.</li>
               <li>Hands-free wake detection audio processed on device while hands-free mode is enabled.</li>
               <li>Recognized speech text sent to the selected AI provider for a response.</li>
-              <li>Assistant response text sent to ElevenLabs for speech generation.</li>
+              <li>Assistant response text sent to ElevenLabs or OpenAI for speech generation.</li>
               <li>Optional camera image context when you enable camera/vision and send a message.</li>
             </ul>
             <p>Scowld does not operate a hosted AI/speech proxy for app conversations in version 2.0. Hands-free wake detection is not sent to external providers before recording starts.</p>
@@ -97,7 +97,7 @@ export default function Privacy() {
             <ul>
               <li><strong className="legal__strong-dim">AI providers</strong>, including Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.</li>
               <li><strong className="legal__strong-dim">Speech-to-text providers</strong>, including native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
-              <li><strong className="legal__strong-dim">ElevenLabs</strong> for text-to-speech.</li>
+              <li><strong className="legal__strong-dim">ElevenLabs</strong> and <strong className="legal__strong-dim">OpenAI</strong> for text-to-speech.</li>
               <li><strong className="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, speech recognition, camera, microphone, and app distribution.</li>
               <li><strong className="legal__strong-dim">Vercel</strong> for website deployment.</li>
             </ul>

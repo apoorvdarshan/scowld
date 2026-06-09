@@ -305,7 +305,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
             return [
                 LegalTextSection(
                     title: "Overview",
-                    body: "Scowld is an iOS AI companion app. It uses bring-your-own-key provider settings for AI chat, optional cloud speech-to-text, and ElevenLabs text-to-speech. API keys you enter are stored in the iOS Keychain on your device. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name."
+                    body: "Scowld is a free, open-source iOS AI companion app. It uses bring-your-own-key provider settings for AI chat, optional cloud speech-to-text, and ElevenLabs or OpenAI text-to-speech. API keys you enter are stored in the iOS Keychain on your device. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name."
                 ),
                 LegalTextSection(
                     title: "Account and analytics",
@@ -348,7 +348,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Service",
-                    body: "Scowld is an iOS AI companion app with bring-your-own-key conversational AI, an animated VRM companion, voice input using native iOS speech recognition or configured cloud STT providers, optional hands-free wake mode, ElevenLabs text-to-speech, optional camera/vision context, and local saved chats."
+                    body: "Scowld is an iOS AI companion app with bring-your-own-key conversational AI, an animated VRM companion, voice input using native iOS speech recognition or configured cloud STT providers, optional hands-free wake mode, ElevenLabs or OpenAI text-to-speech, optional camera/vision context, and local saved chats."
                 ),
                 LegalTextSection(
                     title: "Bring your own keys",
@@ -364,7 +364,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Service limits and availability",
-                    body: "Cloud AI, cloud speech-to-text, and ElevenLabs text-to-speech require an active internet connection and valid provider API keys. Hands-free wake detection requires microphone and speech recognition permission, may miss wake phrases, and may occasionally trigger unexpectedly. Third-party providers may change, fail, rate limit, bill your account, or become unavailable."
+                    body: "Cloud AI, cloud speech-to-text, and cloud text-to-speech require an active internet connection and valid provider API keys. Hands-free wake detection requires microphone and speech recognition permission, may miss wake phrases, and may occasionally trigger unexpectedly. Third-party providers may change, fail, rate limit, bill your account, or become unavailable."
                 ),
                 LegalTextSection(
                     title: "AI output disclaimer",
@@ -376,7 +376,7 @@ private enum OnboardingLegalDocument: String, CaseIterable, Identifiable {
                 ),
                 LegalTextSection(
                     title: "Ownership and termination",
-                    body: "The Scowld name, logo, branding, app design, website, and private app code are owned by Apoorv Darshan unless otherwise stated. You may stop using Scowld at any time by deleting the app. Access may be restricted for abuse, unlawful use, or violation of these terms."
+                    body: "The Scowld name, logo, branding, app design, and website are owned by Apoorv Darshan unless otherwise stated. The Scowld app source code is open source under the MIT License at github.com/apoorvdarshan/scowld. You may stop using Scowld at any time by deleting the app. Access may be restricted for abuse, unlawful use, or violation of these terms."
                 ),
                 LegalTextSection(
                     title: "Contact",

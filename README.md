@@ -31,7 +31,7 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 - **Home tips** - A top-right info button explains the wake phrases and composer controls.
 - **BYOK AI providers** - Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.
 - **BYOK speech-to-text** - Native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, Google Cloud STT, browser Whisper, or text-only mode.
-- **BYOK ElevenLabs text-to-speech** - Celine, Claire, bundled voice presets, custom voice IDs, model selection, and bundled local voice previews.
+- **BYOK text-to-speech** - ElevenLabs (Celine, Claire, bundled voice presets, custom voice IDs, model selection, and bundled local voice previews) and OpenAI voices.
 - **Vision** - Optional front-camera context can be sent to the AI when enabled.
 - **Past chats** - Conversations are saved locally and can be selected as context for future replies.
 - **Character settings** - Avatar, custom name, and system prompt controls.
@@ -76,12 +76,12 @@ Vercel / Next.js website
 - iOS 17.0+
 - Xcode 16+
 - Node.js for the website
-- No Vercel environment variables are required for app AI, speech, billing, or RevenueCat services.
+- No Vercel environment variables are required for app AI, speech, or billing services.
 - Users bring their own provider API keys inside the iOS app.
 
 ## Monetization
 
-Scowld 2.0 removes subscriptions, Billing, RevenueCat, StoreKit purchases, paywalls, voice credits, and extra credit packs.
+Scowld 2.0 removes subscriptions, Billing, StoreKit purchases, paywalls, voice credits, and extra credit packs.
 
 Users are responsible for provider accounts, API keys, provider billing, rate limits, and acceptable use policies for the AI, speech-to-text, and text-to-speech providers they configure.
 
@@ -109,7 +109,7 @@ Next.js runs at `http://localhost:3000`.
 
 ### Website Environment Variables
 
-The website does not require hosted AI, speech, billing, or RevenueCat environment variables.
+The website does not require hosted AI, speech, or billing environment variables.
 
 See [web/.env.example](web/.env.example) for defaults.
 

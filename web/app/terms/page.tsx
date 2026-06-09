@@ -20,7 +20,7 @@ export default function Terms() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Terms of Service</h1>
-        <p className="legal__date">Last updated: May 22, 2026</p>
+        <p className="legal__date">Last updated: June 10, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -36,7 +36,7 @@ export default function Terms() {
               <li>An animated VRM companion with lip sync, idle animations, and expression support.</li>
               <li>Optional hands-free wake mode that can start voice recording when the selected companion name is detected.</li>
               <li>Voice input using native iOS speech recognition or configured cloud STT providers.</li>
-              <li>Text-to-speech output using your ElevenLabs API key.</li>
+              <li>Text-to-speech output using your ElevenLabs or OpenAI API key.</li>
               <li>Optional camera/vision context.</li>
               <li>Saved past chats and selectable conversation context stored locally on device.</li>
             </ul>
@@ -45,7 +45,7 @@ export default function Terms() {
 
           <div>
             <h2>3. Bring Your Own Keys</h2>
-            <p>Scowld does not include subscriptions, paywalls, voice credits, extra credit packs, RevenueCat, or Apple in-app purchases in version 2.0.</p>
+            <p>Scowld does not include subscriptions, paywalls, voice credits, extra credit packs, or Apple in-app purchases in version 2.0.</p>
             <ul>
               <li>You are responsible for provider accounts, API keys, provider billing, rate limits, and acceptable use policies.</li>
               <li>Provider API keys are stored in the iOS Keychain on your device.</li>
@@ -68,7 +68,7 @@ export default function Terms() {
           <div>
             <h2>5. Service Limits and Availability</h2>
             <ul>
-              <li>Cloud AI, cloud speech-to-text, and ElevenLabs text-to-speech require an active internet connection and valid provider API keys.</li>
+              <li>Cloud AI, cloud speech-to-text, and cloud text-to-speech require an active internet connection and valid provider API keys.</li>
               <li>Hands-free wake detection requires microphone and speech recognition permission, may miss wake phrases, and may occasionally trigger unexpectedly.</li>
               <li>Third-party providers may change, fail, rate limit, or become unavailable.</li>
               <li>Features and provider options may change over time.</li>
@@ -87,7 +87,7 @@ export default function Terms() {
 
           <div>
             <h2>8. Intellectual Property</h2>
-            <p>The Scowld name, logo, branding, app design, website, and private app code are owned by Apoorv Darshan unless otherwise stated. The bundled character/avatar frontend is based on Amica / Arbius AI components credited in the app.</p>
+            <p>The Scowld name, logo, branding, app design, and website are owned by Apoorv Darshan unless otherwise stated. The Scowld app source code is open source and released under the MIT License at <a href="https://github.com/apoorvdarshan/scowld">github.com/apoorvdarshan/scowld</a>. The bundled character/avatar frontend is based on Amica / Arbius AI components credited in the app.</p>
           </div>
 
           <div>

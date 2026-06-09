@@ -9,7 +9,7 @@ const links = {
   productHunt: "https://www.producthunt.com/products/scowld",
   linkedIn: "https://www.linkedin.com/company/scowld",
   instagram: "https://www.instagram.com/scowld_/",
-  trustMrr: "https://trustmrr.com/startup/scowld-ai-voice-companion",
+  github: "https://github.com/apoorvdarshan/scowld",
   koFi: "https://ko-fi.com/apoorvdarshan",
   x: "https://x.com/apoorvdarshan",
   mail: "mailto:ad13dtu@gmail.com",
@@ -27,14 +27,14 @@ const features = [
 ];
 
 const tags = [
-  "BYOK", "NO PAYWALL", "HANDS-FREE WAKE", "GEMINI", "OPENAI", "CLAUDE", "ELEVENLABS", "DEEPGRAM STT",
+  "BYOK", "OPEN SOURCE", "NO PAYWALL", "HANDS-FREE WAKE", "GEMINI", "OPENAI", "CLAUDE", "ELEVENLABS", "DEEPGRAM STT",
   "ANIMATED AVATAR", "VISION", "PAST CHATS", "IOS", "PRIVACY FIRST",
 ];
 
 const socialLinks = [
+  { href: links.github, label: "GitHub", icon: "fa-brands fa-github" },
   { href: links.linkedIn, label: "LinkedIn", icon: "fa-brands fa-linkedin-in" },
   { href: links.instagram, label: "Instagram", icon: "fa-brands fa-instagram" },
-  { href: links.trustMrr, label: "TrustMRR", icon: "fa-solid fa-chart-line" },
   { href: links.koFi, label: "Ko-fi", icon: "fa-solid fa-mug-saucer" },
   { href: links.x, label: "X", icon: "fa-brands fa-x-twitter" },
   { href: links.mail, label: "Email", icon: "fa-solid fa-envelope" },
@@ -96,7 +96,7 @@ export default function Home() {
           <Link href="/terms" className="nav__link">Terms</Link>
           <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="nav__link">LinkedIn</a>
           <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="nav__link">Instagram</a>
-          <a href={links.trustMrr} target="_blank" rel="noopener noreferrer" className="nav__link">TrustMRR</a>
+          <a href={links.github} target="_blank" rel="noopener noreferrer" className="nav__link">GitHub</a>
           <a href={links.x} target="_blank" rel="noopener noreferrer" className="nav__link">
             X <span className="nav__link-handle">@apoorvdarshan</span>
           </a>
@@ -136,6 +136,9 @@ export default function Home() {
               </a>
               <a href={links.productHunt} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 Vote on Product Hunt
+              </a>
+              <a href={links.github} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+                <i className="fa-brands fa-github" aria-hidden="true" /> Star on GitHub
               </a>
               <a href={links.koFi} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 Support on Ko-fi <span className="btn-secondary__arrow">&rarr;</span>
@@ -210,7 +213,7 @@ export default function Home() {
               <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="footer__link">LinkedIn</a>
               <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="footer__link">Instagram</a>
               <a href={links.x} target="_blank" rel="noopener noreferrer" className="footer__link">X @apoorvdarshan</a>
-              <a href={links.trustMrr} target="_blank" rel="noopener noreferrer" className="footer__link">TrustMRR</a>
+              <a href={links.github} target="_blank" rel="noopener noreferrer" className="footer__link">GitHub</a>
               <a href={links.productHunt} target="_blank" rel="noopener noreferrer" className="footer__link">Product Hunt</a>
               <Link href="/privacy" className="footer__link">Privacy</Link>
               <Link href="/terms" className="footer__link">Terms</Link>
