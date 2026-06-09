@@ -34,6 +34,11 @@ struct SettingsView: View {
     @State private var hasSavedTTSAPIKey = false
     @State private var ttsSettingsMessage: String?
 
+    // MARK: - Secret visibility
+    @State private var revealAIKey = false
+    @State private var revealSTTKey = false
+    @State private var revealTTSKey = false
+
     // MARK: - Character Settings
     @State private var hasCharacterChanges = false
     @State private var characterName: String = "Bella"
@@ -120,9 +125,7 @@ struct SettingsView: View {
                         )
 
                         settingRow {
-                            SecureField(ttsAPIKeyPlaceholder, text: $ttsAPIKey)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
+                            apiKeyField(placeholder: ttsAPIKeyPlaceholder, text: $ttsAPIKey, isRevealed: $revealTTSKey)
                         }
 
                         settingRow {
@@ -192,12 +195,7 @@ struct SettingsView: View {
                             systemImage: "speaker.wave.2.fill"
                         )
 
-                        settingsActionRow(
-                            title: "Save Text-to-Speech",
-                            subtitle: ttsSettingsMessage ?? ttsSaveSubtitle,
-                            systemImage: "key.fill",
-                            tint: .amicaBlue
-                        ) {
+                        glassSaveRow(status: ttsSettingsMessage ?? ttsSaveSubtitle) {
                             saveTTSSettings()
                         }
                     }
@@ -320,18 +318,11 @@ struct SettingsView: View {
 
             if selectedAIProvider.requiresAPIKey {
                 settingRow {
-                    SecureField(aiAPIKeyPlaceholder, text: $aiAPIKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                    apiKeyField(placeholder: aiAPIKeyPlaceholder, text: $aiAPIKey, isRevealed: $revealAIKey)
                 }
             }
 
-            settingsActionRow(
-                title: "Save AI Provider",
-                subtitle: aiSettingsMessage ?? aiSaveSubtitle,
-                systemImage: "key.fill",
-                tint: .amicaBlue
-            ) {
+            glassSaveRow(status: aiSettingsMessage ?? aiSaveSubtitle) {
                 saveAISettings()
             }
         }
@@ -366,22 +357,107 @@ struct SettingsView: View {
 
             if selectedSTTBackend.requiresAPIKey {
                 settingRow {
-                    SecureField(sttAPIKeyPlaceholder, text: $sttAPIKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                    apiKeyField(placeholder: sttAPIKeyPlaceholder, text: $sttAPIKey, isRevealed: $revealSTTKey)
                 }
             }
 
             settingsInfoRow(title: selectedSTTBackend.footerText, systemImage: "info.circle")
 
-            settingsActionRow(
-                title: "Save Speech-to-Text",
-                subtitle: sttSettingsMessage ?? sttSaveSubtitle,
-                systemImage: "key.fill",
-                tint: .amicaBlue
-            ) {
+            glassSaveRow(status: sttSettingsMessage ?? sttSaveSubtitle) {
                 saveSTTSettings()
             }
+        }
+    }
+
+    /// API-key entry with an eye toggle to reveal/hide the secret.
+    @ViewBuilder
+    private func apiKeyField(
+        placeholder: String,
+        text: Binding<String>,
+        isRevealed: Binding<Bool>
+    ) -> some View {
+        Group {
+            if isRevealed.wrappedValue {
+                TextField(placeholder, text: text)
+            } else {
+                SecureField(placeholder, text: text)
+            }
+        }
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        Button {
+            isRevealed.wrappedValue.toggle()
+        } label: {
+            Image(systemName: isRevealed.wrappedValue ? "eye.slash.fill" : "eye.fill")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(isRevealed.wrappedValue ? .amicaBlue : .secondary)
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isRevealed.wrappedValue ? "Hide key" : "Show key")
+    }
+
+    /// Footer row: optional status text on the left, Liquid Glass Save button on the right.
+    private func glassSaveRow(
+        status: String?,
+        isDisabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 12) {
+            if let status {
+                Text(status)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Spacer(minLength: 0)
+            }
+            liquidGlassSaveButton(isDisabled: isDisabled, action: action)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+    }
+
+    @ViewBuilder
+    private func liquidGlassSaveButton(
+        isDisabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        if #available(iOS 26.0, *) {
+            Button(action: action) {
+                Label("Save", systemImage: "checkmark")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.glassProminent)
+            .tint(.amicaBlue)
+            .disabled(isDisabled)
+        } else {
+            Button(action: action) {
+                Label("Save", systemImage: "checkmark")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule().fill(
+                            LinearGradient(
+                                colors: [.amicaBlue, .amicaBlue.opacity(0.7)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    )
+                    .overlay(
+                        Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 0.8)
+                    )
+                    .shadow(color: .amicaBlue.opacity(0.4), radius: 8, y: 3)
+            }
+            .buttonStyle(.plain)
+            .disabled(isDisabled)
+            .opacity(isDisabled ? 0.5 : 1)
         }
     }
 
