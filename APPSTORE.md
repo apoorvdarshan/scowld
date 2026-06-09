@@ -112,13 +112,3 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
     6. Tap About > What's New to view the version 2.0 changes.
 
     Network access is required for cloud AI, cloud STT, and ElevenLabs TTS providers. Provider API keys are entered by the user and stored in iOS Keychain. The app is designed for iPhone and iPad.
-
-## App Review Response Notes
-
-    Hello App Review,
-
-    This resubmission updates Scowld to version 2.0 build 12.
-
-    Scowld no longer includes subscriptions, a paywall, Billing, StoreKit purchases, voice credits, or extra credit packs. The app now uses bring-your-own-key provider settings, with user-entered provider keys stored in iOS Keychain.
-
-    We also updated the bundled Privacy Policy, Terms, website, metadata, and reviewer notes to reflect the new BYOK behavior.
