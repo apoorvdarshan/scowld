@@ -16,17 +16,20 @@ struct SettingsView: View {
     @State private var isLoadingSettings = false
     @State private var selectedAIProviderID = AIProvider.gemini.rawValue
     @State private var selectedAIModel = AIProvider.gemini.defaultModel
+    @State private var aiModelIsCustom = false
     @State private var aiAPIKey = ""
     @State private var hasSavedAIAPIKey = false
     @State private var ollamaURL = OllamaConfig.defaultURL
     @State private var aiSettingsMessage: String?
     @State private var selectedSTTBackendID = STTBackend.nativeIOS.rawValue
     @State private var selectedSTTModel = STTBackend.nativeIOS.defaultModel
+    @State private var sttModelIsCustom = false
     @State private var sttAPIKey = ""
     @State private var hasSavedSTTAPIKey = false
     @State private var sttSettingsMessage: String?
     @State private var selectedTTSBackendID = TTSBackend.elevenLabs.rawValue
     @State private var selectedTTSModel = TTSBackend.elevenLabs.defaultModel
+    @State private var ttsModelIsCustom = false
     @State private var ttsAPIKey = ""
     @State private var hasSavedTTSAPIKey = false
     @State private var ttsSettingsMessage: String?
@@ -110,14 +113,11 @@ struct SettingsView: View {
                             }
                         }
 
-                        settingRow {
-                            Picker("Model", selection: $selectedTTSModel) {
-                                ForEach(selectedTTSBackend.availableModels, id: \.self) { model in
-                                    Text(model).tag(model)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                        }
+                        modelSelectionRows(
+                            models: selectedTTSBackend.availableModels,
+                            selection: $selectedTTSModel,
+                            isCustom: $ttsModelIsCustom
+                        )
 
                         settingRow {
                             SecureField(ttsAPIKeyPlaceholder, text: $ttsAPIKey)
@@ -312,20 +312,11 @@ struct SettingsView: View {
                 }
             }
 
-            settingRow {
-                Picker("Model", selection: $selectedAIModel) {
-                    ForEach(selectedAIProvider.availableModels, id: \.self) { model in
-                        Text(model).tag(model)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
-            settingRow {
-                TextField("Custom model", text: $selectedAIModel)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
+            modelSelectionRows(
+                models: selectedAIProvider.availableModels,
+                selection: $selectedAIModel,
+                isCustom: $aiModelIsCustom
+            )
 
             if selectedAIProvider.requiresAPIKey {
                 settingRow {
@@ -366,20 +357,11 @@ struct SettingsView: View {
             }
 
             if !selectedSTTBackend.availableModels.isEmpty {
-                settingRow {
-                    Picker("Model", selection: $selectedSTTModel) {
-                        ForEach(selectedSTTBackend.availableModels, id: \.self) { model in
-                            Text(model).tag(model)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-
-                settingRow {
-                    TextField("Custom model", text: $selectedSTTModel)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
+                modelSelectionRows(
+                    models: selectedSTTBackend.availableModels,
+                    selection: $selectedSTTModel,
+                    isCustom: $sttModelIsCustom
+                )
             }
 
             if selectedSTTBackend.requiresAPIKey {
@@ -399,6 +381,46 @@ struct SettingsView: View {
                 tint: .amicaBlue
             ) {
                 saveSTTSettings()
+            }
+        }
+    }
+
+    private static let customModelTag = "__scowld_custom_model__"
+
+    /// Single model row: a menu picker of preset models plus a "Custom model" option.
+    /// The editable text field only appears when "Custom model" is selected, so the
+    /// model name is never shown twice.
+    @ViewBuilder
+    private func modelSelectionRows(
+        models: [String],
+        selection: Binding<String>,
+        isCustom: Binding<Bool>
+    ) -> some View {
+        settingRow {
+            Picker("Model", selection: Binding(
+                get: { isCustom.wrappedValue ? Self.customModelTag : selection.wrappedValue },
+                set: { newValue in
+                    if newValue == Self.customModelTag {
+                        isCustom.wrappedValue = true
+                    } else {
+                        isCustom.wrappedValue = false
+                        selection.wrappedValue = newValue
+                    }
+                }
+            )) {
+                ForEach(models, id: \.self) { model in
+                    Text(model).tag(model)
+                }
+                Text("Custom model").tag(Self.customModelTag)
+            }
+            .pickerStyle(.menu)
+        }
+
+        if isCustom.wrappedValue {
+            settingRow {
+                TextField("Custom model name", text: selection)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
             }
         }
     }
@@ -649,6 +671,7 @@ struct SettingsView: View {
     private func loadAIProviderSettings(resetMessage: Bool = true) {
         let provider = selectedAIProvider
         selectedAIModel = HostedServiceConfig.selectedModel(for: provider)
+        aiModelIsCustom = !provider.availableModels.contains(selectedAIModel)
         aiAPIKey = ""
         hasSavedAIAPIKey = provider.requiresAPIKey && KeychainManager.exists(key: provider.keychainKey)
         ollamaURL = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
@@ -660,6 +683,7 @@ struct SettingsView: View {
     private func loadSTTBackendSettings(resetMessage: Bool = true) {
         let backend = selectedSTTBackend
         selectedSTTModel = STTBackend.selectedModel(for: backend)
+        sttModelIsCustom = !backend.availableModels.isEmpty && !backend.availableModels.contains(selectedSTTModel)
         sttAPIKey = ""
         hasSavedSTTAPIKey = backend.requiresAPIKey && KeychainManager.exists(key: backend.keychainKey)
         if resetMessage {
@@ -670,6 +694,7 @@ struct SettingsView: View {
     private func loadTTSBackendSettings(resetMessage: Bool = true) {
         let backend = selectedTTSBackend
         selectedTTSModel = TTSBackend.selectedModel(for: backend)
+        ttsModelIsCustom = !backend.availableModels.isEmpty && !backend.availableModels.contains(selectedTTSModel)
         ttsAPIKey = ""
         hasSavedTTSAPIKey = KeychainManager.exists(key: backend.keychainKey)
         if resetMessage {
