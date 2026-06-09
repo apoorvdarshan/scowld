@@ -21,7 +21,7 @@
 
 ## Status
 
-This is a private Scowld repository for the iOS app and the marketing website at [scowld.xyz](https://scowld.xyz).
+This is the open-source repository for the Scowld iOS app and the marketing website at [scowld.xyz](https://scowld.xyz). Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## Features
 
