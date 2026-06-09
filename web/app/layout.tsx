@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   keywords: ["AI companion", "AI assistant", "animated avatar", "voice assistant", "AI vision", "VRM avatar", "iOS AI app", "BYOK", "open source", "bring your own key", "OpenAI", "Claude", "Gemini", "ElevenLabs", "voice chat", "scowld"],
   authors: [{ name: "Apoorv Darshan", url: "https://x.com/apoorvdarshan" }],
   creator: "Apoorv Darshan",
+  publisher: "Apoorv Darshan",
+  applicationName: "Scowld",
+  category: "technology",
   icons: { icon: "/logo.png", apple: "/logo.png" },
   alternates: { canonical: "/" },
   openGraph: {
@@ -48,6 +51,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://api.fontshare.com" />
         <link href="https://api.fontshare.com/v2/css?f[]=clash-display@200,300,400,500,600,700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
@@ -94,6 +101,40 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 price: "0",
                 priceCurrency: "USD",
               },
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Scowld",
+              alternateName: "Scowld AI Voice Companion",
+              url: "https://scowld.xyz",
+              description:
+                "Free, open-source iOS AI voice companion with an animated avatar and bring-your-own-key AI, speech-to-text, and text-to-speech.",
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Scowld",
+              url: "https://scowld.xyz",
+              logo: "https://scowld.xyz/logo.png",
+              founder: { "@type": "Person", name: "Apoorv Darshan" },
+              sameAs: [
+                "https://www.instagram.com/scowld_/",
+                "https://www.linkedin.com/company/scowld",
+                "https://www.producthunt.com/products/scowld",
+                "https://github.com/apoorvdarshan/scowld",
+                "https://x.com/apoorvdarshan",
+              ],
             }),
           }}
         />

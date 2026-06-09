@@ -31,6 +31,41 @@ const tags = [
   "ANIMATED AVATAR", "VISION", "PAST CHATS", "IOS", "PRIVACY FIRST",
 ];
 
+const faqs = [
+  {
+    q: "Is Scowld free?",
+    a: "Yes. Scowld is free and open source (MIT). There are no subscriptions, paywalls, voice credits, or in-app purchases. You bring your own provider API keys and pay your chosen providers directly for usage.",
+  },
+  {
+    q: "What does bring-your-own-key (BYOK) mean?",
+    a: "You use your own API keys for the AI, speech-to-text, and text-to-speech providers you choose. Keys are stored only in the iOS Keychain on your device, so Scowld never runs a server that sees or stores them.",
+  },
+  {
+    q: "Which AI providers does Scowld support?",
+    a: "Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI. You can switch providers and models any time in Settings.",
+  },
+  {
+    q: "What speech-to-text and text-to-speech options are available?",
+    a: "Voice input works with native iOS speech recognition or cloud providers like OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text. Spoken replies use ElevenLabs or OpenAI voices.",
+  },
+  {
+    q: "Are my API keys stored securely?",
+    a: "Yes. Provider keys are stored in the iOS Keychain on your device, are not bundled in the app binary, and are never sent to Scowld servers. Requests go directly from your device to the provider you configured.",
+  },
+  {
+    q: "Is Scowld open source?",
+    a: "Yes. Scowld is released under the MIT License and the source is available on GitHub at github.com/apoorvdarshan/scowld.",
+  },
+  {
+    q: "Does Scowld need an account or an internet connection?",
+    a: "No account is required. Cloud AI, speech-to-text, and text-to-speech need an internet connection and valid provider keys, while native iOS speech recognition works on device.",
+  },
+  {
+    q: "What is hands-free wake mode?",
+    a: "An optional mode where Scowld listens on device for \"Bella\" or your custom companion name to start voice recording. Wake detection is processed on device and is not sent to providers before recording starts.",
+  },
+];
+
 const socialLinks = [
   { href: links.github, label: "GitHub", icon: "fa-brands fa-github" },
   { href: links.linkedIn, label: "LinkedIn", icon: "fa-brands fa-linkedin-in" },
@@ -200,6 +235,46 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <section id="faq" className="faq">
+        <div className="features__header">
+          <p className="sr sr-delay-1 features__label">
+            <span className="features__label-line" />
+            FAQ
+          </p>
+          <h2 className="sr sr-delay-2 features__title">Frequently asked questions.</h2>
+          <p className="sr sr-delay-3 features__subtitle">
+            Free, open source, and bring-your-own-key. Here is how Scowld works.
+          </p>
+        </div>
+
+        <div className="faq__list">
+          {faqs.map((item, i) => (
+            <details key={item.q} className={`sr sr-delay-${Math.min(i + 3, 8)} faq__item`}>
+              <summary className="faq__question">
+                {item.q}
+                <span className="faq__icon" aria-hidden="true" />
+              </summary>
+              <p className="faq__answer">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: faqs.map((f) => ({
+              "@type": "Question",
+              name: f.q,
+              acceptedAnswer: { "@type": "Answer", text: f.a },
+            })),
+          }),
+        }}
+      />
 
       <footer className="footer">
         <div className="footer__inner">
