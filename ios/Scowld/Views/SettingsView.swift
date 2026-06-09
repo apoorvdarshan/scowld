@@ -748,8 +748,8 @@ struct SettingsView: View {
         let provider = selectedAIProvider
         selectedAIModel = HostedServiceConfig.selectedModel(for: provider)
         aiModelIsCustom = !provider.availableModels.contains(selectedAIModel)
-        aiAPIKey = ""
-        hasSavedAIAPIKey = provider.requiresAPIKey && KeychainManager.exists(key: provider.keychainKey)
+        aiAPIKey = provider.requiresAPIKey ? (KeychainManager.load(key: provider.keychainKey) ?? "") : ""
+        hasSavedAIAPIKey = provider.requiresAPIKey && !aiAPIKey.isEmpty
         ollamaURL = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
         if resetMessage {
             aiSettingsMessage = nil
@@ -760,8 +760,8 @@ struct SettingsView: View {
         let backend = selectedSTTBackend
         selectedSTTModel = STTBackend.selectedModel(for: backend)
         sttModelIsCustom = !backend.availableModels.isEmpty && !backend.availableModels.contains(selectedSTTModel)
-        sttAPIKey = ""
-        hasSavedSTTAPIKey = backend.requiresAPIKey && KeychainManager.exists(key: backend.keychainKey)
+        sttAPIKey = backend.requiresAPIKey ? (KeychainManager.load(key: backend.keychainKey) ?? "") : ""
+        hasSavedSTTAPIKey = backend.requiresAPIKey && !sttAPIKey.isEmpty
         if resetMessage {
             sttSettingsMessage = nil
         }
@@ -771,8 +771,8 @@ struct SettingsView: View {
         let backend = selectedTTSBackend
         selectedTTSModel = TTSBackend.selectedModel(for: backend)
         ttsModelIsCustom = !backend.availableModels.isEmpty && !backend.availableModels.contains(selectedTTSModel)
-        ttsAPIKey = ""
-        hasSavedTTSAPIKey = KeychainManager.exists(key: backend.keychainKey)
+        ttsAPIKey = KeychainManager.load(key: backend.keychainKey) ?? ""
+        hasSavedTTSAPIKey = !ttsAPIKey.isEmpty
         if resetMessage {
             ttsSettingsMessage = nil
         }
@@ -793,7 +793,6 @@ struct SettingsView: View {
             saveKeyIfNeeded(aiAPIKey, key: provider.keychainKey)
         }
 
-        aiAPIKey = ""
         hasSavedAIAPIKey = provider.requiresAPIKey && KeychainManager.exists(key: provider.keychainKey)
         aiSettingsMessage = "Saved"
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
@@ -812,7 +811,6 @@ struct SettingsView: View {
             saveKeyIfNeeded(sttAPIKey, key: backend.keychainKey)
         }
 
-        sttAPIKey = ""
         hasSavedSTTAPIKey = backend.requiresAPIKey && KeychainManager.exists(key: backend.keychainKey)
         sttSettingsMessage = "Saved"
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
@@ -828,7 +826,6 @@ struct SettingsView: View {
         saveSelectedVoice()
         saveKeyIfNeeded(ttsAPIKey, key: backend.keychainKey)
 
-        ttsAPIKey = ""
         hasSavedTTSAPIKey = KeychainManager.exists(key: backend.keychainKey)
         ttsSettingsMessage = "Saved"
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
