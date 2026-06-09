@@ -138,3 +138,7 @@ See [web/.env.example](web/.env.example) for defaults.
 
 - Character/avatar frontend: Amica / Arbius AI (MIT)
 - Developer: Apoorv Darshan, ad13dtu@gmail.com
+
+## License
+
+Scowld is released under the [MIT License](LICENSE). The bundled character/avatar frontend (Amica / Arbius AI) is also MIT licensed.
