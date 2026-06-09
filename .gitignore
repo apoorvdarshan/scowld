@@ -1,5 +1,1 @@
 .vercel
-
-# iOS build artifacts
-ios/build/
-DerivedData/
