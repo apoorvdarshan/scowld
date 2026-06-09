@@ -91,8 +91,7 @@ struct AboutView: View {
     private let termsURL = URL(string: "https://scowld.xyz/terms")!
     private let koFiURL = URL(string: "https://ko-fi.com/apoorvdarshan")!
     private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld")!
-    private let reportIssueURL = URL(string: "mailto:ad13dtu@gmail.com?subject=BUG%20Report%20-%20Scowld&body=What%20happened%3A%0A%0ASteps%20to%20reproduce%3A%0A%0ADevice%20and%20iOS%20version%3A")!
-    private let requestFeatureURL = URL(string: "mailto:ad13dtu@gmail.com?subject=Feature%20Request%20-%20Scowld&body=Feature%20idea%3A%0A%0AWhy%20it%20would%20help%3A")!
+    private let githubIssuesURL = URL(string: "https://github.com/apoorvdarshan/scowld/issues")!
     private let contactURL = URL(string: "mailto:ad13dtu@gmail.com?subject=Scowld%20Contact")!
     private let developerXURL = URL(string: "https://x.com/apoorvdarshan")!
 
@@ -154,16 +153,16 @@ struct AboutView: View {
                     aboutSection("Contact", icon: "envelope") {
                         linkRow(
                             title: "Report an Issue",
-                            subtitle: "Opens a bug report email",
+                            subtitle: "github.com/apoorvdarshan/scowld/issues",
                             systemImage: "exclamationmark.bubble.fill",
-                            url: reportIssueURL
+                            url: githubIssuesURL
                         )
 
                         linkRow(
                             title: "Request a Feature",
-                            subtitle: "Opens a feature request email",
+                            subtitle: "github.com/apoorvdarshan/scowld/issues",
                             systemImage: "sparkles",
-                            url: requestFeatureURL
+                            url: githubIssuesURL
                         )
 
                         linkRow(
