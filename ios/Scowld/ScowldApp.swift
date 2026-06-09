@@ -126,6 +126,13 @@ struct AboutView: View {
                             requestReview()
                         }
 
+                        linkRow(
+                            title: "Star on GitHub",
+                            subtitle: "github.com/apoorvdarshan/scowld",
+                            systemImage: "star.circle.fill",
+                            url: githubRepoURL
+                        )
+
                         ShareLink(item: websiteURL) {
                             aboutRowContent(
                                 title: "Share Scowld",
