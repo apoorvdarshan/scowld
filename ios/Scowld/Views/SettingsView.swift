@@ -779,6 +779,7 @@ struct SettingsView: View {
     }
 
     private func saveAISettings() {
+        dismissKeyboard()
         let defaults = UserDefaults.standard
         let provider = selectedAIProvider
         let model = selectedAIModel.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -799,6 +800,7 @@ struct SettingsView: View {
     }
 
     private func saveSTTSettings() {
+        dismissKeyboard()
         let defaults = UserDefaults.standard
         let backend = selectedSTTBackend
         let model = selectedSTTModel.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -817,6 +819,7 @@ struct SettingsView: View {
     }
 
     private func saveTTSSettings() {
+        dismissKeyboard()
         let defaults = UserDefaults.standard
         let backend = selectedTTSBackend
         let model = selectedTTSModel.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -829,6 +832,15 @@ struct SettingsView: View {
         hasSavedTTSAPIKey = KeychainManager.exists(key: backend.keychainKey)
         ttsSettingsMessage = "Saved"
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 
     private func saveKeyIfNeeded(_ value: String, key: String) {
@@ -870,6 +882,7 @@ struct SettingsView: View {
     }
 
     private func saveCharacterSettings() {
+        dismissKeyboard()
         let defaults = UserDefaults.standard
         HostedServiceConfig.applyBYOKDefaults()
         let trimmedCharacterName = characterName.trimmingCharacters(in: .whitespacesAndNewlines)
