@@ -22,6 +22,9 @@ enum HostedServiceConfig {
     static let defaultElevenLabsModel = "eleven_flash_v2_5"
     static let defaultDeepgramModel = "nova-3"
 
+    static let openAITTSVoiceDefaultsKey = "amica_openai_tts_voice"
+    static let defaultOpenAITTSVoice = "alloy"
+
     static func applyBYOKDefaults() {
         let defaults = UserDefaults.standard
 
@@ -41,6 +44,13 @@ enum HostedServiceConfig {
             defaults.set(defaultElevenLabsModel, forKey: TTSBackend.elevenLabs.modelDefaultsKey)
         }
         defaults.set(TTSBackend.selectedModel(for: .elevenLabs), forKey: "amica_elevenlabs_model")
+
+        if defaults.string(forKey: TTSBackend.openAI.modelDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
+            defaults.set(TTSBackend.openAI.defaultModel, forKey: TTSBackend.openAI.modelDefaultsKey)
+        }
+        if defaults.string(forKey: openAITTSVoiceDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
+            defaults.set(defaultOpenAITTSVoice, forKey: openAITTSVoiceDefaultsKey)
+        }
 
         if defaults.string(forKey: "amica_stt_backend") == nil {
             defaults.set(STTBackend.nativeIOS.rawValue, forKey: "amica_stt_backend")
@@ -71,6 +81,12 @@ enum HostedServiceConfig {
         let value = UserDefaults.standard.string(forKey: "amica_elevenlabs_voiceid")?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return value.isEmpty ? defaultElevenLabsVoiceID : value
+    }
+
+    static func selectedOpenAITTSVoice() -> String {
+        let value = UserDefaults.standard.string(forKey: openAITTSVoiceDefaultsKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? defaultOpenAITTSVoice : value
     }
 
     static func selectedServiceLanguageID() -> String {

@@ -215,15 +215,21 @@ enum OllamaConfig {
 
 enum TTSBackend: String, CaseIterable, Codable, Sendable {
     case elevenLabs = "elevenlabs"
+    case openAI = "openai_tts"
 
     var displayName: String {
         switch self {
         case .elevenLabs: "ElevenLabs"
+        case .openAI: "OpenAI"
         }
     }
 
     var keychainKey: String {
-        "com.scowld.tts.\(rawValue)"
+        switch self {
+        case .elevenLabs: "com.scowld.tts.\(rawValue)"
+        // OpenAI TTS reuses the OpenAI chat provider key (one key for chat + speech).
+        case .openAI: AIProvider.openai.keychainKey
+        }
     }
 
     var modelDefaultsKey: String {
@@ -239,12 +245,29 @@ enum TTSBackend: String, CaseIterable, Codable, Sendable {
                 "eleven_turbo_v2_5",
                 "eleven_flash_v2",
             ]
+        case .openAI:
+            [
+                "gpt-4o-mini-tts",
+                "tts-1",
+                "tts-1-hd",
+            ]
         }
     }
 
     var defaultModel: String {
         switch self {
         case .elevenLabs: HostedServiceConfig.defaultElevenLabsModel
+        case .openAI: "gpt-4o-mini-tts"
+        }
+    }
+
+    /// Fixed built-in voices exposed by the provider (OpenAI). ElevenLabs uses the
+    /// named/custom voice library instead, so it returns an empty list here.
+    var voiceOptions: [String] {
+        switch self {
+        case .elevenLabs: []
+        case .openAI:
+            ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"]
         }
     }
 

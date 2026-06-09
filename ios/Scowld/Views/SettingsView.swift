@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @State private var selectedVoicePickerID = HostedServiceConfig.defaultElevenLabsVoiceID
     @State private var customVoiceID = ""
+    @State private var selectedOpenAITTSVoice = HostedServiceConfig.defaultOpenAITTSVoice
     @State private var previewPlayer: AVAudioPlayer?
     @State private var previewError: String?
     @State private var selectedLanguageID = HostedServiceConfig.deviceLanguageID
@@ -103,7 +104,7 @@ struct SettingsView: View {
                     settingsSection(
                         "Text-to-Speech",
                         icon: "speaker.wave.3",
-                        footer: "ElevenLabs speech uses your API key from Keychain. Celine, Claire, and custom voice IDs are supported."
+                        footer: ttsSectionFooter
                     ) {
                         settingRow {
                             Picker("Provider", selection: $selectedTTSBackendID) {
@@ -128,72 +129,92 @@ struct SettingsView: View {
                             apiKeyField(placeholder: ttsAPIKeyPlaceholder, text: $ttsAPIKey, isRevealed: $revealTTSKey)
                         }
 
-                        settingRow {
-                            Picker("Voice", selection: $selectedVoicePickerID) {
-                                ForEach(ScowldVoiceLibrary.presetVoices) { voice in
-                                    Text(LocalizedStringKey(voice.name)).tag(voice.voiceID)
-                                }
-                                Text("Custom Voice ID").tag(ScowldVoiceLibrary.customID)
-                            }
-                            .pickerStyle(.menu)
-                            .onChange(of: selectedVoicePickerID) {
-                                guard !isLoadingSettings else { return }
-                                saveSelectedVoice()
-                                resetPreviewState()
-                            }
-                        }
-
-                        if selectedVoicePickerID == ScowldVoiceLibrary.customID {
+                        if selectedTTSBackend == .elevenLabs {
                             settingRow {
-                                TextField("ElevenLabs Voice ID", text: $customVoiceID)
-                                    .autocorrectionDisabled()
-                                    .textInputAutocapitalization(.never)
-                                    .onChange(of: customVoiceID) {
-                                        guard !isLoadingSettings else { return }
-                                        saveSelectedVoice()
-                                        resetPreviewState()
+                                Picker("Voice", selection: $selectedVoicePickerID) {
+                                    ForEach(ScowldVoiceLibrary.presetVoices) { voice in
+                                        Text(LocalizedStringKey(voice.name)).tag(voice.voiceID)
                                     }
+                                    Text("Custom Voice ID").tag(ScowldVoiceLibrary.customID)
+                                }
+                                .pickerStyle(.menu)
+                                .onChange(of: selectedVoicePickerID) {
+                                    guard !isLoadingSettings else { return }
+                                    saveSelectedVoice()
+                                    resetPreviewState()
+                                }
+                            }
+
+                            if selectedVoicePickerID == ScowldVoiceLibrary.customID {
+                                settingRow {
+                                    TextField("ElevenLabs Voice ID", text: $customVoiceID)
+                                        .autocorrectionDisabled()
+                                        .textInputAutocapitalization(.never)
+                                        .onChange(of: customVoiceID) {
+                                            guard !isLoadingSettings else { return }
+                                            saveSelectedVoice()
+                                            resetPreviewState()
+                                        }
+                                }
+
+                                settingsActionRow(
+                                    title: "Where to get a custom voice ID",
+                                    subtitle: "elevenlabs.io/app/voice-library",
+                                    systemImage: "info.circle"
+                                ) {
+                                    openURL(URL(string: "https://elevenlabs.io/app/voice-library")!)
+                                }
+                            } else if let voice = ScowldVoiceLibrary.option(for: selectedVoicePickerID) {
+                                settingRow {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(LocalizedStringKey(voice.description))
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                        Text(voice.voiceID)
+                                            .font(.caption.monospaced())
+                                            .foregroundStyle(.tertiary)
+                                            .textSelection(.enabled)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                }
                             }
 
                             settingsActionRow(
-                                title: "Where to get a custom voice ID",
-                                subtitle: "elevenlabs.io/app/voice-library",
-                                systemImage: "info.circle"
+                                title: previewButtonTitle,
+                                subtitle: selectedVoiceHasBundledPreview ? "Plays a bundled local sample" : nil,
+                                systemImage: previewButtonIcon,
+                                isDisabled: !selectedVoiceHasBundledPreview
                             ) {
-                                openURL(URL(string: "https://elevenlabs.io/app/voice-library")!)
+                                playBundledVoicePreview()
                             }
-                        } else if let voice = ScowldVoiceLibrary.option(for: selectedVoicePickerID) {
+
+                            if let previewError {
+                                settingsInfoRow(title: previewError, systemImage: "exclamationmark.triangle.fill", color: .red)
+                            }
+
+                            settingsInfoRow(
+                                title: "Preset samples are bundled in the app and play locally from this device.",
+                                systemImage: "speaker.wave.2.fill"
+                            )
+                        } else if selectedTTSBackend == .openAI {
                             settingRow {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(LocalizedStringKey(voice.description))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                    Text(voice.voiceID)
-                                        .font(.caption.monospaced())
-                                        .foregroundStyle(.tertiary)
-                                        .textSelection(.enabled)
+                                Picker("Voice", selection: $selectedOpenAITTSVoice) {
+                                    ForEach(TTSBackend.openAI.voiceOptions, id: \.self) { voice in
+                                        Text(voice.capitalized).tag(voice)
+                                    }
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .pickerStyle(.menu)
+                                .onChange(of: selectedOpenAITTSVoice) {
+                                    guard !isLoadingSettings else { return }
+                                    saveOpenAITTSVoice()
+                                }
                             }
-                        }
 
-                        settingsActionRow(
-                            title: previewButtonTitle,
-                            subtitle: selectedVoiceHasBundledPreview ? "Plays a bundled local sample" : nil,
-                            systemImage: previewButtonIcon,
-                            isDisabled: !selectedVoiceHasBundledPreview
-                        ) {
-                            playBundledVoicePreview()
+                            settingsInfoRow(
+                                title: "OpenAI voices use your OpenAI API key. There's no local preview.",
+                                systemImage: "info.circle"
+                            )
                         }
-
-                        if let previewError {
-                            settingsInfoRow(title: previewError, systemImage: "exclamationmark.triangle.fill", color: .red)
-                        }
-
-                        settingsInfoRow(
-                            title: "Preset samples are bundled in the app and play locally from this device.",
-                            systemImage: "speaker.wave.2.fill"
-                        )
 
                         glassSaveRow(status: ttsSettingsMessage ?? ttsSaveSubtitle) {
                             saveTTSSettings()
@@ -693,7 +714,16 @@ struct SettingsView: View {
     }
 
     private var ttsAPIKeyPlaceholder: String {
-        hasSavedTTSAPIKey ? "Saved API key - type to replace" : "ElevenLabs API key"
+        hasSavedTTSAPIKey ? "Saved API key - type to replace" : "\(selectedTTSBackend.displayName) API key"
+    }
+
+    private var ttsSectionFooter: String {
+        switch selectedTTSBackend {
+        case .elevenLabs:
+            return "ElevenLabs speech uses your API key from Keychain. Celine, Claire, and custom voice IDs are supported."
+        case .openAI:
+            return "OpenAI text-to-speech reuses your OpenAI API key from Keychain and its built-in voices."
+        }
     }
 
     private var aiSaveSubtitle: String {
@@ -773,6 +803,7 @@ struct SettingsView: View {
         ttsModelIsCustom = !backend.availableModels.isEmpty && !backend.availableModels.contains(selectedTTSModel)
         ttsAPIKey = KeychainManager.load(key: backend.keychainKey) ?? ""
         hasSavedTTSAPIKey = !ttsAPIKey.isEmpty
+        selectedOpenAITTSVoice = HostedServiceConfig.selectedOpenAITTSVoice()
         if resetMessage {
             ttsSettingsMessage = nil
         }
@@ -825,8 +856,12 @@ struct SettingsView: View {
         let model = selectedTTSModel.trimmingCharacters(in: .whitespacesAndNewlines)
         defaults.set(backend.rawValue, forKey: "amica_tts_backend")
         defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: backend.modelDefaultsKey)
-        defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: "amica_elevenlabs_model")
-        saveSelectedVoice()
+        if backend == .elevenLabs {
+            defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: "amica_elevenlabs_model")
+            saveSelectedVoice()
+        } else if backend == .openAI {
+            saveOpenAITTSVoice()
+        }
         saveKeyIfNeeded(ttsAPIKey, key: backend.keychainKey)
 
         hasSavedTTSAPIKey = KeychainManager.exists(key: backend.keychainKey)
@@ -855,6 +890,14 @@ struct SettingsView: View {
         defaults.set(
             ScowldVoiceLibrary.voiceID(for: selectedVoicePickerID, customVoiceID: customVoiceID),
             forKey: "amica_elevenlabs_voiceid"
+        )
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+    }
+
+    private func saveOpenAITTSVoice() {
+        UserDefaults.standard.set(
+            selectedOpenAITTSVoice,
+            forKey: HostedServiceConfig.openAITTSVoiceDefaultsKey
         )
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }

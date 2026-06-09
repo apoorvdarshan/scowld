@@ -1268,14 +1268,21 @@ class AmicaLocalServer {
     }
 
     private func handleOpenAITTSProxy(client: Int32, method: String, oaiPath: String, body: Data?) {
+        if method == "OPTIONS" {
+            sendCORSPreflight(client: client)
+            return
+        }
+
         let apiKey = KeychainManager.load(key: AIProvider.openai.keychainKey) ?? ""
         guard !apiKey.isEmpty else {
             sendResponse(client: client, data: Data("{\"error\":\"No OpenAI API key\"}".utf8), mimeType: "application/json", statusCode: 401)
             return
         }
 
+        // The web engine calls `<openai_tts_url>/v1/audio/speech`, and we inject
+        // `openai_tts_url = /api/openai-tts`, so oaiPath already includes `/v1/...`.
         let fullPath = oaiPath.hasPrefix("/") ? oaiPath : "/\(oaiPath)"
-        let urlStr = "https://api.openai.com/v1\(fullPath)"
+        let urlStr = "https://api.openai.com\(fullPath)"
         guard let url = URL(string: urlStr) else {
             sendResponse(client: client, data: Data("Bad URL".utf8), mimeType: "text/plain", statusCode: 400)
             return
@@ -1398,6 +1405,8 @@ struct AmicaFullView: UIViewRepresentable {
         let visionBackend = "native_ios"
         let elevenLabsVoiceId = HostedServiceConfig.selectedElevenLabsVoiceID()
         let elevenLabsModel = TTSBackend.selectedModel(for: .elevenLabs)
+        let openAITTSModel = TTSBackend.selectedModel(for: .openAI)
+        let openAITTSVoice = HostedServiceConfig.selectedOpenAITTSVoice()
         let keychainSentinel = "stored_in_ios_keychain"
         let characterName = CharacterPack.resolveCharacterName()
         let selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
@@ -1430,10 +1439,10 @@ struct AmicaFullView: UIViewRepresentable {
                 elevenlabs_model: '\(elevenLabsModel)',
                 rvc_enabled: 'false',
                 amica_life_enabled: 'false',
-                openai_tts_apikey: '',
-                openai_tts_url: 'https://api.openai.com/v1',
-                openai_tts_model: '',
-                openai_tts_voice: '',
+                openai_tts_apikey: '\(keychainSentinel)',
+                openai_tts_url: '/api/openai-tts',
+                openai_tts_model: '\(openAITTSModel)',
+                openai_tts_voice: '\(openAITTSVoice)',
                 name: '\(characterName)',
                 system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.',
                 vrm_url: '/vrm/\(selectedAvatar).vrm'
@@ -1882,6 +1891,8 @@ struct AmicaFullView: UIViewRepresentable {
             let sttBackend = defaults.string(forKey: "amica_stt_backend") ?? STTBackend.nativeIOS.rawValue
             let elevenLabsVoiceId = HostedServiceConfig.selectedElevenLabsVoiceID()
             let elevenLabsModel = TTSBackend.selectedModel(for: .elevenLabs)
+            let openAITTSModel = TTSBackend.selectedModel(for: .openAI)
+            let openAITTSVoice = HostedServiceConfig.selectedOpenAITTSVoice()
             let keychainSentinel = "stored_in_ios_keychain"
             let visionEnabledJS = "true"
             let visionBackend = "native_ios"
@@ -1908,10 +1919,10 @@ struct AmicaFullView: UIViewRepresentable {
                     elevenlabs_model: '\(elevenLabsModel)',
                     rvc_enabled: 'false',
                     amica_life_enabled: 'false',
-                    openai_tts_apikey: '',
-                    openai_tts_url: 'https://api.openai.com/v1',
-                    openai_tts_model: '',
-                    openai_tts_voice: '',
+                    openai_tts_apikey: '\(keychainSentinel)',
+                    openai_tts_url: '/api/openai-tts',
+                    openai_tts_model: '\(openAITTSModel)',
+                    openai_tts_voice: '\(openAITTSVoice)',
                     name: '\(characterName)',
                     system_prompt: 'You are \(characterName), a warm, cheerful, and expressive AI companion.',
                     vrm_url: '/vrm/\(selectedAvatar).vrm'
