@@ -66,7 +66,6 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
     LinkedIn: https://www.linkedin.com/company/scowld
     Instagram: https://www.instagram.com/scowld_/
     Product Hunt: https://www.producthunt.com/products/scowld
-    Ko-fi: https://ko-fi.com/apoorvdarshan
     Privacy Policy: https://scowld.xyz/privacy
     Terms of Service: https://scowld.xyz/terms
     Contact: ad13dtu@gmail.com
@@ -101,14 +100,56 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
 
 ## Reviewer Notes
 
-    Scowld 2.0 has no subscription, paywall, Billing tab, StoreKit purchase flow, voice credits, or extra credit packs.
+    IMPORTANT - Scowld is a bring-your-own-key (BYOK) app. It has NO bundled or free
+    API keys. To use it, you MUST enter your OWN API keys in Settings. This is by design,
+    the same way the app requires an AI provider key to chat.
 
-    Quick test path:
+    What needs a key:
+    - AI chat: requires an AI provider key (e.g. Gemini or OpenAI). Without it, chat cannot
+      generate a reply.
+    - Spoken voice replies: require an ElevenLabs or OpenAI text-to-speech key in
+      Settings > Text-to-Speech.
+
+    The message "ElevenLabs API key is missing. Add it in Settings > Text-to-Speech" is the
+    EXPECTED, in-app guidance shown when no TTS key has been entered yet. It is not a crash
+    or malfunction - it is telling you to add your own key, exactly like the AI provider key.
+    Once a valid ElevenLabs (or OpenAI) key is added, the companion speaks normally.
+
+    Step-by-step to test a full working session:
     1. Complete onboarding and accept Privacy/Terms.
-    2. Open Settings.
-    3. For no-key testing, choose native iOS speech-to-text and type a message after adding an AI provider key.
-    4. To test spoken replies, add an ElevenLabs API key in Text-to-Speech.
-    5. Use the hands-free toggle beside the eye icon, then say "Bella" or "hey Bella" while the app is idle.
-    6. Tap About > What's New to view the version 2.0 changes.
+    2. Open Settings > BYOK AI, choose a provider (e.g. Gemini), paste your API key, Save.
+    3. Type a message in Chat - you will get a text reply from the AI.
+    4. To hear spoken replies, open Settings > Text-to-Speech, paste an ElevenLabs API key,
+       Save, then send another message.
+    5. (Optional) Use the hands-free toggle beside the eye icon, then say "Bella" or
+       "hey Bella" while the app is idle.
 
-    Network access is required for cloud AI, cloud STT, and ElevenLabs TTS providers. Provider API keys are entered by the user and stored in iOS Keychain. The app is designed for iPhone and iPad.
+    Scowld 2.0 has no subscription, paywall, Billing tab, StoreKit purchase flow, voice
+    credits, or extra credit packs. Provider API keys are entered by the user and stored in
+    the iOS Keychain. Network access is required for cloud AI, cloud STT, and cloud TTS
+    providers. The app is designed for iPhone and iPad.
+
+## App Review Response Notes
+
+    Hello App Review,
+
+    Thank you for the review of Scowld 2.0. This resubmission (version 2.0, build 13)
+    addresses the items raised:
+
+    Guideline 5 - Legal (China / OpenAI):
+    We have deselected the China mainland storefront in App Store Connect Availability, so
+    the app is no longer distributed in China. OpenAI is one of several optional
+    bring-your-own-key providers the user may choose outside China.
+
+    Guideline 2.1(a) - Performance (error when sending messages):
+    The "ElevenLabs API key is missing. Add it in Settings > Text-to-Speech" message is
+    expected behavior, not a bug. Scowld is bring-your-own-key: it ships with no API keys,
+    so both AI chat and text-to-speech require the user to enter their own key in Settings,
+    the same way an AI provider key is required to chat. The message you saw was the in-app
+    prompt guiding the user to add their own ElevenLabs key. To reproduce a working spoken
+    reply, add an ElevenLabs (or OpenAI) text-to-speech key in Settings > Text-to-Speech,
+    then send a message. We have clarified this in the Reviewer Notes above.
+
+    Guideline 3.1.1 - Payments (In-App Purchase):
+    We have removed the "Support on Ko-fi" link from the app entirely. The app contains no
+    donation, payment, or external purchase mechanism.

@@ -89,7 +89,6 @@ struct AboutView: View {
     private let websiteURL = URL(string: "https://scowld.xyz")!
     private let privacyURL = URL(string: "https://scowld.xyz/privacy")!
     private let termsURL = URL(string: "https://scowld.xyz/terms")!
-    private let koFiURL = URL(string: "https://ko-fi.com/apoorvdarshan")!
     private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld")!
     private let githubRepoURL = URL(string: "https://github.com/apoorvdarshan/scowld")!
     private let githubIssuesURL = URL(string: "https://github.com/apoorvdarshan/scowld/issues")!
@@ -142,13 +141,6 @@ struct AboutView: View {
                             )
                         }
                         .buttonStyle(.plain)
-
-                        linkRow(
-                            title: "Support on Ko-fi",
-                            subtitle: "ko-fi.com/apoorvdarshan",
-                            systemImage: "cup.and.saucer.fill",
-                            url: koFiURL
-                        )
 
                         linkRow(
                             title: "Vote on Product Hunt",
