@@ -9,6 +9,8 @@
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/app/id6760672848"><img src="https://img.shields.io/badge/App%20Store-Download-black?logo=apple" alt="App Store"></a>
+  <a href="https://github.com/apoorvdarshan/scowld/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT"></a>
   <a href="https://scowld.xyz"><img src="https://img.shields.io/badge/Website-scowld.xyz-blue" alt="Website"></a>
   <a href="https://www.instagram.com/scowld_/"><img src="https://img.shields.io/badge/Instagram-@scowld__-pink" alt="Instagram"></a>
   <a href="https://www.linkedin.com/company/scowld"><img src="https://img.shields.io/badge/LinkedIn-Scowld-blue" alt="LinkedIn"></a>
@@ -38,7 +40,7 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 - **Multilingual speech settings** - Defaults to the iPhone language, with supported language overrides.
 - **Local key storage** - Provider API keys are stored in iOS Keychain; provider/model choices are stored in local preferences.
 - **Startup onboarding** - Local videos, rating prompt, and offline Privacy/Terms acceptance.
-- **About actions** - Update check, rating prompt, share, contact, Product Hunt, Ko-fi, LinkedIn, Instagram, privacy, and terms.
+- **About actions** - Update check, What's New, rating, Star on GitHub, share, Product Hunt, report an issue or request a feature via GitHub Issues, contact, LinkedIn, Instagram, X, privacy, and terms.
 
 ## Repo Structure
 
