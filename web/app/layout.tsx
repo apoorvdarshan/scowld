@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://scowld.xyz"),
+  metadataBase: new URL("https://www.scowld.xyz"),
   title: {
     default: "Scowld - AI Voice Companion for iOS",
     template: "%s | Scowld",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Scowld - AI Voice Companion for iOS",
     description: "Talk by voice or text with an animated AI companion. Free and open source — bring your own AI, speech-to-text, and text-to-speech keys.",
-    url: "https://scowld.xyz",
+    url: "https://www.scowld.xyz",
     siteName: "Scowld",
     type: "website",
     locale: "en_US",
@@ -86,8 +86,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               applicationCategory: "LifestyleApplication",
               operatingSystem: "iOS",
               description: "Free, open-source iOS AI voice companion with an animated avatar and bring-your-own-key AI, speech-to-text, and text-to-speech, plus optional vision and saved past chats.",
-              url: "https://scowld.xyz",
-              image: "https://scowld.xyz/og-image-scowld.jpg",
+              url: "https://www.scowld.xyz",
+              image: "https://www.scowld.xyz/og-image-scowld.jpg",
               author: { "@type": "Person", name: "Apoorv Darshan", url: "https://x.com/apoorvdarshan" },
               sameAs: [
                 "https://www.instagram.com/scowld_/",
@@ -112,7 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@type": "WebSite",
               name: "Scowld",
               alternateName: "Scowld AI Voice Companion",
-              url: "https://scowld.xyz",
+              url: "https://www.scowld.xyz",
               description:
                 "Free, open-source iOS AI voice companion with an animated avatar and bring-your-own-key AI, speech-to-text, and text-to-speech.",
             }),
@@ -125,8 +125,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "Scowld",
-              url: "https://scowld.xyz",
-              logo: "https://scowld.xyz/logo.png",
+              url: "https://www.scowld.xyz",
+              logo: "https://www.scowld.xyz/logo.png",
               founder: { "@type": "Person", name: "Apoorv Darshan" },
               sameAs: [
                 "https://www.instagram.com/scowld_/",
