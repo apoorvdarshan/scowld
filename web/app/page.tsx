@@ -143,6 +143,7 @@ export default function Home() {
           Scowld
         </Link>
         <nav className="nav__links">
+          <Link href="/blog" className="nav__link">Blog</Link>
           <Link href="/privacy" className="nav__link">Privacy</Link>
           <Link href="/terms" className="nav__link">Terms</Link>
           <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="nav__link">LinkedIn</a>
@@ -306,6 +307,7 @@ export default function Home() {
               <a href={links.x} target="_blank" rel="noopener noreferrer" className="footer__link">X @apoorvdarshan</a>
               <a href={links.github} target="_blank" rel="noopener noreferrer" className="footer__link">GitHub</a>
               <a href={links.productHunt} target="_blank" rel="noopener noreferrer" className="footer__link">Product Hunt</a>
+              <Link href="/blog" className="footer__link">Blog</Link>
               <Link href="/privacy" className="footer__link">Privacy</Link>
               <Link href="/terms" className="footer__link">Terms</Link>
             </div>
