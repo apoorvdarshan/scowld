@@ -59,7 +59,7 @@ npm run dev   # http://localhost:3000
 - **Never hardcode or commit API keys, tokens, or secrets.** Keys belong in the iOS Keychain at runtime, entered by the user — never in source or git history.
 - Keep the **BYOK model intact**: requests go directly from the device to the user's chosen provider. Do not introduce a server that receives or stores user keys.
 - Prefer the existing helpers and components (settings rows, providers, `KeychainManager`, etc.) over new one-off patterns.
-- If you change legal text, keep the **website Privacy/Terms** and the **in-app onboarding copy** in sync.
+- If you change legal text, update the **website Privacy/Terms** pages — startup onboarding links to them.
 - Keep user-facing copy concise and consistent with the existing tone.
 
 ## Reporting bugs

@@ -1,6 +1,6 @@
 # App Store Listing
 
-App Store Connect submission details for Scowld v2.0. Each field is in a code block for easy copy-paste.
+App Store Connect submission details for Scowld v2.0.1. Each field is in a code block for easy copy-paste.
 
 ## App Name (30 chars max)
 
@@ -41,7 +41,7 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
     - Optional AI response captions
     - Camera vision support when you choose to send visual context
     - Multilingual speech settings with iPhone language inheritance
-    - App Store update checks, What's New, rating, sharing, contact, and social links in About
+    - App Store update checks, rating, sharing, contact, and social links in About
 
     PRIVACY AND SECURITY
     - No user account is required
@@ -63,7 +63,7 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
 
     Built with SwiftUI, iOS Keychain, Gemini, OpenAI, Claude, Ollama, OpenAI-compatible providers, cloud STT providers, ElevenLabs, and a Vercel website.
     Website: https://scowld.xyz
-    LinkedIn: https://www.linkedin.com/company/scowld
+    Blog: https://scowld.xyz/blog
     Instagram: https://www.instagram.com/scowld_/
     Product Hunt: https://www.producthunt.com/products/scowld
     Privacy Policy: https://scowld.xyz/privacy
@@ -72,15 +72,12 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
 
     Not affiliated with Google, OpenAI, Anthropic, Deepgram, ElevenLabs, Apple, Vercel, or other supported providers.
 
-## What's New (v2.0)
+## What's New (v2.0.1)
 
-    - Removed subscriptions, paywall, Billing, StoreKit purchases, voice credits, and extra credit packs
-    - Added bring-your-own-key provider settings
-    - Added AI provider selection for Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI
-    - Added STT provider selection for native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud STT
-    - Added ElevenLabs API key, model, Celine, Claire, and custom voice ID controls
-    - Added a What's New button under Check for Updates in About
-    - Updated bundled Privacy Policy and Terms for BYOK behavior
+    - Streamlined onboarding with direct Privacy Policy and Terms links
+    - Simplified the About screen
+    - Character settings now show an editable default name and system prompt with a Clear option
+    - Minor fixes and refinements
 
 ## Privacy URL
 
@@ -133,7 +130,7 @@ App Store Connect submission details for Scowld v2.0. Each field is in a code bl
 
     Hello App Review,
 
-    Thank you for the review of Scowld 2.0. This resubmission (version 2.0, build 13)
+    Thank you for the review of Scowld. This resubmission (version 2.0.1, build 14)
     addresses the items raised:
 
     Guideline 5 - Legal (China / OpenAI):

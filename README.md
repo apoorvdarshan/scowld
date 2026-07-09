@@ -13,7 +13,6 @@
   <a href="https://github.com/apoorvdarshan/scowld/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT"></a>
   <a href="https://scowld.xyz"><img src="https://img.shields.io/badge/Website-scowld.xyz-blue" alt="Website"></a>
   <a href="https://www.instagram.com/scowld_/"><img src="https://img.shields.io/badge/Instagram-@scowld__-pink" alt="Instagram"></a>
-  <a href="https://www.linkedin.com/company/scowld"><img src="https://img.shields.io/badge/LinkedIn-Scowld-blue" alt="LinkedIn"></a>
   <a href="https://www.producthunt.com/products/scowld"><img src="https://img.shields.io/badge/Product%20Hunt-Scowld-orange" alt="Product Hunt"></a>
 </p>
 
@@ -39,8 +38,8 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 - **Character settings** - Avatar, custom name, and system prompt controls.
 - **Multilingual speech settings** - Defaults to the iPhone language, with supported language overrides.
 - **Local key storage** - Provider API keys are stored in iOS Keychain; provider/model choices are stored in local preferences.
-- **Startup onboarding** - Local videos, rating prompt, and offline Privacy/Terms acceptance.
-- **About actions** - Update check, What's New, rating, Star on GitHub, share, Product Hunt, report an issue or request a feature via GitHub Issues, contact, LinkedIn, Instagram, X, privacy, and terms.
+- **Startup onboarding** - Local companion videos and Privacy/Terms acceptance with links to the web policies.
+- **About actions** - Update check, rating, Star on GitHub, share, Product Hunt, report an issue or request a feature via GitHub Issues, contact, Instagram, X, privacy, and terms.
 
 ## Repo Structure
 
@@ -70,7 +69,7 @@ WKWebView (bundled Amica/Arbius frontend)
 └── Native bridge        - JavaScript to Swift message passing
 
 Vercel / Next.js website
-└── Marketing, privacy, and terms pages only
+└── Marketing, blog, privacy, and terms pages
 ```
 
 ## Requirements
@@ -124,14 +123,14 @@ See [web/.env.example](web/.env.example) for defaults.
 - Hands-free wake detection is processed on device while the app is open and idle; it is not sent to external providers before command recording starts.
 - Camera access is optional and used only when visual context is sent.
 - Scowld does not use Apple's TrueDepth API or ARKit face tracking and does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data.
-- Privacy Policy and Terms are published on the web and bundled as offline acceptance text in startup onboarding. Keep both copies in sync when legal text changes.
+- Privacy Policy and Terms are published on the web. Startup onboarding links to the web policies and records acceptance.
 
 ## Website Links
 
 - Website: https://scowld.xyz
+- Blog: https://scowld.xyz/blog
 - Privacy: https://scowld.xyz/privacy
 - Terms: https://scowld.xyz/terms
-- LinkedIn: https://www.linkedin.com/company/scowld
 - Instagram: https://www.instagram.com/scowld_/
 - Product Hunt: https://www.producthunt.com/products/scowld
 - Ko-fi: https://ko-fi.com/apoorvdarshan

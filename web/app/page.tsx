@@ -7,7 +7,6 @@ import { useEffect, useRef } from "react";
 const links = {
   appStore: "https://apps.apple.com/in/app/scowld-ai-voice-companion/id6760672848",
   productHunt: "https://www.producthunt.com/products/scowld",
-  linkedIn: "https://www.linkedin.com/company/scowld",
   instagram: "https://www.instagram.com/scowld_/",
   github: "https://github.com/apoorvdarshan/scowld",
   koFi: "https://ko-fi.com/apoorvdarshan",
@@ -84,7 +83,6 @@ const faqs = [
 
 const socialLinks = [
   { href: links.github, label: "GitHub", icon: "fa-brands fa-github" },
-  { href: links.linkedIn, label: "LinkedIn", icon: "fa-brands fa-linkedin-in" },
   { href: links.instagram, label: "Instagram", icon: "fa-brands fa-instagram" },
   { href: links.koFi, label: "Ko-fi", icon: "fa-solid fa-mug-saucer" },
   { href: links.x, label: "X", icon: "fa-brands fa-x-twitter" },
@@ -146,7 +144,6 @@ export default function Home() {
           <Link href="/blog" className="nav__link">Blog</Link>
           <Link href="/privacy" className="nav__link">Privacy</Link>
           <Link href="/terms" className="nav__link">Terms</Link>
-          <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="nav__link">LinkedIn</a>
           <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="nav__link">Instagram</a>
           <a href={links.github} target="_blank" rel="noopener noreferrer" className="nav__link">GitHub</a>
           <a href={links.x} target="_blank" rel="noopener noreferrer" className="nav__link">
@@ -302,7 +299,6 @@ export default function Home() {
             </Link>
             <span className="footer__divider" />
             <div className="footer__links">
-              <a href={links.linkedIn} target="_blank" rel="noopener noreferrer" className="footer__link">LinkedIn</a>
               <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="footer__link">Instagram</a>
               <a href={links.x} target="_blank" rel="noopener noreferrer" className="footer__link">X @apoorvdarshan</a>
               <a href={links.github} target="_blank" rel="noopener noreferrer" className="footer__link">GitHub</a>
