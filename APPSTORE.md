@@ -14,10 +14,6 @@ App Store Connect submission details for Scowld v2.0.1. Each field is in a code 
 
     Talk hands-free, by voice, or by text with an animated AI companion. Version 2.0 adds bring-your-own-key providers and removes the paywall.
 
-## Keywords (100 chars max)
-
-    ai companion,voice chat,avatar,tts,stt,byok,gemini,openai,elevenlabs,assistant
-
 ## Category
 
     Primary Category: Lifestyle
@@ -78,6 +74,10 @@ App Store Connect submission details for Scowld v2.0.1. Each field is in a code 
     - Simplified the About screen
     - Character settings now show an editable default name and system prompt with a Clear option
     - Minor fixes and refinements
+
+## Keywords (100 chars max)
+
+    ai companion,voice chat,avatar,tts,stt,byok,gemini,openai,elevenlabs,assistant
 
 ## Privacy URL
 
