@@ -42,10 +42,10 @@ struct SettingsView: View {
 
     // MARK: - Character Settings
     @State private var hasCharacterChanges = false
-    @State private var characterName: String = "Bella"
+    @State private var characterName: String = ""
     @State private var selectedAvatar: String = "AvatarSample_A"
     @State private var systemPrompt: String = ""
-    @State private var savedCharacterName: String = "Bella"
+    @State private var savedCharacterName: String = ""
     @State private var savedSystemPrompt: String = ""
 
     var showsDismissControls = true
@@ -241,7 +241,7 @@ struct SettingsView: View {
 
                         settingRow {
                             HStack(spacing: 8) {
-                                TextField("Add custom name", text: $characterName)
+                                TextField("Bella", text: $characterName)
                                     .autocorrectionDisabled()
                                     .onChange(of: characterName) { markCharacterChanged() }
 
@@ -263,24 +263,51 @@ struct SettingsView: View {
                                 Text("System Prompt")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                TextEditor(text: $systemPrompt)
-                                    .frame(minHeight: 112)
-                                    .font(.body)
-                                    .scrollContentBackground(.hidden)
-                                    .background(.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .onChange(of: systemPrompt) { markCharacterChanged() }
+                                ZStack(alignment: .topLeading) {
+                                    if systemPrompt.isEmpty {
+                                        Text(Self.defaultSystemPrompt)
+                                            .font(.body)
+                                            .foregroundStyle(.secondary)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 8)
+                                            .allowsHitTesting(false)
+                                    }
+                                    TextEditor(text: $systemPrompt)
+                                        .frame(minHeight: 112)
+                                        .font(.body)
+                                        .scrollContentBackground(.hidden)
+                                        .onChange(of: systemPrompt) { markCharacterChanged() }
+                                }
+                                .background(.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             }
                         }
 
-                        settingsActionRow(
-                            title: "Save Character",
-                            subtitle: hasCharacterChanges ? "Unsaved changes" : "No changes",
-                            systemImage: "checkmark.circle.fill",
-                            tint: hasCharacterChanges ? .amicaBlue : .secondary,
-                            isDisabled: !hasCharacterChanges
-                        ) {
-                            saveCharacterSettings()
+                        HStack(spacing: 12) {
+                            Button {
+                                clearCharacterDefaults()
+                            } label: {
+                                Label("Clear", systemImage: "arrow.counterclockwise")
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(canClearCharacter ? Color.red : Color.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(!canClearCharacter)
+                            .accessibilityLabel("Clear custom name and system prompt")
+
+                            Spacer()
+
+                            Button {
+                                saveCharacterSettings()
+                            } label: {
+                                Label("Save Character", systemImage: "checkmark.circle.fill")
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(hasCharacterChanges ? Color.amicaBlue : Color.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(!hasCharacterChanges)
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
                     }
 
                 }
@@ -761,9 +788,10 @@ struct SettingsView: View {
         selectedLanguageID = HostedServiceConfig.selectedServiceLanguageID()
         let storedCharacterName = defaults.string(forKey: "character_name")?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        characterName = storedCharacterName.isEmpty ? "Bella" : storedCharacterName
+        characterName = storedCharacterName
         selectedAvatar = defaults.string(forKey: "selected_avatar") ?? "AvatarSample_A"
-        systemPrompt = defaults.string(forKey: "system_prompt") ?? Self.defaultSystemPrompt
+        let storedSystemPrompt = defaults.string(forKey: "system_prompt") ?? ""
+        systemPrompt = storedSystemPrompt == Self.defaultSystemPrompt ? "" : storedSystemPrompt
         savedCharacterName = characterName
         savedSystemPrompt = systemPrompt
         showAICaption = defaults.bool(forKey: "show_ai_caption")
@@ -919,6 +947,20 @@ struct SettingsView: View {
             systemPrompt != savedSystemPrompt
     }
 
+    private var canClearCharacter: Bool {
+        !characterName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Reset the custom name and system prompt back to their placeholder defaults.
+    /// Persisted on the next Save (empty name resolves to Bella; empty prompt to the default).
+    private func clearCharacterDefaults() {
+        dismissKeyboard()
+        characterName = ""
+        systemPrompt = ""
+        markCharacterChanged()
+    }
+
     private func saveAvatarSettings() {
         UserDefaults.standard.set(selectedAvatar, forKey: "selected_avatar")
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
@@ -928,13 +970,17 @@ struct SettingsView: View {
         dismissKeyboard()
         let defaults = UserDefaults.standard
         HostedServiceConfig.applyBYOKDefaults()
-        let trimmedCharacterName = characterName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let savedName = trimmedCharacterName.isEmpty ? "Bella" : trimmedCharacterName
-        characterName = savedName
-        defaults.set(trimmedCharacterName, forKey: "character_name")
-        defaults.set(systemPrompt, forKey: "system_prompt")
 
-        savedCharacterName = savedName
+        let trimmedCharacterName = characterName.trimmingCharacters(in: .whitespacesAndNewlines)
+        characterName = trimmedCharacterName
+        defaults.set(trimmedCharacterName, forKey: "character_name")
+
+        // An empty field means "use the default." Store the default text so the
+        // effective prompt is unchanged, while the field keeps showing it as a placeholder.
+        let trimmedSystemPrompt = systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        defaults.set(trimmedSystemPrompt.isEmpty ? Self.defaultSystemPrompt : systemPrompt, forKey: "system_prompt")
+
+        savedCharacterName = trimmedCharacterName
         savedSystemPrompt = systemPrompt
         hasCharacterChanges = false
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
