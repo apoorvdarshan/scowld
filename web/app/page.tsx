@@ -33,8 +33,24 @@ const tags = [
 
 const faqs = [
   {
+    q: "What is Scowld?",
+    a: "Scowld is a free, open-source iOS AI voice companion with an animated on-screen avatar. You talk by voice or text, get spoken replies through ElevenLabs or OpenAI voices, and can optionally let it use the camera so it responds to what you show it. You bring your own AI, speech-to-text, and text-to-speech API keys.",
+  },
+  {
     q: "Is Scowld free?",
     a: "Yes. Scowld is free and open source (MIT). There are no subscriptions, paywalls, voice credits, or in-app purchases. You bring your own provider API keys and pay your chosen providers directly for usage.",
+  },
+  {
+    q: "Can Scowld see through the camera?",
+    a: "Yes, optionally. When you enable the camera, Scowld can send a frame to your chosen AI provider so the companion responds to what you show it — like holding up an object. Camera vision is off by default and only used when you send a message with it enabled.",
+  },
+  {
+    q: "Does Scowld work on iPhone and iPad?",
+    a: "Yes. Scowld runs on iPhone and iPad with iOS 17 or later. Settings, provider keys, and saved chats stay on the device.",
+  },
+  {
+    q: "How is Scowld different from other AI companion apps?",
+    a: "Scowld is bring-your-own-key and open source, so there is no paywall and no server that stores your keys or conversations — requests go straight from your device to the providers you pick. It also pairs an animated avatar with optional camera vision, hands-free wake, and swappable AI, speech-to-text, and text-to-speech providers.",
   },
   {
     q: "What does bring-your-own-key (BYOK) mean?",
@@ -185,7 +201,7 @@ export default function Home() {
             <div className="sr sr-delay-4 phone-float">
               <Image
                 src="/mockup.png"
-                alt="Scowld app screenshot"
+                alt="Scowld AI voice companion app on iPhone showing the animated avatar and voice chat composer"
                 width={1080}
                 height={1920}
                 priority
