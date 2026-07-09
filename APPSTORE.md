@@ -125,28 +125,3 @@ App Store Connect submission details for Scowld v2.0.1. Each field is in a code 
     credits, or extra credit packs. Provider API keys are entered by the user and stored in
     the iOS Keychain. Network access is required for cloud AI, cloud STT, and cloud TTS
     providers. The app is designed for iPhone and iPad.
-
-## App Review Response Notes
-
-    Hello App Review,
-
-    Thank you for the review of Scowld. This resubmission (version 2.0.1, build 14)
-    addresses the items raised:
-
-    Guideline 5 - Legal (China / OpenAI):
-    We have deselected the China mainland storefront in App Store Connect Availability, so
-    the app is no longer distributed in China. OpenAI is one of several optional
-    bring-your-own-key providers the user may choose outside China.
-
-    Guideline 2.1(a) - Performance (error when sending messages):
-    The "ElevenLabs API key is missing. Add it in Settings > Text-to-Speech" message is
-    expected behavior, not a bug. Scowld is bring-your-own-key: it ships with no API keys,
-    so both AI chat and text-to-speech require the user to enter their own key in Settings,
-    the same way an AI provider key is required to chat. The message you saw was the in-app
-    prompt guiding the user to add their own ElevenLabs key. To reproduce a working spoken
-    reply, add an ElevenLabs (or OpenAI) text-to-speech key in Settings > Text-to-Speech,
-    then send a message. We have clarified this in the Reviewer Notes above.
-
-    Guideline 3.1.1 - Payments (In-App Purchase):
-    We have removed the "Support on Ko-fi" link from the app entirely. The app contains no
-    donation, payment, or external purchase mechanism.
