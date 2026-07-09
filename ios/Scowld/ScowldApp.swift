@@ -84,7 +84,6 @@ struct AboutView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.requestReview) private var requestReview
     @Binding var updateState: AppUpdateState
-    @State private var showsWhatsNew = false
 
     private let websiteURL = URL(string: "https://scowld.xyz")!
     private let privacyURL = URL(string: "https://scowld.xyz/privacy")!
@@ -110,15 +109,6 @@ struct AboutView: View {
                             subtitleColor: updateStatusColor
                         ) {
                             handleUpdateTap()
-                        }
-
-                        aboutActionRow(
-                            title: "What's New",
-                            subtitle: "Version 2.0",
-                            systemImage: "sparkles",
-                            trailing: .chevron
-                        ) {
-                            showsWhatsNew = true
                         }
 
                         aboutActionRow(title: "Rate Scowld", systemImage: "star.fill") {
@@ -233,11 +223,6 @@ struct AboutView: View {
             .background(Color.black.ignoresSafeArea())
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showsWhatsNew) {
-                WhatsNewView()
-                    .presentationDetents([.medium])
-                    .presentationDragIndicator(.visible)
-            }
         }
     }
 
@@ -468,52 +453,6 @@ private enum AboutRowTrailing {
     case chevron
     case progress
     case none
-}
-
-private struct WhatsNewView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section("Version 2.0") {
-                    whatsNewRow(icon: "key.fill", title: "Bring your own keys", text: "Use your own AI, speech-to-text, and ElevenLabs API keys from Settings.")
-                    whatsNewRow(icon: "lock.open.fill", title: "No paywall", text: "Subscriptions, paywalls, and voice credits have been removed.")
-                    whatsNewRow(icon: "brain.head.profile", title: "More AI providers", text: "Choose Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, or Moonshot.")
-                    whatsNewRow(icon: "waveform.badge.mic", title: "Speech provider controls", text: "Pick native iOS speech or cloud STT providers such as Deepgram, OpenAI Whisper, Groq Whisper, AssemblyAI, and Google Cloud.")
-                    whatsNewRow(icon: "speaker.wave.3.fill", title: "ElevenLabs voice control", text: "Choose Celine, Claire, another bundled voice, or a custom ElevenLabs voice ID and model.")
-                }
-            }
-            .navigationTitle("What's New")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-
-    private func whatsNewRow(icon: String, title: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.amicaBlue)
-                .frame(width: 28, height: 28)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(text)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(.vertical, 3)
-    }
 }
 
 enum AppUpdateState: Equatable {
