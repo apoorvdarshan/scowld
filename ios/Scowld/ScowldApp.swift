@@ -175,13 +175,6 @@ struct AboutView: View {
 
                     aboutSection("Social", icon: "link") {
                         linkRow(
-                            title: "LinkedIn",
-                            subtitle: "linkedin.com/company/scowld",
-                            systemImage: "person.2.fill",
-                            url: URL(string: "https://www.linkedin.com/company/scowld")!
-                        )
-
-                        linkRow(
                             title: "Instagram",
                             subtitle: "@scowld_",
                             systemImage: "camera.fill",
