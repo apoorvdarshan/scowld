@@ -8,6 +8,16 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "routes": [
+    {
+      "pattern": "scowld.xyz",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.scowld.xyz",
+      "custom_domain": true
+    }
+  ],
   "observability": {
     "enabled": false
   }
