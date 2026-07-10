@@ -57,7 +57,7 @@ App Store Connect submission details for Scowld v2.0.1. Each field is in a code 
     4. Scowld transcribes speech, sends the message to your selected AI provider, and speaks the response with ElevenLabs
     5. Save and switch between past chats when you want separate conversation contexts
 
-    Built with SwiftUI, iOS Keychain, Gemini, OpenAI, Claude, Ollama, OpenAI-compatible providers, cloud STT providers, ElevenLabs, and a Vercel website.
+    Built with SwiftUI, iOS Keychain, Gemini, OpenAI, Claude, Ollama, OpenAI-compatible providers, cloud STT providers, ElevenLabs, and a Cloudflare-hosted website.
     Website: https://scowld.xyz
     Blog: https://scowld.xyz/blog
     Instagram: https://www.instagram.com/scowld_/
@@ -66,7 +66,7 @@ App Store Connect submission details for Scowld v2.0.1. Each field is in a code 
     Terms of Service: https://scowld.xyz/terms
     Contact: ad13dtu@gmail.com
 
-    Not affiliated with Google, OpenAI, Anthropic, Deepgram, ElevenLabs, Apple, Vercel, or other supported providers.
+    Not affiliated with Google, OpenAI, Anthropic, Deepgram, ElevenLabs, Apple, Cloudflare, or other supported providers.
 
 ## What's New (v2.0.1)
 

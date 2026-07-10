@@ -68,7 +68,7 @@ WKWebView (bundled Amica/Arbius frontend)
 ├── AudioContext         - TTS audio playback
 └── Native bridge        - JavaScript to Swift message passing
 
-Vercel / Next.js website
+Cloudflare Workers / Next.js website
 └── Marketing, blog, privacy, and terms pages
 ```
 
@@ -76,8 +76,8 @@ Vercel / Next.js website
 
 - iOS 17.0+
 - Xcode 16+
-- Node.js for the website
-- No Vercel environment variables are required for app AI, speech, or billing services.
+- Node.js 20.9+ for the website
+- No Cloudflare environment variables are required for app AI, speech, or billing services.
 - Users bring their own provider API keys inside the iOS app.
 
 ## Monetization
@@ -107,6 +107,20 @@ npm run dev
 ```
 
 Next.js runs at `http://localhost:3000`.
+
+Build and preview in the Cloudflare Workers runtime:
+
+```bash
+npm run preview
+```
+
+Deploy with the configured Wrangler account:
+
+```bash
+npm run deploy
+```
+
+The deployment targets the `scowld-web` Worker. To serve `scowld.xyz`, first add the domain as a Cloudflare zone and update its registrar nameservers, then add `scowld.xyz` and `www.scowld.xyz` as Worker custom domains.
 
 ### Website Environment Variables
 

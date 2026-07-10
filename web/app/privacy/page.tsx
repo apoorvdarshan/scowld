@@ -20,7 +20,7 @@ export default function Privacy() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Privacy Policy</h1>
-        <p className="legal__date">Last updated: June 10, 2026</p>
+        <p className="legal__date">Last updated: July 10, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -36,7 +36,7 @@ export default function Privacy() {
               <li>We do not ask for your name, email, location, or account password in the iOS app.</li>
               <li>We do not sell personal data.</li>
               <li>We do not use advertising frameworks in the iOS app.</li>
-              <li>The marketing website may use Vercel Analytics for aggregate website traffic measurement.</li>
+              <li>The marketing website is hosted on Cloudflare Workers and does not include a third-party analytics component.</li>
             </ul>
           </div>
 
@@ -99,7 +99,7 @@ export default function Privacy() {
               <li><strong className="legal__strong-dim">Speech-to-text providers</strong>, including native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
               <li><strong className="legal__strong-dim">ElevenLabs</strong> and <strong className="legal__strong-dim">OpenAI</strong> for text-to-speech.</li>
               <li><strong className="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, speech recognition, camera, microphone, and app distribution.</li>
-              <li><strong className="legal__strong-dim">Vercel</strong> for website deployment.</li>
+              <li><strong className="legal__strong-dim">Cloudflare</strong> for website deployment and delivery.</li>
             </ul>
             <p>These third-party services have their own privacy policies and terms. You are responsible for the provider accounts and API keys you configure.</p>
           </div>

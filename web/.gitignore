@@ -17,6 +17,11 @@
 /.next/
 /out/
 
+# Cloudflare / OpenNext
+/.open-next/
+/.wrangler/
+.dev.vars*
+
 # production
 /build
 
@@ -34,7 +39,7 @@ yarn-error.log*
 .env*
 !.env.example
 
-# vercel
+# legacy local Vercel metadata
 .vercel
 
 # typescript
