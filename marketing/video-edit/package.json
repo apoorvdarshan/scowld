@@ -1,0 +1,24 @@
+{
+  "name": "scowld-portrait-video",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio --no-open",
+    "still": "remotion still src/index.ts ScowldPortrait",
+    "render:review": "remotion render src/index.ts ScowldPortrait output/scowld-portrait-review-v3.mp4 --codec=h264 --crf=25 --pixel-format=yuv420p --scale=0.6666667",
+    "render:master": "remotion render src/index.ts ScowldPortrait output/scowld-portrait-master-v1.mp4 --codec=h264 --crf=18 --pixel-format=yuv420p"
+  },
+  "dependencies": {
+    "@remotion/captions": "4.0.499",
+    "@remotion/cli": "4.0.499",
+    "@remotion/media": "4.0.499",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.499"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.9.0"
+  }
+}

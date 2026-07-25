@@ -1,0 +1,6 @@
+No third-party music or stock audio is used.
+
+- Dialogue and interface audio: original user-supplied Scowld screen recording.
+- Ambient bed (`original-ambient-bed-v2.wav`): generated locally from sine
+  oscillators and filtered noise using FFmpeg for this Scowld edit. Original
+  project asset; no external license or attribution required.

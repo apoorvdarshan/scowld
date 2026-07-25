@@ -3,3 +3,10 @@
 # iOS build artifacts
 ios/build/
 DerivedData/
+
+# Local marketing video sources and renders
+marketing/scowld.mp4
+marketing/video-edit/node_modules/
+marketing/video-edit/output/
+marketing/video-edit/review/
+marketing/video-edit/public/assets/scowld-raw.mp4
