@@ -154,6 +154,16 @@ See [web/.env.example](web/.env.example) for defaults.
 - Character/avatar frontend: Amica / Arbius AI (MIT)
 - Developer: Apoorv Darshan, ad13dtu@gmail.com
 
+## Star History
+
+<a href="https://github.com/apoorvdarshan/scowld/stargazers">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://scowld.xyz/api/star-history.svg?theme=dark&amp;v=1" />
+    <source media="(prefers-color-scheme: light)" srcset="https://scowld.xyz/api/star-history.svg?theme=light&amp;v=1" />
+    <img alt="Scowld GitHub star history" src="https://scowld.xyz/api/star-history.svg?theme=light&amp;v=1" />
+  </picture>
+</a>
+
 ## License
 
 Scowld is released under the [MIT License](LICENSE). The bundled character/avatar frontend (Amica / Arbius AI) is also MIT licensed.
