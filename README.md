@@ -158,9 +158,9 @@ See [web/.env.example](web/.env.example) for defaults.
 
 <a href="https://github.com/apoorvdarshan/scowld/stargazers">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://scowld.xyz/api/star-history.svg?theme=dark&amp;v=2" />
-    <source media="(prefers-color-scheme: light)" srcset="https://scowld.xyz/api/star-history.svg?theme=light&amp;v=2" />
-    <img alt="Scowld GitHub star history" src="https://scowld.xyz/api/star-history.svg?theme=light&amp;v=2" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://scowld.xyz/api/star-history.svg?theme=dark&amp;v=3" />
+    <source media="(prefers-color-scheme: light)" srcset="https://scowld.xyz/api/star-history.svg?theme=light&amp;v=3" />
+    <img alt="Scowld GitHub star history" src="https://scowld.xyz/api/star-history.svg?theme=light&amp;v=3" />
   </picture>
 </a>
 
