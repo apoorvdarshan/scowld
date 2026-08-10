@@ -94,7 +94,7 @@ function renderStarHistory(starredAtValues: string[], themeName: ThemeName) {
   const theme = themes[themeName];
   const width = 960;
   const height = 520;
-  const plot = { left: 76, top: 144, right: 904, bottom: 424 };
+  const plot = { left: 76, top: 158, right: 904, bottom: 395 };
   const now = Date.now();
   const stars = starredAtValues
     .map((value) => new Date(value).getTime())
@@ -132,42 +132,66 @@ function renderStarHistory(starredAtValues: string[], themeName: ThemeName) {
     })
     .join("");
   const currentY = y(stars.length);
+  const reactions = [0.3, 0.56, 0.8]
+    .map((ratio, index) => {
+      const point = points[Math.round((points.length - 1) * ratio)];
+      const glyph = ["✦", "♡", "♪"][index];
+      return `<g transform="translate(${point[0]} ${point[1] - 7}) rotate(${index % 2 ? 5 : -5})" filter="url(#soft-sketch)"><path d="M-12 -30 Q-12 -42 0 -42 H18 Q30 -42 30 -30 V-16 Q30 -5 18 -5 H7 L1 3 L0 -5 Q-12 -5 -12 -17Z" fill="${theme.panel}" stroke="${index === 0 ? "#35D9FF" : index === 1 ? "#C968FF" : "#738BFF"}" stroke-width="1.8"/><text x="9" y="-18" text-anchor="middle" fill="${index === 0 ? "#35D9FF" : index === 1 ? "#C968FF" : "#738BFF"}" font-family="ui-rounded,'Arial Rounded MT Bold',sans-serif" font-size="18" font-weight="800">${glyph}</text></g>`;
+    })
+    .join("");
+  const dark = themeName === "dark";
+  const card = dark ? "#0D1120" : "#FFFFFF";
+  const hair = dark ? "#274BC8" : "#2148C7";
+  const ink = dark ? "#F8FAFF" : "#17203B";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title description">
   <title id="title">Scowld GitHub star history</title>
   <desc id="description">${stars.length} GitHub stars over time for ${OWNER}/${REPOSITORY}.</desc>
   <defs>
-    <linearGradient id="voice-line" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#35D9FF"/><stop offset="0.5" stop-color="#738BFF"/><stop offset="1" stop-color="#C968FF"/></linearGradient>
-    <linearGradient id="voice-area" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#738BFF" stop-opacity="0.27"/><stop offset="1" stop-color="#C968FF" stop-opacity="0"/></linearGradient>
-    <radialGradient id="aura" cx="17%" cy="2%" r="68%"><stop stop-color="#35D9FF" stop-opacity="${themeName === "dark" ? "0.12" : "0.07"}"/><stop offset="1" stop-color="#738BFF" stop-opacity="0"/></radialGradient>
+    <linearGradient id="voice-line" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#2DDCFF"/><stop offset=".5" stop-color="#6387FF"/><stop offset="1" stop-color="#D56EFF"/></linearGradient>
+    <linearGradient id="voice-area" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#6387FF" stop-opacity=".32"/><stop offset="1" stop-color="#D56EFF" stop-opacity=".02"/></linearGradient>
+    <radialGradient id="aura" cx="17%" cy="2%" r="68%"><stop stop-color="#35D9FF" stop-opacity="${dark ? ".15" : ".08"}"/><stop offset="1" stop-color="#738BFF" stop-opacity="0"/></radialGradient>
+    <radialGradient id="eye" cx="48%" cy="35%" r="65%"><stop stop-color="#FFF7C7"/><stop offset=".28" stop-color="#70E7FF"/><stop offset=".65" stop-color="#3475F4"/><stop offset="1" stop-color="#101C62"/></radialGradient>
+    <pattern id="stars" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="5" cy="6" r=".8" fill="${theme.grid}"/><circle cx="24" cy="21" r=".55" fill="#738BFF" opacity=".45"/></pattern>
+    <filter id="soft-sketch" x="-35%" y="-35%" width="170%" height="170%"><feTurbulence type="fractalNoise" baseFrequency=".022" numOctaves="2" seed="21" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale=".65"/></filter>
+    <filter id="dream-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <clipPath id="plot"><rect x="${plot.left}" y="${plot.top - 10}" width="${plot.right - plot.left}" height="${plot.bottom - plot.top + 10}"/></clipPath>
-    <style>.axis{fill:${theme.muted};font:500 13px ui-sans-serif,-apple-system,sans-serif}.grid{stroke:${theme.grid};stroke-width:1;stroke-dasharray:2 8;stroke-linecap:round}.title{fill:${theme.text};font:700 17px ui-sans-serif,-apple-system,sans-serif}.muted{fill:${theme.muted};font:500 13px ui-sans-serif,-apple-system,sans-serif}.mono{fill:${theme.muted};font:650 11px ui-monospace,SFMono-Regular,monospace;letter-spacing:1.5px}</style>
+    <style>.axis{fill:${theme.muted};font:600 13px 'Trebuchet MS',sans-serif}.grid{stroke:${theme.grid};stroke-width:1.2;stroke-dasharray:4 8;stroke-linecap:round}.title{fill:${ink};font:800 25px ui-rounded,'Arial Rounded MT Bold','Trebuchet MS',sans-serif}.muted{fill:${theme.muted};font:600 13.5px 'Trebuchet MS',sans-serif}.tiny{fill:${theme.muted};font:700 11px 'Trebuchet MS',sans-serif;letter-spacing:1px}</style>
   </defs>
-  <rect x="0.5" y="0.5" width="959" height="519" rx="24" fill="${theme.background}" stroke="${theme.border}"/>
-  <rect x="1" y="1" width="958" height="518" rx="23" fill="url(#aura)"/>
-  <g transform="translate(42 30)">
-    <rect width="54" height="54" rx="18" fill="${theme.panel}" stroke="${theme.border}"/>
-    <circle cx="27" cy="27" r="13" fill="none" stroke="#738BFF" stroke-width="2" opacity=".55"/>
-    <path d="M13 28h5l3-9 5 18 4-14 3 7h8" fill="none" stroke="url(#voice-line)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="960" height="520" rx="30" fill="${theme.background}"/>
+  <rect x="16" y="16" width="928" height="488" rx="27" fill="${card}" stroke="${theme.border}" stroke-width="1.5"/>
+  <rect x="27" y="27" width="906" height="466" rx="21" fill="url(#stars)" stroke="${theme.border}" stroke-dasharray="6 9"/>
+  <rect x="39" y="32" width="67" height="67" rx="22" fill="url(#aura)" stroke="#477DFF" stroke-width="1.5"/>
+  <g transform="translate(42 35)" filter="url(#soft-sketch)">
+    <path d="M8 35 C5 12 18 1 32 1 C48 1 61 13 58 38 C56 57 47 62 32 62 C16 62 9 54 8 35Z" fill="${hair}"/>
+    <path d="M14 34 C14 20 22 13 32 13 C44 13 52 21 51 35 C50 49 44 55 32 55 C20 55 14 49 14 34Z" fill="#FFE7DE"/>
+    <path d="M11 24 C15 8 31 5 42 11 C50 15 55 24 52 35 C45 28 42 20 38 17 C33 24 25 28 15 30Z" fill="${hair}"/>
+    <circle cx="24" cy="36" r="6.7" fill="url(#eye)" stroke="#121A4D" stroke-width="1.5"/><circle cx="41" cy="36" r="6.7" fill="url(#eye)" stroke="#121A4D" stroke-width="1.5"/><circle cx="22" cy="34" r="2" fill="white"/><circle cx="39" cy="34" r="2" fill="white"/>
+    <path d="M29 47 Q33 50 37 47" fill="none" stroke="#C67682" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M8 27 L0 20 L7 16 M56 27 L64 20 L57 16" fill="#10172D" stroke="#35D9FF" stroke-width="2"/>
   </g>
-  <text x="114" y="50" class="title">Scowld / companion signal</text>
-  <text x="114" y="73" class="muted">Stars gathered while Bella listens</text>
-  <text x="${plot.right}" y="42" text-anchor="end" class="mono">SIGNAL STRENGTH</text>
-  <text x="${plot.right}" y="78" text-anchor="end" fill="${theme.text}" font-family="ui-sans-serif,-apple-system,sans-serif" font-size="34" font-weight="740">${stars.length}<tspan dx="9" fill="${theme.muted}" font-size="14" font-weight="600">STARS</tspan></text>
-  <line x1="${plot.left}" y1="112" x2="${plot.right}" y2="112" stroke="${theme.border}"/>
+  <text x="124" y="57" class="title">Bella noticed every star.</text>
+  <text x="125" y="81" class="muted">Scowld’s little companion constellation keeps growing.</text>
+  <g transform="translate(748 36)" filter="url(#soft-sketch)"><path d="M16 0 H123 Q140 0 140 16 V38 Q140 52 123 52 H16 Q0 52 0 36 V16 Q0 0 16 0Z" fill="${dark ? "#1B2142" : "#EEF2FF"}" stroke="#738BFF" stroke-width="1.5" stroke-dasharray="5 4"/><path d="M24 10 L28 21 L39 24 L29 29 L27 40 L21 31 L10 33 L17 24 L12 14 L23 18Z" fill="#FFE17A" filter="url(#dream-glow)"/><text x="49" y="34" fill="${ink}" font-family="ui-rounded,'Arial Rounded MT Bold',sans-serif" font-size="21" font-weight="800">${stars.length}</text><text x="98" y="32" class="tiny">STARS</text></g>
+  <path d="M105 108 C180 124 235 109 300 128" fill="none" stroke="#35D9FF" stroke-width="1.5" stroke-dasharray="4 7" opacity=".45"/><path d="M856 107 C800 123 753 110 701 130" fill="none" stroke="#C968FF" stroke-width="1.5" stroke-dasharray="4 7" opacity=".4"/>
   ${yGrid}${dateLabels}
-  <g clip-path="url(#plot)"><path d="${area}" fill="url(#voice-area)"/><path d="${path}" fill="none" stroke="url(#voice-line)" stroke-width="4.5" stroke-linecap="round"/></g>
-  <circle cx="${plot.right}" cy="${currentY}" r="13" fill="#C968FF" opacity=".13"/><circle cx="${plot.right}" cy="${currentY}" r="6.5" fill="#C968FF" stroke="${theme.background}" stroke-width="3"/>
-  <line x1="${plot.left}" y1="${plot.bottom}" x2="${plot.right}" y2="${plot.bottom}" stroke="${theme.border}"/>
+  <g clip-path="url(#plot)"><path d="${area}" fill="url(#voice-area)"/><path d="${path}" fill="none" stroke="#738BFF" stroke-width="9" opacity=".13"/><path d="${path}" fill="none" stroke="url(#voice-line)" stroke-width="4.5" stroke-linecap="round" filter="url(#soft-sketch)"/></g>
+  ${reactions}
+  <g transform="translate(${plot.right} ${currentY})" filter="url(#soft-sketch)"><circle r="9" fill="#C968FF" opacity=".18"/><circle r="6.7" fill="#35D9FF" stroke="${card}" stroke-width="3"/><path d="M5 -7 L8 -15 M9 -5 L17 -8 M5 0 L12 5" stroke="#FFE17A" stroke-width="2" stroke-linecap="round"/></g>
+  <g transform="translate(57 451)" opacity=".75" filter="url(#soft-sketch)"><rect x="0" y="2" width="18" height="28" rx="9" fill="none" stroke="#35D9FF" stroke-width="2.2"/><path d="M-5 18 Q-5 36 9 36 Q23 36 23 18 M9 36 V43 M2 43 H16" fill="none" stroke="#35D9FF" stroke-width="2.2" stroke-linecap="round"/><path d="M4 12 H14 M4 18 H14" stroke="#738BFF" stroke-width="1.4"/><text x="35" y="25" class="muted">voice on</text></g>
+  <g transform="translate(778 451)" opacity=".72" filter="url(#soft-sketch)"><path d="M0 19 Q17 1 34 19 Q17 37 0 19Z" fill="none" stroke="#C968FF" stroke-width="2.1"/><circle cx="17" cy="19" r="6" fill="url(#eye)"/><path d="M45 8 L49 14 L56 16 L50 21 L50 28 L44 24 L37 27 L39 20 L35 15 L42 14Z" fill="#FFE17A"/></g>
 </svg>`;
 }
 
 function niceMaximum(value: number) {
   if (value <= 5) return 5;
-  const exponent = 10 ** Math.floor(Math.log10(value));
-  const fraction = value / exponent;
-  return ([1, 1.25, 2, 2.5, 5, 10].find((candidate) => candidate >= fraction) ?? 10) * exponent;
+  if (value <= 10) return 10;
+  if (value <= 20) return Math.ceil(value / 5) * 5;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const fraction = value / magnitude;
+  const step = magnitude * (fraction <= 1.25 ? 0.25 : 0.5);
+  return Math.ceil(value / step) * step;
 }
 
 function ticks(start: number, end: number, count: number) {
