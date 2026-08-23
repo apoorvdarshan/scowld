@@ -105,7 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               sameAs: [
                 "https://www.instagram.com/scowld_/",
                 "https://www.producthunt.com/products/scowld",
-                "https://github.com/apoorvdarshan/scowld",
+                "https://github.com/aopv/scowld",
                 "https://x.com/apoorvdarshan",
               ],
               offers: {
@@ -143,7 +143,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               sameAs: [
                 "https://www.instagram.com/scowld_/",
                 "https://www.producthunt.com/products/scowld",
-                "https://github.com/apoorvdarshan/scowld",
+                "https://github.com/aopv/scowld",
                 "https://x.com/apoorvdarshan",
               ],
             }),

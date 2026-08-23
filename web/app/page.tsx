@@ -8,7 +8,7 @@ const links = {
   appStore: "https://apps.apple.com/in/app/scowld-ai-voice-companion/id6760672848",
   productHunt: "https://www.producthunt.com/products/scowld",
   instagram: "https://www.instagram.com/scowld_/",
-  github: "https://github.com/apoorvdarshan/scowld",
+  github: "https://github.com/aopv/scowld",
   koFi: "https://ko-fi.com/apoorvdarshan",
   x: "https://x.com/apoorvdarshan",
   mail: "mailto:ad13dtu@gmail.com",
@@ -69,7 +69,7 @@ const faqs = [
   },
   {
     q: "Is Scowld open source?",
-    a: "Yes. Scowld is released under the MIT License and the source is available on GitHub at github.com/apoorvdarshan/scowld.",
+    a: "Yes. Scowld is released under the MIT License and the source is available on GitHub at github.com/aopv/scowld.",
   },
   {
     q: "Does Scowld need an account or an internet connection?",

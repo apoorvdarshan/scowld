@@ -87,7 +87,7 @@ export default function Terms() {
 
           <div>
             <h2>8. Intellectual Property</h2>
-            <p>The Scowld name, logo, branding, app design, and website are owned by Apoorv Darshan unless otherwise stated. The Scowld app source code is open source and released under the MIT License at <a href="https://github.com/apoorvdarshan/scowld">github.com/apoorvdarshan/scowld</a>. The bundled character/avatar frontend is based on Amica / Arbius AI components credited in the app.</p>
+            <p>The Scowld name, logo, branding, app design, and website are owned by Apoorv Darshan unless otherwise stated. The Scowld app source code is open source and released under the MIT License at <a href="https://github.com/aopv/scowld">github.com/aopv/scowld</a>. The bundled character/avatar frontend is based on Amica / Arbius AI components credited in the app.</p>
           </div>
 
           <div>

@@ -28,7 +28,7 @@ Scowld is a **bring-your-own-key (BYOK)** app. Understanding the model helps whe
 Report privately using either:
 
 1. **GitHub private security advisory** — open one at
-   [github.com/apoorvdarshan/scowld/security/advisories/new](https://github.com/apoorvdarshan/scowld/security/advisories/new) (preferred), or
+   [github.com/aopv/scowld/security/advisories/new](https://github.com/aopv/scowld/security/advisories/new) (preferred), or
 2. **Email** — [ad13dtu@gmail.com](mailto:ad13dtu@gmail.com) with subject `SECURITY - Scowld`.
 
 Please include:

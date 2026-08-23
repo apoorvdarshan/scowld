@@ -89,8 +89,8 @@ struct AboutView: View {
     private let privacyURL = URL(string: "https://scowld.xyz/privacy")!
     private let termsURL = URL(string: "https://scowld.xyz/terms")!
     private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld")!
-    private let githubRepoURL = URL(string: "https://github.com/apoorvdarshan/scowld")!
-    private let githubIssuesURL = URL(string: "https://github.com/apoorvdarshan/scowld/issues")!
+    private let githubRepoURL = URL(string: "https://github.com/aopv/scowld")!
+    private let githubIssuesURL = URL(string: "https://github.com/aopv/scowld/issues")!
     private let contactURL = URL(string: "mailto:ad13dtu@gmail.com?subject=Scowld%20Contact")!
     private let developerXURL = URL(string: "https://x.com/apoorvdarshan")!
 
@@ -117,7 +117,7 @@ struct AboutView: View {
 
                         linkRow(
                             title: "Star on GitHub",
-                            subtitle: "github.com/apoorvdarshan/scowld",
+                            subtitle: "github.com/aopv/scowld",
                             systemImage: "star.circle.fill",
                             url: githubRepoURL
                         )
@@ -143,14 +143,14 @@ struct AboutView: View {
                     aboutSection("Contact", icon: "envelope") {
                         linkRow(
                             title: "Report an Issue",
-                            subtitle: "github.com/apoorvdarshan/scowld/issues",
+                            subtitle: "github.com/aopv/scowld/issues",
                             systemImage: "exclamationmark.bubble.fill",
                             url: githubIssuesURL
                         )
 
                         linkRow(
                             title: "Request a Feature",
-                            subtitle: "github.com/apoorvdarshan/scowld/issues",
+                            subtitle: "github.com/aopv/scowld/issues",
                             systemImage: "sparkles",
                             url: githubIssuesURL
                         )
@@ -182,7 +182,7 @@ struct AboutView: View {
                     aboutSection("Credits", icon: "doc.plaintext") {
                         linkRow(
                             title: "Open Source on GitHub",
-                            subtitle: "github.com/apoorvdarshan/scowld",
+                            subtitle: "github.com/aopv/scowld",
                             systemImage: "chevron.left.forwardslash.chevron.right",
                             url: githubRepoURL
                         )
