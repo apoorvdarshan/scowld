@@ -6,7 +6,7 @@ This guide covers how to report issues, propose changes, and get the project run
 
 ## Ways to contribute
 
-- **Report a bug** or **request a feature** via [GitHub Issues](https://github.com/aopv/scowld/issues).
+- **Report a bug** or **request a feature** via [GitHub Issues](https://github.com/apoorvdarshan/scowld/issues).
 - **Improve docs** (README, this file, in-app copy).
 - **Submit code** via a pull request.
 - **Report a security vulnerability** — please follow [SECURITY.md](SECURITY.md), not a public issue.
@@ -77,4 +77,4 @@ Be respectful and constructive. Harassment or abuse of any kind is not welcome. 
 
 ## Questions
 
-Open a [discussion or issue](https://github.com/aopv/scowld/issues), or reach the developer at [ad13dtu@gmail.com](mailto:ad13dtu@gmail.com).
+Open a [discussion or issue](https://github.com/apoorvdarshan/scowld/issues), or reach the developer at [ad13dtu@gmail.com](mailto:ad13dtu@gmail.com).

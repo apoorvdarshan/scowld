@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://apps.apple.com/app/id6760672848"><img src="https://img.shields.io/badge/App%20Store-Download-black?logo=apple" alt="App Store"></a>
-  <a href="https://github.com/aopv/scowld/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT"></a>
+  <a href="https://github.com/apoorvdarshan/scowld/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT"></a>
   <a href="https://scowld.xyz"><img src="https://img.shields.io/badge/Website-scowld.xyz-blue" alt="Website"></a>
   <a href="https://www.instagram.com/scowld_/"><img src="https://img.shields.io/badge/Instagram-@scowld__-pink" alt="Instagram"></a>
   <a href="https://www.producthunt.com/products/scowld"><img src="https://img.shields.io/badge/Product%20Hunt-Scowld-orange" alt="Product Hunt"></a>
@@ -156,7 +156,7 @@ See [web/.env.example](web/.env.example) for defaults.
 
 ## Star History
 
-<a href="https://github.com/aopv/scowld/stargazers">
+<a href="https://github.com/apoorvdarshan/scowld/stargazers">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://scowld.xyz/api/star-history.svg?theme=dark&amp;v=3" />
     <source media="(prefers-color-scheme: light)" srcset="https://scowld.xyz/api/star-history.svg?theme=light&amp;v=3" />
