@@ -150,8 +150,8 @@ App Store Connect with [`asc_export_listing.py`](../scripts/store/asc_export_lis
 
 An empty or missing text file leaves that field unchanged. `screenshots.json`
 points at App Store-ready images already in the repository — today exactly the
-live ones: [`marketing/mockups/`](../marketing/mockups) (iPhone 6.9", 1260×2736,
-`APP_IPHONE_67`) and [`marketing/mockups ipad/`](../marketing/mockups%20ipad)
+live ones: [`store/metadata/screenshots/ios/iphone-6.9/`](metadata/screenshots/ios/iphone-6.9) (iPhone 6.9", 1260×2736,
+`APP_IPHONE_67`) and [`store/metadata/screenshots/ios/ipad-13/`](metadata/screenshots/ios/ipad-13)
 (iPad 13", 2064×2752, `APP_IPAD_PRO_3GEN_129`). Sizes, opacity and the 10-image
 limit are checked before any upload; with the screenshot switch on and no
 `screenshots.json`, the run fails with that message.
