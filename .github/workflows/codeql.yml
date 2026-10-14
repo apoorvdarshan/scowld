@@ -8,7 +8,7 @@
 #   javascript-typescript  web/ (scowld.xyz, Next.js on Cloudflare Workers)
 #   python                 scripts/ (test, release and store tooling)
 #   actions                .github/workflows/
-#   swift                  ios/ (the app), built with xcodebuild on macOS
+#   swift                  ios/ (the app), built with Xcode 26 on macOS
 #
 # The Linux languages analyze every pull request. Swift needs a macOS runner and
 # a full app build, so pull requests run it only when ios/ or this workflow
@@ -104,13 +104,15 @@ jobs:
     needs: changes
     # Runs if the filter failed, so a broken filter can never skip the analysis.
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ios == 'true') }}
-    runs-on: xcode-27
+    # Not xcode-27: CodeQL's Swift extractor runs as x86_64 under Rosetta and
+    # starts the compiler's macro plugin server, which is arm64-only in Xcode 27
+    # ("swift-plugin-server ... Bad CPU type in executable"). macos-26 ships
+    # Xcode 26, whose toolchain still includes x86_64.
+    runs-on: macos-26
     timeout-minutes: 60
     permissions:
       contents: read
       security-events: write # upload SARIF to code scanning
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_27.app/Contents/Developer
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -131,6 +133,7 @@ jobs:
       # builds need no signing certificate.
       - name: Build the app for CodeQL
         run: |
+          xcodebuild -version
           xcodebuild build \
             -project ios/Scowld.xcodeproj \
             -scheme Scowld \
