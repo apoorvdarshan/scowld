@@ -18,9 +18,8 @@
 #                   from main commits that touch web/, so treat merging as
 #                   deploying to scowld.xyz.
 #
-# Dependabot security updates are off in the repository settings, so open
-# alerts get no fix PRs of their own; with them on, the /web fixes arrive as one
-# grouped PR (web-security below).
+# Dependabot security updates are on in the repository settings, so the /web
+# fixes for open alerts arrive as one grouped PR (web-security below).
 # Scowld has no Swift packages yet (no Package.resolved); add a "swift" entry
 # for /ios once it does.
 
@@ -63,6 +62,16 @@ updates:
       day: monday
       time: "06:00"
       timezone: Asia/Kolkata
+    # next 16.4 builds but every route returns 500 on @opennextjs/cloudflare
+    # 1.20.11 ("Unexpected loadManifest(/.next/server/preview-props.json)"), so
+    # next and eslint-config-next stay on 16.3.x patches. Drop this once an
+    # OpenNext release supports 16.4 and a local `npx opennextjs-cloudflare
+    # preview` serves the pages again.
+    ignore:
+      - dependency-name: next
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: eslint-config-next
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     groups:
       web:
         patterns: ["*"]
