@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in Scowld or scowld.xyz isn't working as expected
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Issues are public, so **never paste API keys**, and remove anything personal from screenshots or chat text.
+        Security issues belong in [private vulnerability reporting](https://github.com/apoorvdarshan/scowld/security/advisories/new), not here.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where did you see the bug?
+      multiple: true
+      options:
+        - Chat replies (AI provider)
+        - Voice input (speech-to-text)
+        - Voice output (text-to-speech)
+        - Hands-free wake mode
+        - Avatar, animation or lip sync
+        - Vision (camera)
+        - Past chats
+        - Settings, API keys or character
+        - Onboarding or About
+        - Website (scowld.xyz)
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: About → version, or the App Store listing version. Leave blank for website bugs.
+      placeholder: e.g. 2.0.1
+  - type: input
+    id: device-os
+    attributes:
+      label: Device and iOS version
+      description: For website bugs, the browser and OS instead.
+      placeholder: e.g. iPhone 16 Pro, iOS 26.1
+    validations:
+      required: true
+  - type: input
+    id: providers
+    attributes:
+      label: Providers and models (if relevant)
+      description: The AI, speech-to-text and text-to-speech providers selected in Settings. Names only, never keys.
+      placeholder: e.g. Claude Sonnet · native iOS speech · ElevenLabs Celine
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps someone else can follow.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include any error message the app showed.
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or screen recording
+      description: Drag and drop images or a short video here if helpful.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Anything else that might help, such as whether wake mode, vision or a custom character was on.

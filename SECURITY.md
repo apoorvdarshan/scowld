@@ -19,7 +19,7 @@ Scowld is a **bring-your-own-key (BYOK)** app. Understanding the model helps whe
 - There is **no Scowld backend that receives, proxies, or stores user API keys**. Requests go directly from the device to the provider the user configured (OpenAI, Anthropic, Gemini, ElevenLabs, Groq, etc.).
 - A local HTTP server runs inside the app only to serve the bundled web (VRM) frontend and to proxy provider calls on-device using the key from Keychain; it is bound to localhost and not exposed off-device.
 - Chat history, provider/model choices, and preferences are stored locally on the device.
-- The marketing website at [scowld.xyz](https://scowld.xyz) serves only static marketing, privacy, and terms pages.
+- The marketing website at [scowld.xyz](https://scowld.xyz) serves marketing, blog, privacy, and terms pages, plus a star-history SVG for the README. That endpoint reads public stargazer data from the GitHub API with a read-only token kept as a Cloudflare Worker secret; the site has no accounts and stores no user data.
 
 ## Reporting a vulnerability
 
@@ -27,7 +27,7 @@ Scowld is a **bring-your-own-key (BYOK)** app. Understanding the model helps whe
 
 Report privately using either:
 
-1. **GitHub private security advisory** — open one at
+1. **GitHub private vulnerability reporting** — open a private advisory at
    [github.com/apoorvdarshan/scowld/security/advisories/new](https://github.com/apoorvdarshan/scowld/security/advisories/new) (preferred), or
 2. **Email** — [ad13dtu@gmail.com](mailto:ad13dtu@gmail.com) with subject `SECURITY - Scowld`.
 
@@ -43,6 +43,14 @@ Please include:
 - Acknowledgement within **3 business days**.
 - A fix or mitigation plan for confirmed, in-scope issues, and a coordinated disclosure once a fix is available.
 - Credit for the report if you would like it.
+- Fixed vulnerabilities are published as GitHub security advisories and named in the release notes of the version that fixes them.
+
+## How the project is checked
+
+- CodeQL static analysis on every pull request and weekly, dependency review on pull requests, and OpenSSF Scorecard on `main`.
+- Dependabot alerts and security updates, with GitHub Actions pinned to commit SHAs and store tooling hash-locked.
+- Secret scanning with push protection.
+- Each GitHub Release attaches a Sigstore-signed source archive with a build-provenance attestation (see [store/README.md](store/README.md)).
 
 ## Out of scope
 

@@ -1,0 +1,82 @@
+name: Website
+
+# Lint, fuzz/unit tests, production build and a runtime smoke test for
+# scowld.xyz (web/). Never deploys: Cloudflare Workers Builds deploys main.
+
+on:
+  # PR branches are checked by pull_request; push covers main only, so a PR's
+  # checks do not run twice.
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to a pull request supersedes its older run. Pushes to main and
+# manual runs each keep their own run.
+concurrency:
+  group: web-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Pull requests run the web job only when web/ or this workflow changed (a
+  # skipped job still satisfies the required check). Pushes and manual runs
+  # always run it.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      # Trees only (no file contents): enough for git diff --name-only.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+          filter: blob:none
+          sparse-checkout: .github
+          persist-credentials: false
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          [ "$EVENT" = "pull_request" ] || { echo "web=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          # pull_request checks out the PR merged into its base, so parent 1 is the base.
+          # --no-renames: a moved file counts for both its old and new folder.
+          files=$(git -c core.quotePath=false diff --no-renames --name-only HEAD^1 HEAD) || { echo "web=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          printf '%s\n' "$files"
+          printf '%s\n' "$files" | grep -qE '^"?(web/|\.github/workflows/web\.yml)' \
+            && echo "web=true" >> "$GITHUB_OUTPUT" || echo "web=false" >> "$GITHUB_OUTPUT"
+
+  web:
+    needs: changes
+    # Runs if the filter failed, so a broken filter can never skip the check.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.web == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      WRANGLER_SEND_METRICS: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: web
+          persist-credentials: false
+      # Caches the npm download cache only, never node_modules, build output or
+      # test results.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint -- --max-warnings=0
+      # Includes the fast-check fuzz properties in tests/.
+      - run: npm test
+      - run: npm run build
+      - run: npm run smoke

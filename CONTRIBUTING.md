@@ -58,17 +58,35 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
+Before opening a website pull request:
+
+```bash
+npm run lint -- --max-warnings=0   # ESLint, no warnings
+npm test                           # Vitest, including fast-check fuzz properties
+npm run build                      # production Next.js + OpenNext build
+npm run smoke                      # serves the build in the local Workers runtime and requests every sitemap page
+```
+
+The **Website** workflow runs the same steps on pull requests that touch `web/`.
+
 ## Pull request guidelines
 
 1. **Open an issue first** for anything non-trivial so the approach can be discussed.
 2. **Branch** off `main` and keep each PR focused on one change.
 3. **Match the existing style** — SwiftUI conventions, naming, and structure already used in the codebase. Read nearby code before adding new patterns.
-4. **Build and test before you push.** Make sure the app compiles and `bash scripts/test-ios.sh` passes; add or update tests for behavior you change.
+4. **Build and test before you push.** Make sure the app compiles and `bash scripts/test-ios.sh` passes (and the website checks above, for `web/` changes).
 5. **Describe your change** clearly and link the related issue (e.g. `Closes #123`).
+
+## Testing policy
+
+- **New functionality must come with automated tests** that exercise it: XCTest unit or UI tests in `ios/ScowldTests` / `ios/ScowldUITests` for the app, and Vitest tests in `web/tests` for the website.
+- **Bug fixes need a regression test** that fails without the fix, unless that is impractical; say why in the pull request.
+- Code that parses data from outside the app or site (provider responses, GitHub API data, bridge messages) should get property-based (fuzz) tests where practical, as `web/tests/star-history-fuzz.test.ts` does.
+- Pull requests are merged only when their checks pass: CodeQL and dependency review on every pull request, the iOS tests for app changes, and the Website workflow for `web/` changes.
 
 ## Releases (maintainers)
 
-Releases are built, signed, and uploaded by GitHub Actions from a `v<version>` tag that matches `MARKETING_VERSION`. Each App Store step has its own repository-variable switch, all off by default; a manual run of **iOS Release** only validates. The App Store listing lives in `store/metadata/ios/`. See [store/README.md](store/README.md). Xcode Cloud was removed for Scowld on 2026-10-14; do not re-create it.
+Releases are built, signed, and uploaded by GitHub Actions from a `v<version>` tag that matches `MARKETING_VERSION`. Versions follow `MAJOR.MINOR[.PATCH]`, each release gets human-readable notes from `RELEASE_NOTES.md` (or GitHub's generated notes), and the GitHub Release attaches a Sigstore-signed source archive. Each App Store step has its own repository-variable switch, all off by default; a manual run of **iOS Release** only validates. The App Store listing lives in `store/metadata/ios/`. See [store/README.md](store/README.md). Xcode Cloud was removed for Scowld on 2026-10-14; do not re-create it.
 
 ## Coding guidelines
 
@@ -89,7 +107,7 @@ Good bug reports include:
 
 ## Code of conduct
 
-Be respectful and constructive. Harassment or abuse of any kind is not welcome. Maintainers may remove comments, commits, or contributions that violate this spirit.
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). Be respectful and constructive; report unacceptable behavior to [ad13dtu@gmail.com](mailto:ad13dtu@gmail.com).
 
 ## Questions
 

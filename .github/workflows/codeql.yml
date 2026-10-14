@@ -1,0 +1,149 @@
+# Static analysis (SAST) with GitHub CodeQL.
+#
+# Each job checks out only the directories its language lives in, so none of
+# them downloads the marketing media. The bundled Amica/Arbius frontend
+# (ios/Scowld/Resources/amica.bundle) is prebuilt, minified third-party
+# JavaScript and is not analyzed.
+#
+#   javascript-typescript  web/ (scowld.xyz, Next.js on Cloudflare Workers)
+#   python                 scripts/ (test, release and store tooling)
+#   actions                .github/workflows/
+#   swift                  ios/ (the app), built with Xcode 26 on macOS
+#
+# The Linux languages analyze every pull request. Swift needs a macOS runner and
+# a full app build, so pull requests run it only when ios/ or this workflow
+# changed; pushes to main, the weekly schedule and manual runs always run it. A
+# newer push to a pull request cancels its older analysis; main, scheduled and
+# manual runs never are.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly on Mondays.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            sparse-checkout: |
+              /web/
+          - language: python
+            sparse-checkout: |
+              /scripts/
+          - language: actions
+            sparse-checkout: |
+              /.github/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: ${{ matrix.sparse-checkout }}
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: /language:${{ matrix.language }}
+
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      # Trees only (no file contents): enough for git diff --name-only.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+          filter: blob:none
+          sparse-checkout: .github
+          persist-credentials: false
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          [ "$EVENT" = "pull_request" ] || { echo "ios=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          # pull_request checks out the PR merged into its base, so parent 1 is the base.
+          files=$(git -c core.quotePath=false diff --no-renames --name-only HEAD^1 HEAD) || { echo "ios=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          printf '%s\n' "$files" | grep -qE '^"?(ios/|\.github/workflows/codeql\.yml)' \
+            && echo "ios=true" >> "$GITHUB_OUTPUT" || echo "ios=false" >> "$GITHUB_OUTPUT"
+
+  analyze-swift:
+    name: Analyze (swift)
+    needs: changes
+    # Runs if the filter failed, so a broken filter can never skip the analysis.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ios == 'true') }}
+    # Not xcode-27: CodeQL's Swift extractor runs as x86_64 under Rosetta and
+    # starts the compiler's macro plugin server, which is arm64-only in Xcode 27
+    # ("swift-plugin-server ... Bad CPU type in executable"). macos-26 ships
+    # Xcode 26, whose toolchain still includes x86_64.
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to code scanning
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /ios/
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: swift
+          build-mode: manual
+
+      # CodeQL only analyzes code it sees being compiled, so this builds from a
+      # fresh derived-data folder and never restores build products. Simulator
+      # builds need no signing certificate.
+      - name: Build the app for CodeQL
+        run: |
+          xcodebuild -version
+          xcodebuild build \
+            -project ios/Scowld.xcodeproj \
+            -scheme Scowld \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/codeql-build" \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: /language:swift

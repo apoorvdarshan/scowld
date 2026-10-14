@@ -36,6 +36,19 @@ vX.Y.Z tag ─► iOS unit + UI tests ─► offline release-script tests
        IOS_SUBMIT_REVIEW ─► no pending in-app products ─► select this run's build, read it back
                          ─► set release type ─► recheck build + selection ─► submit for review
   └─ GitHub Release (only if every enabled step succeeded)
+       ─► tagged source archive + Sigstore bundle + SHA-256, build-provenance attestation
+```
+
+Each GitHub Release carries `scowld-X.Y.Z-source.tar.gz` (`git archive` of the
+tag), its keyless Sigstore bundle (`.sigstore.json`) and checksum (`.sha256`),
+plus a GitHub build-provenance attestation. Verify a download with:
+
+```bash
+cosign verify-blob scowld-X.Y.Z-source.tar.gz \
+  --bundle scowld-X.Y.Z-source.tar.gz.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/apoorvdarshan/scowld/\.github/workflows/ios-release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+gh attestation verify scowld-X.Y.Z-source.tar.gz --repo apoorvdarshan/scowld
 ```
 
 A manual **Run workflow** (`workflow_dispatch`) is a validation run: it archives,
