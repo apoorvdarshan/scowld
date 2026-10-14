@@ -11,6 +11,11 @@ Store listing, screenshots and release notes) rather than code. Pull requests an
 main run them. The release's prepare job sets CHECK_COMMITTED_STORE_FILES=false
 and validates only the files its enabled switches use, so an unused file never
 blocks a release.
+
+The App Store Connect token test signs a real ES256 token with the hash-locked
+store tooling (requirements-store.txt). It is skipped where that tooling is not
+installed (a local run, the release's prepare job); store-automation.yml installs
+it and sets REQUIRE_STORE_TOOLING=true, so there it fails instead of skipping.
 """
 from __future__ import annotations
 
@@ -42,10 +47,20 @@ import print_gates  # noqa: E402
 import redact_logs  # noqa: E402
 from ios_release import ReleaseError, resolve_gates  # noqa: E402
 
+try:  # Only where the store tooling (requirements-store.txt) is installed.
+    import jwt as pyjwt  # noqa: E402
+    from cryptography.hazmat.primitives import serialization  # noqa: E402
+    from cryptography.hazmat.primitives.asymmetric import ec  # noqa: E402
+except ImportError:
+    pyjwt = None
+
 ROOT = HERE.parents[1]
 CHECK_COMMITTED_FILES = os.environ.get("CHECK_COMMITTED_STORE_FILES", "true").strip().lower() not in {
     "0", "false", "no", "off",
 }
+# store-automation.yml installs the tooling and sets this, so a lock that fails to
+# provide PyJWT can never turn the token test into a silent skip.
+STORE_TOOLING_REQUIRED = os.environ.get("REQUIRE_STORE_TOOLING", "").strip().lower() in {"1", "true", "yes", "on"}
 committed_files_test = unittest.skipUnless(
     CHECK_COMMITTED_FILES, "CHECK_COMMITTED_STORE_FILES=false: this run checks only the files its switches use"
 )
@@ -515,6 +530,27 @@ class TokenRefreshTests(unittest.TestCase):
             self.assertEqual(client._authorization(), "Bearer t0")
             self.assertEqual(client._authorization(), "Bearer t1")
             self.assertEqual(client._authorization(), "Bearer t1")
+
+    def test_token_is_an_es256_jwt_app_store_connect_accepts(self) -> None:
+        # Signs with the real PyJWT/cryptography from requirements-store.txt, so an
+        # update that breaks App Store Connect authentication fails here, not in a release.
+        if pyjwt is None:
+            if STORE_TOOLING_REQUIRED:
+                self.fail("REQUIRE_STORE_TOOLING is set, but PyJWT/cryptography are not installed")
+            self.skipTest("store tooling not installed (pip install --require-hashes -r requirements-store.txt)")
+        key = ec.generate_private_key(ec.SECP256R1())
+        pem = key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+        ).decode()
+        issuer = "00000000-1111-2222-3333-444444444444"
+        token = asc_release.make_asc_token("TESTKEY000", issuer, pem)
+        header = pyjwt.get_unverified_header(token)
+        self.assertEqual((header["alg"], header["kid"], header["typ"]), ("ES256", "TESTKEY000", "JWT"))
+        claims = pyjwt.decode(
+            token, key.public_key(), algorithms=["ES256"], audience="appstoreconnect-v1", issuer=issuer
+        )
+        # App Store Connect rejects tokens that live longer than 20 minutes.
+        self.assertEqual(claims["exp"] - claims["iat"], 1200)
 
 
 # MARK: - Listing, What's New and screenshots

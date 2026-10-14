@@ -1,10 +1,26 @@
 # Dependabot version updates. Dependabot alerts are enabled separately in the
 # repository settings; this file adds routine version bumps so pinned versions
-# (the commit-SHA-pinned GitHub Actions and the hash-locked store tooling that
-# runs next to the App Store Connect key) do not go stale.
+# (the commit-SHA-pinned GitHub Actions, the hash-locked store tooling that runs
+# next to the App Store Connect key, and the scowld.xyz website's npm packages)
+# do not go stale.
 #
-# Each ecosystem is grouped into a single weekly PR, which the workflows that
-# watch those files validate (store-automation.yml covers requirements-store.*).
+# What checks each weekly PR before it is merged:
+#   github-actions  ios-tests.yml and store-automation.yml run on the bumped
+#                   workflow files. ios-release.yml runs only on tags and manual
+#                   validation runs, so a bump to an action used only there is
+#                   first exercised by the next validation run.
+#   pip             store-automation.yml installs requirements-store.txt with
+#                   --require-hashes on the release jobs' Python 3.13 and signs a
+#                   throwaway App Store Connect token with that PyJWT.
+#   npm (/web)      no workflow here builds the website, so build it before
+#                   merging: cd web && npm ci && npm run lint && npm run build.
+#                   Cloudflare Workers Builds builds scowld-web for production
+#                   from main commits that touch web/, so treat merging as
+#                   deploying to scowld.xyz.
+#
+# Dependabot security updates are off in the repository settings, so open
+# alerts get no fix PRs of their own; with them on, the /web fixes arrive as one
+# grouped PR (web-security below).
 # Scowld has no Swift packages yet (no Package.resolved); add a "swift" entry
 # for /ios once it does.
 
@@ -36,3 +52,23 @@ updates:
         patterns: ["*"]
     commit-message:
       prefix: "Store"
+
+  # web/: the scowld.xyz website (Next.js on Cloudflare Workers via OpenNext).
+  # Minor and patch updates share one weekly PR; a major update gets a PR of its
+  # own, so a breaking major can never hold back a minor or patch fix.
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    groups:
+      web:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      web-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    commit-message:
+      prefix: "Web"
