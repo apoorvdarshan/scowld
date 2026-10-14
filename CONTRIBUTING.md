@@ -68,7 +68,7 @@ npm run dev   # http://localhost:3000
 
 ## Releases (maintainers)
 
-Releases are built, signed, and uploaded by GitHub Actions from a `v<version>` tag that matches `MARKETING_VERSION`. Each App Store step has its own repository-variable switch, all off by default; a manual run of **iOS Release** only validates. The App Store listing lives in `store/metadata/ios/`. See [store/README.md](store/README.md). Xcode Cloud is being removed for Scowld; do not re-create it.
+Releases are built, signed, and uploaded by GitHub Actions from a `v<version>` tag that matches `MARKETING_VERSION`. Each App Store step has its own repository-variable switch, all off by default; a manual run of **iOS Release** only validates. The App Store listing lives in `store/metadata/ios/`. See [store/README.md](store/README.md). Xcode Cloud was removed for Scowld on 2026-10-14; do not re-create it.
 
 ## Coding guidelines
 

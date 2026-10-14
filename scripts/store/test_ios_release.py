@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""Offline tests for the iOS release switches, build waiting, listing, screenshots
-and review submission.
+"""Offline tests for the iOS release switches, build waiting, listing, screenshots,
+review submission and reruns, the printed switches, release notes and the
+redaction of build-log artifacts.
 
 No network: every App Store Connect call goes to an in-memory fake.
 Run: python3 -m unittest scripts/store/test_ios_release.py
+
+Tests marked @committed_files_test check committed repository content (the App
+Store listing, screenshots and release notes) rather than code. Pull requests and
+main run them. The release's prepare job sets CHECK_COMMITTED_STORE_FILES=false
+and validates only the files its enabled switches use, so an unused file never
+blocks a release.
 """
 from __future__ import annotations
 
@@ -13,6 +20,7 @@ import http.client
 import io
 import json
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -30,9 +38,17 @@ sys.path.insert(0, str(HERE))
 
 import asc_release  # noqa: E402
 import ios_release  # noqa: E402
+import print_gates  # noqa: E402
+import redact_logs  # noqa: E402
 from ios_release import ReleaseError, resolve_gates  # noqa: E402
 
 ROOT = HERE.parents[1]
+CHECK_COMMITTED_FILES = os.environ.get("CHECK_COMMITTED_STORE_FILES", "true").strip().lower() not in {
+    "0", "false", "no", "off",
+}
+committed_files_test = unittest.skipUnless(
+    CHECK_COMMITTED_FILES, "CHECK_COMMITTED_STORE_FILES=false: this run checks only the files its switches use"
+)
 TAG = "v2.0.2"
 VERSION = "2.0.2"
 ALL_ON = {
@@ -228,25 +244,27 @@ def iso(epoch: float) -> str:
     return dt.datetime.fromtimestamp(epoch, dt.timezone.utc).isoformat()
 
 
+MISSING = object()
+
+
 def build_row(
     build_id: str = "B1",
     *,
     number: str = "14",
     state: str = "VALID",
     expired: bool = False,
-    uploaded: float = STARTED + 60,
+    uploaded: Any = STARTED + 60,
     app: str = APP,
     pre: str = "P1",
 ) -> dict:
+    """`uploaded`: epoch seconds, a raw uploadedDate value (str/None), or MISSING to omit it."""
+    attributes: dict[str, Any] = {"version": number, "processingState": state, "expired": expired}
+    if uploaded is not MISSING:
+        attributes["uploadedDate"] = iso(uploaded) if isinstance(uploaded, (int, float)) else uploaded
     return {
         "type": "builds",
         "id": build_id,
-        "attributes": {
-            "version": number,
-            "processingState": state,
-            "expired": expired,
-            "uploadedDate": iso(uploaded),
-        },
+        "attributes": attributes,
         "relationships": {
             "preReleaseVersion": {"data": {"type": "preReleaseVersions", "id": pre}},
             "app": {"data": {"type": "apps", "id": app}},
@@ -352,6 +370,36 @@ class WaitForBuildTests(unittest.TestCase):
         old = build_row(uploaded=STARTED - 3600)
         client = SequenceClient([{"data": [old], "included": [pre_row()]}])
         with self.assertRaisesRegex(ReleaseError, "older build"):
+            wait(client, FakeClock(STARTED))
+
+    def test_build_without_an_upload_time_is_never_used(self) -> None:
+        # Fails closed: a VALID build whose uploadedDate is missing or empty cannot be
+        # shown to be this run's upload, so the wait runs out instead of using it.
+        for uploaded in (MISSING, None, ""):
+            client = SequenceClient([{"data": [build_row(uploaded=uploaded)], "included": [pre_row()]}])
+            clock = FakeClock(STARTED)
+            with self.subTest(uploaded=uploaded), self.assertRaisesRegex(ReleaseError, "timed out"):
+                wait(client, clock, minutes=10)
+            self.assertGreater(len(client.paths), 1, "it kept polling")
+
+    def test_upload_time_reported_later_is_accepted(self) -> None:
+        client = SequenceClient([
+            {"data": [build_row(uploaded=MISSING)], "included": [pre_row()]},
+            {"data": [build_row()], "included": [pre_row()]},
+        ])
+        self.assertEqual(wait(client, FakeClock(STARTED))["id"], "B1")
+
+    def test_unreadable_upload_time_stops(self) -> None:
+        for uploaded in ("yesterday", 12345, ["2026"]):
+            row = build_row()
+            row["attributes"]["uploadedDate"] = uploaded
+            client = SequenceClient([{"data": [row], "included": [pre_row()]}])
+            with self.subTest(uploaded=uploaded), self.assertRaisesRegex(ReleaseError, "unreadable uploadedDate"):
+                wait(client, FakeClock(STARTED))
+
+    def test_processing_failure_stops_even_without_an_upload_time(self) -> None:
+        client = SequenceClient([{"data": [build_row(state="FAILED", uploaded=MISSING)], "included": [pre_row()]}])
+        with self.assertRaisesRegex(ReleaseError, "FAILED"):
             wait(client, FakeClock(STARTED))
 
     def test_other_versions_and_platforms_are_ignored(self) -> None:
@@ -583,6 +631,22 @@ class LocalInputTests(unittest.TestCase):
         (self.loc / "whats_new.txt").write_text("Fixes\n")
         self.assertEqual(self.validate(upload_whats_new=True)["en-US"]["whats_new"], "Fixes")
 
+    def test_whats_new_must_be_plain_text(self) -> None:
+        # App Store Connect shows Markdown literally, so it never reaches the store.
+        for text, kind in (
+            ("- **Faster** replies", "bold markers"),
+            ("- Uses `gpt-5` by default", "backticks"),
+            ("- Read [the blog](https://scowld.xyz/blog)", "links"),
+            ("## What's new\n- Faster replies", "headings"),
+        ):
+            (self.loc / "whats_new.txt").write_text(text)
+            with self.subTest(text=text):
+                self.assert_fails(rf"uses Markdown \({kind}", upload_whats_new=True)
+        for text in ("- Faster replies\n- Fixes", "• Captions\n#1 request: hands-free mode", "50% faster, 2 * 3 = 6"):
+            (self.loc / "whats_new.txt").write_text(text)
+            with self.subTest(text=text):
+                self.assertEqual(self.validate(upload_whats_new=True)["en-US"]["whats_new"], text)
+
     def test_screenshots_fail_clearly_without_a_manifest(self) -> None:
         self.assert_fails(r"screenshots\.json does not exist", upload_screenshots=True)
 
@@ -617,6 +681,7 @@ class LocalInputTests(unittest.TestCase):
         (self.loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["marketing/wide.png"]}))
         self.assertEqual(len(self.validate(upload_screenshots=True)["en-US"]["screenshots"]["APP_IPHONE_67"]), 1)
 
+    @committed_files_test
     def test_committed_store_metadata_is_valid(self) -> None:
         plan = quiet(asc_release.validate_local_inputs, upload_listing=True, upload_whats_new=True,
                      upload_screenshots=True, metadata_dir=asc_release.METADATA_DIR)
@@ -675,6 +740,42 @@ class ListingUploadTests(unittest.TestCase):
         })
         with self.assertRaises(SystemExit):
             quiet(asc_release.upload_app_info_fields, client, APP, "en-US", {"name": "Scowld 2"})
+        self.assertEqual(client.writes(), [])
+
+    def test_app_info_in_a_draft_submission_is_still_editable(self) -> None:
+        client = RouteClient({
+            f"/apps/{APP}/appInfos": self.app_infos("READY_FOR_DISTRIBUTION", "READY_FOR_REVIEW"),
+            "/appInfos/AI1/appInfoLocalizations?limit=50": loc_rows(loc_id="IL1", subtitle="Old"),
+        })
+        quiet(asc_release.upload_app_info_fields, client, APP, "en-US", {"subtitle": "New"})
+        self.assertEqual([w[1] for w in client.writes()], ["/appInfoLocalizations/IL1"])
+
+    def test_submitted_app_info_is_compared_when_none_is_editable(self) -> None:
+        # Rerun after submitting: the live app info still has the old name, the
+        # submitted one already has the new name, so nothing has to change.
+        client = RouteClient({
+            f"/apps/{APP}/appInfos": self.app_infos("READY_FOR_DISTRIBUTION", "WAITING_FOR_REVIEW"),
+            "/appInfos/AI0/appInfoLocalizations?limit=50": loc_rows(loc_id="IL0", name="Scowld Old"),
+            "/appInfos/AI1/appInfoLocalizations?limit=50": loc_rows(loc_id="IL1", name="Scowld"),
+        })
+        quiet(asc_release.upload_app_info_fields, client, APP, "en-US", {"name": "Scowld"},
+              locked="version 2.0.2 is WAITING_FOR_REVIEW")
+        self.assertEqual(client.writes(), [])
+        with self.assertRaises(SystemExit):
+            quiet(asc_release.upload_app_info_fields, client, APP, "en-US", {"name": "Scowld 3"},
+                  locked="version 2.0.2 is WAITING_FOR_REVIEW")
+        self.assertEqual(client.writes(), [])
+
+    def test_locked_listing_is_only_compared(self) -> None:
+        client = RouteClient({"/appStoreVersions/V1/appStoreVersionLocalizations?limit=50": loc_rows(description="Old")})
+        quiet(asc_release.upload_version_fields, client, "V1", "en-US", {"description": "Old"}, "listing",
+              locked="version 2.0.2 is WAITING_FOR_REVIEW")
+        err = io.StringIO()
+        with redirect_stdout(io.StringIO()), redirect_stderr(err), self.assertRaises(SystemExit):
+            asc_release.upload_version_fields(client, "V1", "en-US", {"description": "New"}, "listing",
+                                              locked="version 2.0.2 is WAITING_FOR_REVIEW")
+        self.assertIn("listing (en-US) differs from App Store Connect (description), but version 2.0.2 "
+                      "is WAITING_FOR_REVIEW", err.getvalue())
         self.assertEqual(client.writes(), [])
 
     def versions(self, live_notes: str) -> dict:
@@ -762,6 +863,21 @@ class ScreenshotSyncTests(unittest.TestCase):
             asc_release.sync_screenshot_set(client, "VL1", "en-US", "APP_IPHONE_67", self.files[:1])
         self.assertIn("IMAGE_INCORRECT_DIMENSIONS", err.getvalue())
         self.assertNotIn("/appScreenshotSets/SET1/relationships/appScreenshots", [w[1] for w in client.writes()])
+
+    def test_locked_set_is_only_compared(self) -> None:
+        same = RouteClient(self.routes(self.sums))
+        quiet(asc_release.sync_screenshot_set, same, "VL1", "en-US", "APP_IPHONE_67", self.files, locked="in review")
+        self.assertEqual(same.writes(), [])
+        changed = RouteClient(self.routes(["stale"]))
+        with self.assertRaises(SystemExit):
+            quiet(asc_release.sync_screenshot_set, changed, "VL1", "en-US", "APP_IPHONE_67", self.files, locked="in review")
+        self.assertEqual(changed.writes(), [])
+        routes = self.routes([])
+        routes["/appStoreVersionLocalizations/VL1/appScreenshotSets?limit=50"] = {"data": []}
+        missing = RouteClient(routes)
+        with self.assertRaises(SystemExit):
+            quiet(asc_release.sync_screenshot_set, missing, "VL1", "en-US", "APP_IPHONE_67", self.files, locked="in review")
+        self.assertEqual(missing.writes(), [], "a missing set is not created while locked")
 
     def test_screenshot_processing_times_out(self) -> None:
         client = RouteClient(self.routes([], {"S1": ["UPLOAD_COMPLETE"]}))
@@ -947,12 +1063,6 @@ class LiveSubmitFlowTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertFalse([c for c in fake.calls if c[0] != "GET"], "nothing is changed on a rerun")
 
-    def test_listing_changes_are_refused_once_waiting_for_review(self) -> None:
-        fake = FakeAsc(state="WAITING_FOR_REVIEW", attached="B9")
-        code, err = self.run_main(fake, UPLOAD_LISTING="true")
-        self.assertEqual(code, 1)
-        self.assertIn("WAITING_FOR_REVIEW", err)
-
     def test_non_submittable_version_is_refused(self) -> None:
         for state in ("READY_FOR_SALE", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE"):
             fake = FakeAsc(state=state)
@@ -1017,11 +1127,125 @@ class LiveSubmitFlowTests(unittest.TestCase):
         self.assertEqual(posted[0]["data"]["attributes"], {"platform": "IOS"})
 
 
+class RerunTests(unittest.TestCase):
+    """'Re-run failed jobs' after the version reached a draft or a submitted review."""
+
+    def routes(self, *, state: str, info_state: str, whats_new: str = "- New notes", attached: str = "B9",
+               screenshot_sums: list[str] | None = None) -> dict:
+        return {
+            "/apps?*": {"data": [{"id": APP, "attributes": {"bundleId": "com.apoorvdarshan.Scowld"}}]},
+            f"/apps/{APP}/appStoreVersions?*": {"data": [
+                {"id": "VLIVE", "attributes": {"versionString": "2.0.1", "appStoreState": "READY_FOR_SALE",
+                                               "createdDate": "2026-07-09T00:00:00Z"}},
+                {"id": "V1", "attributes": {"versionString": VERSION, "appStoreState": state,
+                                            "createdDate": "2026-10-14T00:00:00Z"}}]},
+            "/appStoreVersions/VLIVE/appStoreVersionLocalizations?limit=50": loc_rows(loc_id="LIVE", whatsNew="- Old notes"),
+            "/appStoreVersions/V1/appStoreVersionLocalizations?limit=50":
+                loc_rows(loc_id="VL1", description="A companion", whatsNew=whats_new),
+            # The live app info still has the old name; the one submitted with 2.0.2 has the new one.
+            f"/apps/{APP}/appInfos": {"data": [{"id": "AI0", "attributes": {"state": "READY_FOR_DISTRIBUTION"}},
+                                               {"id": "AI1", "attributes": {"state": info_state}}]},
+            "/appInfos/AI0/appInfoLocalizations?limit=50": loc_rows(loc_id="IL0", name="Scowld Old"),
+            "/appInfos/AI1/appInfoLocalizations?limit=50": loc_rows(loc_id="IL1", name="Scowld"),
+            "/appStoreVersionLocalizations/VL1/appScreenshotSets?limit=50": {"data": [
+                {"id": "SET1", "attributes": {"screenshotDisplayType": "APP_IPHONE_67"}}]},
+            "/appScreenshotSets/SET1/appScreenshots?limit=50": {"data": [
+                {"id": f"S{i}", "attributes": {"sourceFileChecksum": c}} for i, c in enumerate(screenshot_sums or [])]},
+            f"/apps/{APP}/subscriptionGroups?limit=200": {"data": []},
+            f"/apps/{APP}/inAppPurchasesV2?limit=200": {"data": []},
+            "/builds/B9?*": {"data": build_row("B9"), "included": [pre_row()]},
+            "/appStoreVersions/V1/build": {"data": {"type": "builds", "id": attached}},
+            f"/apps/{APP}/reviewSubmissions?*": {"data": [{"id": "SUB1"}]},
+            "/reviewSubmissions/SUB1/items?*": {"data": [
+                {"id": "I1", "relationships": {"appStoreVersion": {"data": {"id": "V1"}}}}]},
+        }
+
+    def run_main(self, client: RouteClient, *, screenshots: bool = False, **flags: str) -> tuple[int, str]:
+        env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+        env.update({"UPLOAD_LISTING": "true", "UPLOAD_WHATS_NEW": "true", "SUBMIT_IOS_REVIEW": "true", **flags})
+        err = io.StringIO()
+        code = 0
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            loc = root / "store" / "en-US"
+            loc.mkdir(parents=True)
+            (loc / "description.txt").write_text("A companion")
+            (loc / "name.txt").write_text("Scowld")
+            (loc / "whats_new.txt").write_text("- New notes")
+            if screenshots:
+                png(root / "shots" / "a.png", 1260, 2736)
+                (loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["shots/a.png"]}))
+                env["UPLOAD_SCREENSHOTS"] = "true"
+            argv = ["--version", VERSION, "--build-id", "B9", "--build-number", "14",
+                    "--metadata-dir", str(root / "store")]
+            with mock.patch.dict(os.environ, env, clear=True), \
+                    mock.patch.object(asc_release, "client_from_environment", return_value=client), \
+                    mock.patch.object(asc_release, "ROOT", root), \
+                    redirect_stdout(io.StringIO()), redirect_stderr(err):
+                try:
+                    asc_release.main(argv)
+                except SystemExit as exc:
+                    code = exc.code if isinstance(exc.code, int) else 1
+        return code, err.getvalue()
+
+    def test_draft_submission_rerun_updates_text_then_submits(self) -> None:
+        client = RouteClient(self.routes(state="READY_FOR_REVIEW", info_state="READY_FOR_REVIEW", whats_new=""))
+        code, err = self.run_main(client)
+        self.assertEqual(code, 0, err)
+        writes = [(method, path) for method, path, _ in client.writes()]
+        self.assertIn(("PATCH", "/appStoreVersionLocalizations/VL1"), writes, "What's New is still editable")
+        self.assertEqual(writes[-1], ("PATCH", "/reviewSubmissions/SUB1"))
+        self.assertNotIn(("POST", "/reviewSubmissionItems"), writes, "the draft already holds the version")
+
+    def test_submitted_rerun_with_matching_listing_changes_nothing(self) -> None:
+        client = RouteClient(self.routes(state="WAITING_FOR_REVIEW", info_state="WAITING_FOR_REVIEW"))
+        code, err = self.run_main(client)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(client.writes(), [])
+
+    def test_submitted_rerun_refuses_a_change_it_cannot_make(self) -> None:
+        client = RouteClient(self.routes(state="WAITING_FOR_REVIEW", info_state="WAITING_FOR_REVIEW",
+                                         whats_new="- Other notes"))
+        code, err = self.run_main(client)
+        self.assertEqual(code, 1)
+        self.assertIn("What's New (en-US) differs from App Store Connect (whatsNew)", err)
+        self.assertIn("WAITING_FOR_REVIEW", err)
+        self.assertEqual(client.writes(), [])
+
+    def test_submitted_rerun_with_another_build_in_review_fails(self) -> None:
+        client = RouteClient(self.routes(state="WAITING_FOR_REVIEW", info_state="WAITING_FOR_REVIEW", attached="OTHER"))
+        code, err = self.run_main(client)
+        self.assertEqual(code, 1)
+        self.assertIn("expected B9", err)
+        self.assertEqual(client.writes(), [])
+
+    def test_screenshots_that_cannot_change_fail_before_any_write(self) -> None:
+        # The listing would change (allowed in a draft), but the screenshots differ too
+        # (not allowed): nothing is written at all.
+        client = RouteClient(self.routes(state="READY_FOR_REVIEW", info_state="READY_FOR_REVIEW", whats_new="",
+                                         screenshot_sums=["old"]))
+        code, err = self.run_main(client, screenshots=True)
+        self.assertEqual(code, 1)
+        self.assertIn("screenshots can no longer change", err)
+        self.assertEqual(client.writes(), [])
+
+    def test_unchanged_screenshots_pass_in_a_draft_submission(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            checksum = asc_release.md5_hex(png(Path(tmp) / "a.png", 1260, 2736))
+        client = RouteClient(self.routes(state="READY_FOR_REVIEW", info_state="READY_FOR_REVIEW",
+                                         screenshot_sums=[checksum]))
+        code, err = self.run_main(client, screenshots=True)
+        self.assertEqual(code, 0, err)
+        self.assertFalse([w for w in client.writes() if "Screenshot" in w[1]], "screenshots untouched")
+
+
 class PreflightTests(unittest.TestCase):
     """Read-only checks that run before the build is uploaded."""
 
     def routes(self, *, state: str = "PREPARE_FOR_SUBMISSION", live_notes: str = "- Old notes",
-               versions: tuple[str, ...] = (VERSION,), products: list[dict] | None = None) -> dict:
+               versions: tuple[str, ...] = (VERSION,), products: list[dict] | None = None,
+               version_locales: tuple[str, ...] = ("en-US",), app_info_locales: tuple[str, ...] = ("en-US",),
+               screenshot_sums: list[str] | None = None) -> dict:
         rows = [{"id": "VLIVE", "attributes": {"versionString": "2.0.1", "appStoreState": "READY_FOR_SALE",
                                                 "createdDate": "2026-07-09T00:00:00Z"}}]
         rows += [{"id": f"V{i}", "attributes": {"versionString": v, "appStoreState": state,
@@ -1030,6 +1254,17 @@ class PreflightTests(unittest.TestCase):
             "/apps?*": {"data": [{"id": APP, "attributes": {"bundleId": "com.apoorvdarshan.Scowld"}}]},
             f"/apps/{APP}/appStoreVersions?*": {"data": rows},
             "/appStoreVersions/VLIVE/appStoreVersionLocalizations?limit=50": loc_rows(loc_id="LIVE", whatsNew=live_notes),
+            "/appStoreVersions/V0/appStoreVersionLocalizations?limit=50": {"data": [
+                {"id": f"VL{i}", "attributes": {"locale": locale}} for i, locale in enumerate(version_locales)]},
+            f"/apps/{APP}/appInfos": {"data": [{"id": "AI0", "attributes": {"state": "READY_FOR_DISTRIBUTION"}},
+                                               {"id": "AI1", "attributes": {"state": "PREPARE_FOR_SUBMISSION"}}]},
+            "/appInfos/AI1/appInfoLocalizations?limit=50": {"data": [
+                {"id": f"IL{i}", "attributes": {"locale": locale}} for i, locale in enumerate(app_info_locales)]},
+            "/appStoreVersionLocalizations/VL0/appScreenshotSets?limit=50": {"data": [
+                {"id": "SET1", "attributes": {"screenshotDisplayType": "APP_IPHONE_67"}}]},
+            "/appScreenshotSets/SET1/appScreenshots?limit=50": {"data": [
+                {"id": f"S{i}", "attributes": {"sourceFileChecksum": checksum}}
+                for i, checksum in enumerate(screenshot_sums or [])]},
             f"/apps/{APP}/subscriptionGroups?limit=200": {"data": [{"id": "G1"}] if products else []},
             "/subscriptionGroups/G1/subscriptions?limit=200": {"data": products or []},
             f"/apps/{APP}/inAppPurchasesV2?limit=200": {"data": []},
@@ -1041,13 +1276,18 @@ class PreflightTests(unittest.TestCase):
         err = io.StringIO()
         code = 0
         with tempfile.TemporaryDirectory() as tmp:
-            loc = Path(tmp) / "en-US"
-            loc.mkdir()
+            root = Path(tmp)
+            loc = root / "store" / "en-US"
+            loc.mkdir(parents=True)
             (loc / "description.txt").write_text("A companion")
+            (loc / "name.txt").write_text("Scowld")
             (loc / "whats_new.txt").write_text("- New notes")
-            argv = ["--preflight", "--version", VERSION, "--metadata-dir", tmp]
+            self.shot = png(root / "shots" / "a.png", 1260, 2736)
+            (loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["shots/a.png"]}))
+            argv = ["--preflight", "--version", VERSION, "--metadata-dir", str(root / "store")]
             with mock.patch.dict(os.environ, env, clear=True), \
                     mock.patch.object(asc_release, "client_from_environment", return_value=client), \
+                    mock.patch.object(asc_release, "ROOT", root), \
                     redirect_stdout(io.StringIO()), redirect_stderr(err):
                 try:
                     asc_release.main(argv)
@@ -1070,9 +1310,42 @@ class PreflightTests(unittest.TestCase):
         code, err = self.run_preflight(RouteClient(self.routes(state="WAITING_FOR_REVIEW")), SUBMIT_IOS_REVIEW="true")
         self.assertEqual(code, 1)
         self.assertIn("cannot be submitted", err)
-        code, err = self.run_preflight(RouteClient(self.routes(state="READY_FOR_REVIEW")), UPLOAD_LISTING="true")
+        for state in ("WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE"):
+            code, err = self.run_preflight(RouteClient(self.routes(state=state)), UPLOAD_LISTING="true")
+            with self.subTest(state=state):
+                self.assertEqual(code, 1)
+                self.assertIn("not editable", err)
+
+    def test_missing_locale_fails_before_the_build(self) -> None:
+        client = RouteClient(self.routes(version_locales=("de-DE",)))
+        code, err = self.run_preflight(client, UPLOAD_WHATS_NEW="true")
         self.assertEqual(code, 1)
-        self.assertIn("not editable", err)
+        self.assertIn("version has no en-US localization", err)
+        client = RouteClient(self.routes(app_info_locales=("de-DE",)))
+        code, err = self.run_preflight(client, UPLOAD_LISTING="true")
+        self.assertEqual(code, 1)
+        self.assertIn("app info has no en-US localization", err)
+        self.assertEqual(client.writes(), [])
+
+    def test_draft_submission_still_takes_text_and_unchanged_screenshots(self) -> None:
+        # READY_FOR_REVIEW: listing and What's New can still change, screenshots cannot.
+        client = RouteClient(self.routes(state="READY_FOR_REVIEW"))
+        code, err = self.run_preflight(client, UPLOAD_LISTING="true", UPLOAD_WHATS_NEW="true", SUBMIT_IOS_REVIEW="true")
+        self.assertEqual(code, 0, err)
+        stale = RouteClient(self.routes(state="READY_FOR_REVIEW", screenshot_sums=["old"]))
+        code, err = self.run_preflight(stale, UPLOAD_SCREENSHOTS="true")
+        self.assertEqual(code, 1)
+        self.assertIn("screenshots APP_IPHONE_67 (en-US) differs", err)
+        self.assertIn("READY_FOR_REVIEW", err)
+        self.assertEqual(stale.writes(), [])
+
+    def test_unchanged_screenshots_pass_in_a_draft_submission(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            checksum = asc_release.md5_hex(png(Path(tmp) / "a.png", 1260, 2736))
+        client = RouteClient(self.routes(state="READY_FOR_REVIEW", screenshot_sums=[checksum]))
+        code, err = self.run_preflight(client, UPLOAD_SCREENSHOTS="true")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(client.writes(), [])
 
     def test_stale_whats_new_fails_before_the_build(self) -> None:
         code, err = self.run_preflight(RouteClient(self.routes(live_notes="- New notes")), UPLOAD_WHATS_NEW="true")
@@ -1117,19 +1390,34 @@ class AscCliTests(unittest.TestCase):
         self.assertEqual(code, 1)
 
     def test_dry_run_never_creates_a_client(self) -> None:
-        with mock.patch.object(asc_release, "client_from_environment", side_effect=AssertionError("network")):
-            code, output = self.run_cli({"UPLOAD_LISTING": "true", "UPLOAD_SCREENSHOTS": "true"})
+        # Its own files: the committed ones are checked by @committed_files_test tests.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            loc = root / "meta" / "en-US"
+            loc.mkdir(parents=True)
+            (loc / "description.txt").write_text("A companion")
+            png(root / "shots" / "a.png", 1260, 2736)
+            (loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["shots/a.png"]}))
+            with mock.patch.object(asc_release, "client_from_environment", side_effect=AssertionError("network")), \
+                    mock.patch.object(asc_release, "ROOT", root):
+                code, output = self.run_cli({"UPLOAD_LISTING": "true", "UPLOAD_SCREENSHOTS": "true"},
+                                            "--metadata-dir", str(root / "meta"))
         self.assertEqual(code, 0, output)
         self.assertIn("no API calls", output)
 
 
 class ReleaseNotesTests(unittest.TestCase):
+    SCRIPT = ROOT / "scripts" / "release_notes.py"
+
+    def run_notes(self, tag: str, path: str) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, str(self.SCRIPT), tag, "--file", path],
+                              capture_output=True, text=True, check=False)
+
     def notes(self, text: str, tag: str) -> tuple[int, str]:
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as handle:
             handle.write(text)
         self.addCleanup(os.unlink, handle.name)
-        result = subprocess.run([sys.executable, str(ROOT / "scripts" / "release_notes.py"), tag, "--file", handle.name],
-                                capture_output=True, text=True, check=False)
+        result = self.run_notes(tag, handle.name)
         return result.returncode, result.stdout
 
     def test_matching_section_missing_section_and_empty_section(self) -> None:
@@ -1138,6 +1426,155 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertEqual(self.notes(text, "v9.9")[0], 3, "missing section → GitHub generated notes")
         self.assertEqual(self.notes(text, "v2.0.1")[0], 2, "empty section fails the release")
         self.assertEqual(self.notes(text, "Unreleased")[0], 2)
+
+    def test_duplicate_sections_for_the_tag_fail(self) -> None:
+        text = "## v2.0.2\n\n- First draft\n\n## v2.0.1\n\n- Old\n\n## v2.0.2 \n\n- Second draft\n"
+        self.assertEqual(self.notes(text, "v2.0.2"), (2, ""), "ambiguous notes are never published")
+        self.assertEqual(self.notes(text, "v2.0.1"), (0, "- Old\n"))
+
+    def test_missing_notes_file_means_generated_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.run_notes("v2.0.2", str(Path(tmp) / "RELEASE_NOTES.md"))
+        self.assertEqual((result.returncode, result.stdout), (3, ""))
+        self.assertIn("GitHub will generate the notes", result.stderr)
+
+    @committed_files_test
+    def test_committed_release_notes_have_one_section_per_heading(self) -> None:
+        text = (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")
+        headings = [heading.strip() for heading in re.findall(r"^## (.*)$", text, flags=re.MULTILINE)]
+        self.assertEqual(sorted({h for h in headings if headings.count(h) > 1}), [])
+
+
+class PrintGatesTests(unittest.TestCase):
+    def output(self, env: dict[str, str]) -> str:
+        full = {k: v for k, v in os.environ.items() if not k.startswith("IOS_")}
+        full.update(env)
+        out = io.StringIO()
+        with mock.patch.dict(os.environ, full, clear=True), redirect_stdout(out):
+            print_gates.main()
+        return out.getvalue()
+
+    def test_invalid_values_are_shown_as_invalid(self) -> None:
+        text = self.output({"IOS_RELEASE_AUTOMATION": "true", "IOS_SUBMIT_REVIEW": "maybe"})
+        self.assertIn("IOS_SUBMIT_REVIEW=INVALID 'maybe' (a release run fails)", text)
+        self.assertIn("ERROR: IOS_SUBMIT_REVIEW has an invalid value", text)
+        self.assertNotIn("IOS_SUBMIT_REVIEW=false", text)
+        master = self.output({"IOS_RELEASE_AUTOMATION": "enabled"})
+        self.assertIn("IOS_RELEASE_AUTOMATION=INVALID 'enabled'", master)
+
+    def test_unset_off_and_ignored_switches(self) -> None:
+        text = self.output({"IOS_UPLOAD_BUILD": "true", "IOS_UPLOAD_LISTING": "off"})
+        self.assertIn("IOS_RELEASE_AUTOMATION=false (unset)", text)
+        self.assertIn("IOS_UPLOAD_BUILD=true (ignored: IOS_RELEASE_AUTOMATION is off)", text)
+        self.assertIn("IOS_UPLOAD_LISTING=false\n", text)
+        self.assertIn("IOS_RELEASE_AUTOMATION is off", text)
+        self.assertNotIn("ERROR", text)
+
+    def test_live_switches_warn(self) -> None:
+        self.assertIn("WARNING: one or more live switches are on",
+                      self.output({"IOS_RELEASE_AUTOMATION": "yes", "IOS_UPLOAD_BUILD": " ON "}))
+
+    def test_reports_exactly_what_the_gates_parse(self) -> None:
+        self.assertEqual(print_gates.TRUE_VALUES, ios_release.TRUE_VALUES)
+        self.assertEqual(print_gates.FALSE_VALUES, ios_release.FALSE_VALUES)
+        self.assertEqual(print_gates.GATES, (ios_release.MASTER, *(name for name, _ in ios_release.OPERATION_SWITCHES)))
+
+
+class FindAppTests(unittest.TestCase):
+    APP_ROW = {"id": "A1", "attributes": {"bundleId": "com.apoorvdarshan.Scowld"}}
+
+    def find(self, rows: list[dict]) -> str:
+        return quiet(asc_release.find_app, RouteClient({"/apps?*": {"data": rows}}), "com.apoorvdarshan.Scowld")
+
+    def test_exactly_one_app_must_have_the_bundle_id(self) -> None:
+        widget = {"id": "A2", "attributes": {"bundleId": "com.apoorvdarshan.Scowld.widget"}}
+        self.assertEqual(self.find([widget, self.APP_ROW]), "A1")
+        for rows in ([], [widget], [self.APP_ROW, {**self.APP_ROW, "id": "A3"}]):
+            with self.subTest(rows=rows), self.assertRaises(SystemExit):
+                self.find(rows)
+
+
+class RedactLogsTests(unittest.TestCase):
+    # Obviously fake values in the real formats (10-character key ID, UUID issuer).
+    KEY = "TESTKEY000"
+    ISSUER = "00000000-1111-2222-3333-444444444444"
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name) / "logs"
+        self.root.mkdir()
+
+    def redact(self, env: dict[str, str] | None = None) -> int:
+        env = env if env is not None else {"ASC_KEY_ID": self.KEY, "ASC_ISSUER_ID": self.ISSUER}
+        with mock.patch.dict(os.environ, env), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            return redact_logs.main(["redact_logs.py", str(self.root)])
+
+    def assert_clean(self, path: Path) -> None:
+        data = path.read_bytes()
+        for value in (self.KEY, self.ISSUER):
+            for encoding in ("utf-8", "utf-16-le", "utf-16-be"):
+                self.assertNotIn(value.encode(encoding), data, f"{path.name} ({encoding})")
+
+    def test_text_binary_and_utf16_files_are_all_redacted(self) -> None:
+        text = self.root / "export.log"
+        text.write_text(f"-authenticationKeyID {self.KEY} -authenticationKeyIssuerID {self.ISSUER}\n"
+                        f"-authenticationKeyPath /tmp/asc-keys/AuthKey_{self.KEY}.p8\n")
+        bundle = self.root / "Scowld.xcdistributionlogs"
+        bundle.mkdir()
+        binary = bundle / "IDEDistributionOptions.plist"
+        binary.write_bytes(b"bplist00\x00\x01\xff" + self.KEY.encode() + b"\x00" + self.ISSUER.encode())
+        utf16 = bundle / "IDEDistribution.verbose.log"
+        utf16.write_bytes(f"key {self.KEY} issuer {self.ISSUER}".encode("utf-16"))
+        big_endian = self.root / "altool.log"
+        big_endian.write_bytes(self.ISSUER.encode("utf-16-be"))
+        clean = self.root / "clean.log"
+        clean.write_text("nothing secret\n")
+
+        self.assertEqual(self.redact(), 0)
+        for path in (text, binary, utf16, big_endian):
+            self.assert_clean(path)
+        self.assertIn("AuthKey_<ASC_KEY_ID>.p8", text.read_text())
+        self.assertIn("<ASC_ISSUER_ID>".encode("utf-16-le"), utf16.read_bytes())
+        self.assertTrue(binary.read_bytes().startswith(b"bplist00\x00\x01\xff<ASC_KEY_ID>\x00"))
+        self.assertEqual(clean.read_text(), "nothing secret\n")
+
+    def test_symlinks_are_removed_not_followed(self) -> None:
+        outside = self.root.parent / "outside.txt"
+        outside.write_text(self.KEY)
+        (self.root / "link.log").symlink_to(outside)
+        (self.root / "dir-link").symlink_to(self.root.parent, target_is_directory=True)
+        self.assertEqual(self.redact(), 0)
+        self.assertEqual(sorted(p.name for p in self.root.iterdir()), [])
+        self.assertEqual(outside.read_text(), self.KEY, "nothing outside the folder is touched")
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root ignores file permissions")
+    def test_file_that_cannot_be_rewritten_is_dropped(self) -> None:
+        stuck = self.root / "read-only.log"
+        stuck.write_text(self.KEY)
+        stuck.chmod(0o444)
+        self.assertEqual(self.redact(), 0)
+        self.assertFalse(stuck.exists())
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root ignores file permissions")
+    def test_file_that_can_be_neither_rewritten_nor_dropped_fails(self) -> None:
+        folder = self.root / "locked"
+        folder.mkdir()
+        (folder / "stuck.log").write_text(self.KEY)
+        (folder / "stuck.log").chmod(0o444)
+        folder.chmod(0o555)
+        self.addCleanup(folder.chmod, 0o755)
+        self.assertEqual(self.redact(), 1)
+
+    def test_empty_ids_never_match_everything(self) -> None:
+        log = self.root / "a.log"
+        log.write_text("abc")
+        self.assertEqual(self.redact({"ASC_KEY_ID": "", "ASC_ISSUER_ID": "  "}), 0)
+        self.assertEqual(log.read_text(), "abc")
+
+    def test_missing_folder_is_not_an_error(self) -> None:
+        self.root.rmdir()
+        self.assertEqual(self.redact(), 0)
 
 
 if __name__ == "__main__":

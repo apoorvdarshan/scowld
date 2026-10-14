@@ -1,0 +1,38 @@
+# Dependabot version updates. Dependabot alerts are enabled separately in the
+# repository settings; this file adds routine version bumps so pinned versions
+# (the commit-SHA-pinned GitHub Actions and the hash-locked store tooling that
+# runs next to the App Store Connect key) do not go stale.
+#
+# Each ecosystem is grouped into a single weekly PR, which the workflows that
+# watch those files validate (store-automation.yml covers requirements-store.*).
+# Scowld has no Swift packages yet (no Package.resolved); add a "swift" entry
+# for /ios once it does.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "CI"
+
+  # requirements-store.in → hash-locked requirements-store.txt (uv pip compile).
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    groups:
+      store-tooling:
+        patterns: ["*"]
+    commit-message:
+      prefix: "Store"
