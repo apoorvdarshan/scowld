@@ -1050,7 +1050,7 @@ class ReleaseNotesTests(unittest.TestCase):
             handle.write(text)
         self.addCleanup(os.unlink, handle.name)
         result = subprocess.run([sys.executable, str(ROOT / "scripts" / "release_notes.py"), tag, "--file", handle.name],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, check=False)
         return result.returncode, result.stdout
 
     def test_matching_section_missing_section_and_empty_section(self) -> None:
