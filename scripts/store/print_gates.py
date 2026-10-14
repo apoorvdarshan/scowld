@@ -23,18 +23,19 @@ def enabled(name: str) -> bool:
 
 
 def main() -> None:
+    master = enabled(GATES[0])
     print("iOS store automation switches (false = setup-only / safe):")
-    any_on = False
     for name in GATES:
         on = enabled(name)
-        any_on = any_on or on
-        print(f"  {name}={'true' if on else 'false'}")
-    if not enabled("IOS_RELEASE_AUTOMATION"):
-        print("  note: IOS_RELEASE_AUTOMATION is off, so every iOS store operation is skipped")
-    if not any_on:
-        print("all switches off — no upload, listing change or review submission ran")
-    else:
+        note = " (ignored: IOS_RELEASE_AUTOMATION is off)" if on and not master and name != GATES[0] else ""
+        print(f"  {name}={'true' if on else 'false'}{note}")
+    live = master and any(enabled(name) for name in GATES[1:])
+    if not master:
+        print("IOS_RELEASE_AUTOMATION is off — no upload, listing change or review submission runs")
+    elif live:
         print("WARNING: one or more live switches are on")
+    else:
+        print("IOS_RELEASE_AUTOMATION is on but every operation switch is off — nothing reaches the App Store")
 
 
 if __name__ == "__main__":

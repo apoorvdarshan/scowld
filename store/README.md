@@ -21,6 +21,9 @@ vX.Y.Z tag ─► iOS unit + UI tests ─► offline release-script tests
            ─► resolve switches (the tag must equal MARKETING_VERSION exactly)
   └─ IOS_RELEASE_AUTOMATION off ─► GitHub Release only
   └─ on:
+       any listing/What's New/screenshot/review switch ─► read-only preflight: the version
+            exists in an editable/submittable state, What's New differs from the live
+            version, no in-app product would have to ship with it (fails before any upload)
        IOS_UPLOAD_BUILD ─► next build number from App Store Connect
                         ─► archive Release ─► verify bundle id/version/build in every .app/.appex
                         ─► cloud-signed export + upload
@@ -69,8 +72,14 @@ Copy names from [`gates.env.example`](gates.env.example). Scowld needs no shared
 Listing, What's New and screenshots change the App Store version named by the
 tag, which must already exist in App Store Connect in an editable state
 (Prepare for Submission or rejected). Create it there before tagging when any of
-those switches is on; otherwise the run stops with that instruction and the
-failed job can be re-run once the version exists.
+those switches is on; the read-only preflight stops the run before anything is
+built or uploaded otherwise.
+
+Waiting for the build is its own job, so when a later store step fails (for
+example App Store Connect changed in between), **Re-run failed jobs** reuses the
+processed build instead of waiting again; the store step re-verifies it before
+selecting it. Every tag runs in its own concurrency group, so no release run is
+ever cancelled by a newer one.
 
 ### In-app purchases
 
@@ -78,7 +87,8 @@ Scowld 2.0 sells nothing (no subscriptions, StoreKit purchases or credits), and
 App Store Connect lists no in-app products for the app, so the pipeline submits
 none. If App Store Connect ever holds a product that would have to go to review
 with a version (`READY_TO_SUBMIT`, `DEVELOPER_REJECTED`, `READY_FOR_REVIEW`),
-`IOS_SUBMIT_REVIEW` stops before changing anything; add a product catalog and the
+`IOS_SUBMIT_REVIEW` stops before anything is uploaded or changed (in the
+preflight, and again before the listing step); add a product catalog and the
 Fud AI product-submission step before selling anything.
 
 ## Listing source of truth
@@ -139,9 +149,9 @@ create a new one (`certificateType: DEVELOPMENT`), and replace both
 | Script | Role |
 |--------|------|
 | [`scripts/store/ios_release.py`](../scripts/store/ios_release.py) | Switches (`gates`), tag/version check, build number, wait for this run's build |
-| [`scripts/store/asc_release.py`](../scripts/store/asc_release.py) | Listing, What's New, screenshots, build selection, review submission (`--dry-run` = local checks only) |
+| [`scripts/store/asc_release.py`](../scripts/store/asc_release.py) | Listing, What's New, screenshots, build selection, review submission (`--dry-run` = local checks only, `--preflight` = read-only App Store Connect checks) |
 | [`scripts/store/asc_export_listing.py`](../scripts/store/asc_export_listing.py) | Read-only export of the live listing into `store/metadata/ios/` |
-| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests: disabled/invalid switches, tag mismatch, validation mode, build wait timeout/failure/ambiguity/mismatch/old build, selection read-back, token refresh, listing, screenshots, submission |
+| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests: disabled/invalid switches, tag mismatch, validation mode, build wait timeout/failure/ambiguity/mismatch/old build, selection read-back, token refresh, preflight, listing, screenshots, submission |
 | [`scripts/store/print_gates.py`](../scripts/store/print_gates.py) | Prints the switches in the run log |
 | [`scripts/release_notes.py`](../scripts/release_notes.py) | GitHub Release notes from the matching `RELEASE_NOTES.md` section (else GitHub's generated notes) |
 

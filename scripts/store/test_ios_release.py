@@ -974,6 +974,12 @@ class LiveSubmitFlowTests(unittest.TestCase):
         self.assertIn("com.apoorvdarshan.Scowld.plus", err)
         self.assertFalse([c for c in fake.calls if c[0] != "GET"])
 
+    def test_pending_products_stop_the_run_before_the_listing_changes(self) -> None:
+        fake = FakeAsc(products=[{"id": "S1", "attributes": {"productId": "plus", "state": "READY_TO_SUBMIT"}}])
+        code, _ = self.run_main(fake, UPLOAD_LISTING="true")
+        self.assertEqual(code, 1)
+        self.assertFalse([c for c in fake.calls if c[0] != "GET"], "listing untouched when submission is blocked")
+
     def test_approved_products_do_not_block(self) -> None:
         fake = FakeAsc(products=[{"id": "S1", "attributes": {"productId": "p", "state": "APPROVED"}}])
         self.assertEqual(self.run_main(fake)[0], 0)
@@ -1009,6 +1015,79 @@ class LiveSubmitFlowTests(unittest.TestCase):
         fake.post = post  # type: ignore[method-assign]
         self.assertEqual(self.run_main(fake)[0], 0)
         self.assertEqual(posted[0]["data"]["attributes"], {"platform": "IOS"})
+
+
+class PreflightTests(unittest.TestCase):
+    """Read-only checks that run before the build is uploaded."""
+
+    def routes(self, *, state: str = "PREPARE_FOR_SUBMISSION", live_notes: str = "- Old notes",
+               versions: tuple[str, ...] = (VERSION,), products: list[dict] | None = None) -> dict:
+        rows = [{"id": "VLIVE", "attributes": {"versionString": "2.0.1", "appStoreState": "READY_FOR_SALE",
+                                                "createdDate": "2026-07-09T00:00:00Z"}}]
+        rows += [{"id": f"V{i}", "attributes": {"versionString": v, "appStoreState": state,
+                                                 "createdDate": "2026-10-14T00:00:00Z"}} for i, v in enumerate(versions)]
+        return {
+            "/apps?*": {"data": [{"id": APP, "attributes": {"bundleId": "com.apoorvdarshan.Scowld"}}]},
+            f"/apps/{APP}/appStoreVersions?*": {"data": rows},
+            "/appStoreVersions/VLIVE/appStoreVersionLocalizations?limit=50": loc_rows(loc_id="LIVE", whatsNew=live_notes),
+            f"/apps/{APP}/subscriptionGroups?limit=200": {"data": [{"id": "G1"}] if products else []},
+            "/subscriptionGroups/G1/subscriptions?limit=200": {"data": products or []},
+            f"/apps/{APP}/inAppPurchasesV2?limit=200": {"data": []},
+        }
+
+    def run_preflight(self, client: RouteClient, **flags: str) -> tuple[int, str]:
+        env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+        env.update(flags)
+        err = io.StringIO()
+        code = 0
+        with tempfile.TemporaryDirectory() as tmp:
+            loc = Path(tmp) / "en-US"
+            loc.mkdir()
+            (loc / "description.txt").write_text("A companion")
+            (loc / "whats_new.txt").write_text("- New notes")
+            argv = ["--preflight", "--version", VERSION, "--metadata-dir", tmp]
+            with mock.patch.dict(os.environ, env, clear=True), \
+                    mock.patch.object(asc_release, "client_from_environment", return_value=client), \
+                    redirect_stdout(io.StringIO()), redirect_stderr(err):
+                try:
+                    asc_release.main(argv)
+                except SystemExit as exc:
+                    code = exc.code if isinstance(exc.code, int) else 1
+        return code, err.getvalue()
+
+    def test_ready_version_passes_with_reads_only(self) -> None:
+        client = RouteClient(self.routes())
+        code, err = self.run_preflight(client, UPLOAD_LISTING="true", UPLOAD_WHATS_NEW="true", SUBMIT_IOS_REVIEW="true")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(client.writes(), [])
+
+    def test_missing_version_fails_before_the_build(self) -> None:
+        code, err = self.run_preflight(RouteClient(self.routes(versions=())), UPLOAD_LISTING="true")
+        self.assertEqual(code, 1)
+        self.assertIn("create version 2.0.2", err)
+
+    def test_version_that_cannot_change_fails(self) -> None:
+        code, err = self.run_preflight(RouteClient(self.routes(state="WAITING_FOR_REVIEW")), SUBMIT_IOS_REVIEW="true")
+        self.assertEqual(code, 1)
+        self.assertIn("cannot be submitted", err)
+        code, err = self.run_preflight(RouteClient(self.routes(state="READY_FOR_REVIEW")), UPLOAD_LISTING="true")
+        self.assertEqual(code, 1)
+        self.assertIn("not editable", err)
+
+    def test_stale_whats_new_fails_before_the_build(self) -> None:
+        code, err = self.run_preflight(RouteClient(self.routes(live_notes="- New notes")), UPLOAD_WHATS_NEW="true")
+        self.assertEqual(code, 1)
+        self.assertIn("identical to live version 2.0.1", err)
+
+    def test_pending_products_fail_before_the_build(self) -> None:
+        products = [{"id": "S1", "attributes": {"productId": "plus", "state": "READY_TO_SUBMIT"}}]
+        code, err = self.run_preflight(RouteClient(self.routes(products=products)), SUBMIT_IOS_REVIEW="true")
+        self.assertEqual(code, 1)
+        self.assertIn("plus", err)
+
+    def test_preflight_does_not_need_a_build(self) -> None:
+        code, err = self.run_preflight(RouteClient(self.routes()), SUBMIT_IOS_REVIEW="true", PUBLIC_RELEASE="true")
+        self.assertEqual(code, 0, err)
 
 
 class AscCliTests(unittest.TestCase):

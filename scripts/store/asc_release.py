@@ -20,6 +20,8 @@ subscription is submitted; submission stops instead if App Store Connect holds
 products that would have to go to review with the version.
 
 `--dry-run` validates the switches and local files only (no network).
+`--preflight` repeats the version, What's New and in-app product checks against
+App Store Connect with GET requests only, before the build is uploaded.
 """
 from __future__ import annotations
 
@@ -450,13 +452,17 @@ def live_whats_new(client: Any, app_id: str, exclude_version_id: str, locale: st
     return (newest.get("attributes") or {}).get("versionString", "?"), text.strip()
 
 
-def upload_whats_new(client: Any, app_id: str, version_id: str, locale: str, text: str) -> None:
+def refuse_stale_whats_new(client: Any, app_id: str, version_id: str, locale: str, text: str) -> None:
     previous = live_whats_new(client, app_id, version_id, locale)
     if previous and previous[1] == text:
         fail(
             f"What's New ({locale}) is identical to live version {previous[0]}; update "
             f"store/metadata/ios/{locale}/{WHATS_NEW_FIELD[1]} for this release"
         )
+
+
+def upload_whats_new(client: Any, app_id: str, version_id: str, locale: str, text: str) -> None:
+    refuse_stale_whats_new(client, app_id, version_id, locale, text)
     upload_version_fields(client, version_id, locale, {WHATS_NEW_FIELD[0]: text}, "What's New")
 
 
@@ -578,6 +584,52 @@ def upload_screenshots(client: Any, version_id: str, locale: str, plan: dict[str
 
 
 # MARK: - Build selection and review
+
+
+def refuse_pending_in_app_products(client: Any, app_id: str) -> None:
+    pending = pending_in_app_products(client, app_id)
+    if pending:
+        fail(
+            "App Store Connect has in-app products that would have to go to review with this "
+            f"version ({'; '.join(pending)}). Scowld's release automation does not submit "
+            "in-app purchases; submit them in App Store Connect or extend the automation, then rerun."
+        )
+
+
+def require_version_state(version_string: str, state: str, *, edits_metadata: bool, submit: bool) -> None:
+    if edits_metadata and state not in EDITABLE_VERSION_STATES:
+        fail(
+            f"version {version_string} is not editable (state={state}); expected one of "
+            f"{', '.join(sorted(EDITABLE_VERSION_STATES))}"
+        )
+    if submit and state not in SUBMITTABLE_VERSION_STATES:
+        fail(f"version {version_string} cannot be submitted for review (state={state})")
+
+
+def preflight(
+    client: Any,
+    *,
+    bundle_id: str,
+    version_string: str,
+    plan: dict[str, dict[str, Any]],
+    do_whats_new: bool,
+    edits_metadata: bool,
+    do_submit: bool,
+) -> None:
+    """Read-only checks run before a build is uploaded, so a release fails early.
+
+    The live run repeats every check, because App Store Connect can change in between.
+    """
+    app_id = find_app(client, bundle_id)
+    version = get_ios_app_store_version(client, app_id, version_string)
+    state = (version.get("attributes") or {}).get("appStoreState") or ""
+    require_version_state(version_string, state, edits_metadata=edits_metadata, submit=do_submit)
+    if do_whats_new:
+        for locale, entry in plan.items():
+            refuse_stale_whats_new(client, app_id, version["id"], locale, entry["whats_new"])
+    if do_submit:
+        refuse_pending_in_app_products(client, app_id)
+    print(f"ASC preflight passed: version {version_string} ({state}) is ready for the enabled steps")
 
 
 def pending_in_app_products(client: Any, app_id: str) -> list[str]:
@@ -743,6 +795,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--build-id", help="App Store Connect id of the build uploaded by this run")
     parser.add_argument("--build-number", help="CFBundleVersion of the build uploaded by this run")
     parser.add_argument("--dry-run", action="store_true", help="Validate switches and local files only — no network")
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="Read-only App Store Connect checks before the build is uploaded (no changes)",
+    )
     args = parser.parse_args(argv)
 
     do_listing = truthy("UPLOAD_LISTING")
@@ -756,7 +813,7 @@ def main(argv: list[str] | None = None) -> None:
         return
     if do_public and not do_submit:
         fail("PUBLIC_RELEASE only applies when SUBMIT_IOS_REVIEW is on")
-    if do_submit and not (args.build_id and args.build_number):
+    if do_submit and not args.preflight and not (args.build_id and args.build_number):
         fail("submitting needs --build-id and --build-number for the build uploaded by this run; an older build is never substituted")
 
     plan = validate_local_inputs(
@@ -776,12 +833,23 @@ def main(argv: list[str] | None = None) -> None:
     if not args.version:
         fail("--version is required for live App Store Connect calls")
     client = client_from_environment()
+    edits_metadata = do_listing or do_whats_new or do_screenshots
+    if args.preflight:
+        preflight(
+            client,
+            bundle_id=args.bundle_id,
+            version_string=args.version,
+            plan=plan,
+            do_whats_new=do_whats_new,
+            edits_metadata=edits_metadata,
+            do_submit=do_submit,
+        )
+        return
     app_id = find_app(client, args.bundle_id)
     version = get_ios_app_store_version(client, app_id, args.version)
     version_id = version["id"]
     state = (version.get("attributes") or {}).get("appStoreState") or ""
     print(f"ASC app={app_id} version={args.version} id={version_id} state={state}")
-    edits_metadata = do_listing or do_whats_new or do_screenshots
 
     if state == "WAITING_FOR_REVIEW":
         if edits_metadata:
@@ -790,13 +858,10 @@ def main(argv: list[str] | None = None) -> None:
         confirm_selected_build(client, version_id, args.build_id)
         print("ASC submit skipped — version already WAITING_FOR_REVIEW with this run's build (idempotent)")
         return
-    if edits_metadata and state not in EDITABLE_VERSION_STATES:
-        fail(
-            f"version {args.version} is not editable (state={state}); expected one of "
-            f"{', '.join(sorted(EDITABLE_VERSION_STATES))}"
-        )
-    if do_submit and state not in SUBMITTABLE_VERSION_STATES:
-        fail(f"version {args.version} cannot be submitted for review (state={state})")
+    require_version_state(args.version, state, edits_metadata=edits_metadata, submit=do_submit)
+    if do_submit:
+        # Checked before any change, so a blocked submission leaves the listing untouched.
+        refuse_pending_in_app_products(client, app_id)
 
     for locale, entry in plan.items():
         if do_listing:
@@ -808,13 +873,6 @@ def main(argv: list[str] | None = None) -> None:
             upload_screenshots(client, version_id, locale, entry["screenshots"])
 
     if do_submit:
-        pending = pending_in_app_products(client, app_id)
-        if pending:
-            fail(
-                "App Store Connect has in-app products that would have to go to review with this "
-                f"version ({'; '.join(pending)}). Scowld's release automation does not submit "
-                "in-app purchases; submit them in App Store Connect or extend the automation, then rerun."
-            )
         print("selecting this run's build…")
         select_build(client, version_id, args.build_id, args.version, args.build_number)
         set_release_type(client, version_id, public_release=do_public)

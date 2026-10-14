@@ -30,6 +30,9 @@
 #   IOS_BUILD_WAIT_MINUTES   default 120  (10–300), counted from upload start,
 #                            covering upload + App Store Connect processing
 #
+# With any listing/What's New/screenshot/review switch on, a read-only preflight
+# checks App Store Connect before anything is built or uploaded.
+#
 # Secrets
 #   APP_STORE_CONNECT_API_KEY_ID / _ISSUER_ID / _API_KEY_P8
 #       Admin-role key: build numbers, cloud-managed distribution signing,
@@ -57,10 +60,12 @@ on:
 permissions:
   contents: read
 
-# Build numbers come from App Store Connect, so tag release runs never overlap.
-# Manual validation runs get their own group and can never cancel a release run.
+# One group per tag and per manual run, so no run is ever cancelled or dropped
+# (GitHub cancels a pending run when a third run joins a busy group). Two tags
+# for different versions may run side by side: each waits only for its own
+# version and build number, and a shared review draft stops a submission.
 concurrency:
-  group: ios-release-${{ github.event_name == 'push' && 'release' || github.run_id }}
+  group: ios-release-${{ github.event_name == 'push' && github.ref_name || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -136,6 +141,26 @@ jobs:
           # 0 = reviewed notes, 3 = no section (GitHub generates the notes); anything else fails.
           [ "$status" -eq 0 ] || [ "$status" -eq 3 ] || exit "$status"
 
+      - name: Install store tooling
+        if: steps.gates.outputs.build == 'true' || steps.gates.outputs.asc == 'true'
+        run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
+
+      # Read-only: the version exists in the right state, What's New is new, and
+      # no in-app product would have to ship with it. Fails before any upload.
+      - name: Check App Store Connect before building (read-only)
+        if: steps.gates.outputs.asc == 'true'
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          UPLOAD_LISTING: ${{ steps.gates.outputs.listing }}
+          UPLOAD_WHATS_NEW: ${{ steps.gates.outputs.whats_new }}
+          UPLOAD_SCREENSHOTS: ${{ steps.gates.outputs.screenshots }}
+          SUBMIT_IOS_REVIEW: ${{ steps.gates.outputs.submit }}
+          PUBLIC_RELEASE: ${{ steps.gates.outputs.public_release }}
+          MARKETING_VERSION: ${{ steps.gates.outputs.marketing_version }}
+        run: python3 scripts/store/asc_release.py --preflight --version "$MARKETING_VERSION"
+
       - name: Choose the build number
         id: number
         if: steps.gates.outputs.build == 'true'
@@ -143,9 +168,7 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-        run: |
-          python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
-          python3 scripts/store/ios_release.py build-number
+        run: python3 scripts/store/ios_release.py build-number
 
   build:
     needs: [tests, prepare]
@@ -361,18 +384,60 @@ jobs:
           [ -n "${SIGNING_KEYCHAIN:-}" ] && security delete-keychain "$SIGNING_KEYCHAIN" 2>/dev/null || true
           rm -rf "$RUNNER_TEMP/asc-keys" "$RUNNER_TEMP/signing.p12" "$RUNNER_TEMP/export" "$RUNNER_TEMP/wwdr-g3.cer"
 
-  app-store-connect:
+  # Its own job, so "Re-run failed jobs" after a later store-step failure keeps
+  # this result instead of waiting again against the original deadline.
+  wait-for-build:
     needs: [tests, prepare, build]
     if: >-
       !cancelled() && needs.prepare.result == 'success' &&
       needs.prepare.outputs.mode == 'release' &&
-      needs.tests.result == 'success' &&
-      (needs.prepare.outputs.upload_build == 'true' || needs.prepare.outputs.asc == 'true') &&
-      (needs.build.result == 'success' ||
-       (needs.build.result == 'skipped' && needs.prepare.outputs.upload_build != 'true'))
+      needs.prepare.outputs.upload_build == 'true' &&
+      needs.tests.result == 'success' && needs.build.result == 'success'
     runs-on: ubuntu-latest
-    # Covers IOS_BUILD_WAIT_MINUTES (max 300) plus listing, screenshots and submission.
-    timeout-minutes: 345
+    # Covers IOS_BUILD_WAIT_MINUTES (max 300), counted from upload start.
+    timeout-minutes: 310
+    outputs:
+      build_id: ${{ steps.wait.outputs.build_id }}
+    env:
+      MARKETING_VERSION: ${{ needs.prepare.outputs.marketing_version }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/store/
+            /requirements-store.txt
+
+      - name: Install store tooling
+        run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
+
+      - name: Wait for App Store Connect to process this build
+        id: wait
+        run: |
+          python3 scripts/store/ios_release.py wait-build \
+            --version "$MARKETING_VERSION" \
+            --build "${{ needs.prepare.outputs.build_number }}" \
+            --started-at "${{ needs.build.outputs.upload_started_at }}" \
+            --wait-minutes "${{ needs.prepare.outputs.wait_minutes }}" \
+            --poll-seconds "${{ needs.prepare.outputs.poll_seconds }}"
+
+  app-store-connect:
+    needs: [tests, prepare, build, wait-for-build]
+    if: >-
+      !cancelled() && needs.prepare.result == 'success' &&
+      needs.prepare.outputs.mode == 'release' &&
+      needs.prepare.outputs.asc == 'true' &&
+      needs.tests.result == 'success' &&
+      ((needs.build.result == 'success' && needs.wait-for-build.result == 'success') ||
+       (needs.prepare.outputs.upload_build != 'true' &&
+        needs.build.result == 'skipped' && needs.wait-for-build.result == 'skipped'))
+    runs-on: ubuntu-latest
+    # Listing, screenshots (each set waits up to 5 min for processing) and submission.
+    timeout-minutes: 60
     env:
       MARKETING_VERSION: ${{ needs.prepare.outputs.marketing_version }}
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
@@ -392,26 +457,14 @@ jobs:
       - name: Install store tooling
         run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
 
-      - name: Wait for App Store Connect to process this build
-        id: wait
-        if: needs.prepare.outputs.upload_build == 'true'
-        run: |
-          python3 scripts/store/ios_release.py wait-build \
-            --version "$MARKETING_VERSION" \
-            --build "${{ needs.prepare.outputs.build_number }}" \
-            --started-at "${{ needs.build.outputs.upload_started_at }}" \
-            --wait-minutes "${{ needs.prepare.outputs.wait_minutes }}" \
-            --poll-seconds "${{ needs.prepare.outputs.poll_seconds }}"
-
       - name: Listing / What's New / screenshots / review (gated)
-        if: needs.prepare.outputs.asc == 'true'
         env:
           UPLOAD_LISTING: ${{ needs.prepare.outputs.listing }}
           UPLOAD_WHATS_NEW: ${{ needs.prepare.outputs.whats_new }}
           UPLOAD_SCREENSHOTS: ${{ needs.prepare.outputs.screenshots }}
           SUBMIT_IOS_REVIEW: ${{ needs.prepare.outputs.submit }}
           PUBLIC_RELEASE: ${{ needs.prepare.outputs.public_release }}
-          BUILD_ID: ${{ steps.wait.outputs.build_id }}
+          BUILD_ID: ${{ needs.wait-for-build.outputs.build_id }}
           BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
         run: |
           set -euo pipefail
@@ -422,11 +475,12 @@ jobs:
           python3 scripts/store/asc_release.py "${args[@]}"
 
   github-release:
-    needs: [tests, prepare, build, app-store-connect]
+    needs: [tests, prepare, build, wait-for-build, app-store-connect]
     if: >-
       !cancelled() && github.event_name == 'push' &&
       needs.tests.result == 'success' && needs.prepare.result == 'success' &&
       (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.wait-for-build.result == 'success' || needs.wait-for-build.result == 'skipped') &&
       (needs.app-store-connect.result == 'success' || needs.app-store-connect.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 10
