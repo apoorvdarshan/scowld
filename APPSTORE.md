@@ -2,6 +2,11 @@
 
 App Store Connect submission details for Scowld v2.0.1. Each field is in a code block for easy copy-paste.
 
+> Reference copy. The release automation uploads the listing from
+> [`store/metadata/ios/`](store/metadata/ios), exported from the live App Store
+> listing (for example, the live keywords differ from the ones below). See
+> [store/README.md](store/README.md).
+
 ## App Name (30 chars max)
 
     Scowld - AI Voice Companion

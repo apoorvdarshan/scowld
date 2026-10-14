@@ -45,9 +45,13 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 
 ```
 ios/             - iOS app (open ios/Scowld.xcodeproj in Xcode)
+ios/ScowldTests/ - Unit tests
+ios/ScowldUITests/ - UI tests
 web/             - Next.js marketing website
 assets/          - README assets
-APPSTORE.md      - App Store Connect copy
+store/           - App Store listing (source of truth) and release switches
+scripts/         - Test and release scripts
+APPSTORE.md      - App Store Connect reference copy
 ```
 
 ## Architecture
@@ -75,7 +79,7 @@ Cloudflare Workers / Next.js website
 ## Requirements
 
 - iOS 17.0+
-- Xcode 16+
+- Xcode 26+ (CI uses Xcode 27)
 - Node.js 20.9+ for the website
 - No Cloudflare environment variables are required for app AI, speech, or billing services.
 - Users bring their own provider API keys inside the iOS app.
@@ -121,6 +125,18 @@ npm run deploy
 ```
 
 The deployment targets the `scowld-web` Worker. To serve `scowld.xyz`, first add the domain as a Cloudflare zone and update its registrar nameservers, then add `scowld.xyz` and `www.scowld.xyz` as Worker custom domains.
+
+### Tests
+
+```bash
+bash scripts/test-ios.sh
+```
+
+Runs the unit (`ScowldTests`) and UI (`ScowldUITests`) tests on a fresh iPhone simulator. GitHub Actions runs them on every pull request that touches the app. Tests never use the network, microphone, camera, or real provider keys. See [docs/ios-testing.md](docs/ios-testing.md).
+
+### Releases
+
+Pushing a `v<version>` tag equal to `MARKETING_VERSION` runs the **iOS Release** workflow: the tests, then only the App Store steps switched on with repository variables (upload, listing, What's New, screenshots, App Review submission), then the GitHub Release. A manual **Run workflow** only validates the signed build with App Store Connect. Every switch is off by default; see [store/README.md](store/README.md). Xcode Cloud is being removed for Scowld and must not be re-created.
 
 ### Website Environment Variables
 

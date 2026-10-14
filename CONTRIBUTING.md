@@ -15,9 +15,13 @@ This guide covers how to report issues, propose changes, and get the project run
 
 ```
 ios/             - iOS app (open ios/Scowld.xcodeproj in Xcode)
+ios/ScowldTests/ - Unit tests
+ios/ScowldUITests/ - UI tests
 web/             - Next.js marketing website
 assets/          - README assets
-APPSTORE.md      - App Store Connect copy
+store/           - App Store listing and release switches (see store/README.md)
+scripts/         - Test and release scripts
+APPSTORE.md      - App Store Connect reference copy
 ```
 
 ## Getting set up
@@ -25,7 +29,7 @@ APPSTORE.md      - App Store Connect copy
 ### Requirements
 
 - iOS 17.0+ target
-- Xcode 16 or newer
+- Xcode 26 or newer
 - Node.js (only for the website)
 
 ### iOS app
@@ -37,6 +41,14 @@ open ios/Scowld.xcodeproj
 1. Select the **Scowld** scheme and your device or simulator.
 2. Build and run.
 3. Add your provider API keys in **Settings** after launch (they are stored in the iOS Keychain).
+
+### Tests
+
+```bash
+bash scripts/test-ios.sh
+```
+
+This runs the unit and UI tests on a simulator the script creates and deletes (or use **Product → Test** on the **Scowld** scheme in Xcode). The same tests run in GitHub Actions on every pull request that touches the app. They never use the network, microphone, camera, or real provider keys: HTTP is stubbed in unit tests, and UI tests launch a Debug-only test mode (`ScowldTestEnvironment`). Details: [docs/ios-testing.md](docs/ios-testing.md).
 
 ### Website
 
@@ -51,8 +63,12 @@ npm run dev   # http://localhost:3000
 1. **Open an issue first** for anything non-trivial so the approach can be discussed.
 2. **Branch** off `main` and keep each PR focused on one change.
 3. **Match the existing style** — SwiftUI conventions, naming, and structure already used in the codebase. Read nearby code before adding new patterns.
-4. **Build before you push.** Make sure the app compiles and runs on a device/simulator.
+4. **Build and test before you push.** Make sure the app compiles and `bash scripts/test-ios.sh` passes; add or update tests for behavior you change.
 5. **Describe your change** clearly and link the related issue (e.g. `Closes #123`).
+
+## Releases (maintainers)
+
+Releases are built, signed, and uploaded by GitHub Actions from a `v<version>` tag that matches `MARKETING_VERSION`. Each App Store step has its own repository-variable switch, all off by default; a manual run of **iOS Release** only validates. The App Store listing lives in `store/metadata/ios/`. See [store/README.md](store/README.md). Xcode Cloud is being removed for Scowld; do not re-create it.
 
 ## Coding guidelines
 

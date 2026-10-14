@@ -91,6 +91,7 @@ struct SettingsView: View {
                         settingRow {
                             Toggle("Show AI captions", isOn: $showAICaption)
                                 .tint(.amicaBlue)
+                                .accessibilityIdentifier("settings.captions")
                                 .onChange(of: showAICaption) {
                                     guard !isLoadingSettings else { return }
                                     saveDisplaySettings()
@@ -113,6 +114,7 @@ struct SettingsView: View {
                                 }
                             }
                             .pickerStyle(.menu)
+                            .accessibilityIdentifier("settings.tts.provider")
                             .onChange(of: selectedTTSBackendID) {
                                 guard !isLoadingSettings else { return }
                                 loadTTSBackendSettings()
@@ -122,11 +124,12 @@ struct SettingsView: View {
                         modelSelectionRows(
                             models: selectedTTSBackend.availableModels,
                             selection: $selectedTTSModel,
-                            isCustom: $ttsModelIsCustom
+                            isCustom: $ttsModelIsCustom,
+                            identifier: "settings.tts"
                         )
 
                         settingRow {
-                            apiKeyField(placeholder: ttsAPIKeyPlaceholder, text: $ttsAPIKey, isRevealed: $revealTTSKey)
+                            apiKeyField(placeholder: ttsAPIKeyPlaceholder, text: $ttsAPIKey, isRevealed: $revealTTSKey, identifier: "settings.tts.apiKey")
                         }
 
                         if selectedTTSBackend == .elevenLabs {
@@ -216,7 +219,7 @@ struct SettingsView: View {
                             )
                         }
 
-                        glassSaveRow(status: ttsSettingsMessage ?? ttsSaveSubtitle) {
+                        glassSaveRow(status: ttsSettingsMessage ?? ttsSaveSubtitle, identifier: "settings.tts") {
                             saveTTSSettings()
                         }
                     }
@@ -243,6 +246,7 @@ struct SettingsView: View {
                             HStack(spacing: 8) {
                                 TextField("Bella", text: $characterName)
                                     .autocorrectionDisabled()
+                                    .accessibilityIdentifier("settings.character.name")
                                     .onChange(of: characterName) { markCharacterChanged() }
 
                                 if !characterName.isEmpty {
@@ -344,6 +348,7 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .accessibilityIdentifier("settings.ai.provider")
                 .onChange(of: selectedAIProviderID) {
                     guard !isLoadingSettings else { return }
                     loadAIProviderSettings()
@@ -361,16 +366,17 @@ struct SettingsView: View {
             modelSelectionRows(
                 models: selectedAIProvider.availableModels,
                 selection: $selectedAIModel,
-                isCustom: $aiModelIsCustom
+                isCustom: $aiModelIsCustom,
+                identifier: "settings.ai"
             )
 
             if selectedAIProvider.requiresAPIKey {
                 settingRow {
-                    apiKeyField(placeholder: aiAPIKeyPlaceholder, text: $aiAPIKey, isRevealed: $revealAIKey)
+                    apiKeyField(placeholder: aiAPIKeyPlaceholder, text: $aiAPIKey, isRevealed: $revealAIKey, identifier: "settings.ai.apiKey")
                 }
             }
 
-            glassSaveRow(status: aiSettingsMessage ?? aiSaveSubtitle) {
+            glassSaveRow(status: aiSettingsMessage ?? aiSaveSubtitle, identifier: "settings.ai") {
                 saveAISettings()
             }
         }
@@ -389,6 +395,7 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .accessibilityIdentifier("settings.stt.provider")
                 .onChange(of: selectedSTTBackendID) {
                     guard !isLoadingSettings else { return }
                     loadSTTBackendSettings()
@@ -399,19 +406,20 @@ struct SettingsView: View {
                 modelSelectionRows(
                     models: selectedSTTBackend.availableModels,
                     selection: $selectedSTTModel,
-                    isCustom: $sttModelIsCustom
+                    isCustom: $sttModelIsCustom,
+                    identifier: "settings.stt"
                 )
             }
 
             if selectedSTTBackend.requiresAPIKey {
                 settingRow {
-                    apiKeyField(placeholder: sttAPIKeyPlaceholder, text: $sttAPIKey, isRevealed: $revealSTTKey)
+                    apiKeyField(placeholder: sttAPIKeyPlaceholder, text: $sttAPIKey, isRevealed: $revealSTTKey, identifier: "settings.stt.apiKey")
                 }
             }
 
             settingsInfoRow(title: selectedSTTBackend.footerText, systemImage: "info.circle")
 
-            glassSaveRow(status: sttSettingsMessage ?? sttSaveSubtitle) {
+            glassSaveRow(status: sttSettingsMessage ?? sttSaveSubtitle, identifier: "settings.stt") {
                 saveSTTSettings()
             }
         }
@@ -422,7 +430,8 @@ struct SettingsView: View {
     private func apiKeyField(
         placeholder: String,
         text: Binding<String>,
-        isRevealed: Binding<Bool>
+        isRevealed: Binding<Bool>,
+        identifier: String
     ) -> some View {
         Group {
             if isRevealed.wrappedValue {
@@ -434,6 +443,7 @@ struct SettingsView: View {
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier(identifier)
 
         Button {
             isRevealed.wrappedValue.toggle()
@@ -451,6 +461,7 @@ struct SettingsView: View {
     /// Footer row: optional status text on the left, Liquid Glass Save button on the right.
     private func glassSaveRow(
         status: String?,
+        identifier: String,
         isDisabled: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
@@ -460,10 +471,12 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("\(identifier).status")
             } else {
                 Spacer(minLength: 0)
             }
             liquidGlassSaveButton(isDisabled: isDisabled, action: action)
+                .accessibilityIdentifier("\(identifier).save")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 13)
@@ -518,7 +531,8 @@ struct SettingsView: View {
     private func modelSelectionRows(
         models: [String],
         selection: Binding<String>,
-        isCustom: Binding<Bool>
+        isCustom: Binding<Bool>,
+        identifier: String
     ) -> some View {
         settingRow {
             Picker("Model", selection: Binding(
@@ -538,6 +552,7 @@ struct SettingsView: View {
                 Text("Custom model").tag(Self.customModelTag)
             }
             .pickerStyle(.menu)
+            .accessibilityIdentifier("\(identifier).model")
         }
 
         if isCustom.wrappedValue {

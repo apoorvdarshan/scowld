@@ -1,0 +1,4 @@
+- Streamlined onboarding with direct Privacy Policy and Terms links
+- Simplified the About screen
+- Character settings now show an editable default name and system prompt with a Clear option
+- Minor fixes and refinements

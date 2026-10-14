@@ -156,6 +156,7 @@ struct StartupOnboardingView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("onboarding.acceptLegal")
             }
         }
     }
@@ -225,6 +226,7 @@ struct StartupOnboardingView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.white)
+                    .accessibilityIdentifier("onboarding.back")
                 }
 
                 Button {
@@ -251,6 +253,7 @@ struct StartupOnboardingView: View {
                 .buttonStyle(.plain)
                 .disabled(!canContinue)
                 .opacity(canContinue ? 1 : 0.42)
+                .accessibilityIdentifier("onboarding.continue")
             }
         }
     }

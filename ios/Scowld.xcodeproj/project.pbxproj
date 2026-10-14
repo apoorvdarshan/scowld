@@ -6,11 +6,40 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		502BE054971DDA9C78B8F005 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BA8224932F6521F9002E853D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BA82249A2F6521F9002E853D;
+			remoteInfo = Scowld;
+		};
+		9A18F348674BC0F3981A9F8A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BA8224932F6521F9002E853D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BA82249A2F6521F9002E853D;
+			remoteInfo = Scowld;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		457C4E3173D1EA33649DE40B /* ScowldUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScowldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		99AFCC16236C59ED3BB52E6D /* ScowldTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScowldTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BA82249B2F6521F9002E853D /* Scowld.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scowld.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		4C9C520ABD7299AC5DD0C893 /* ScowldTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ScowldTests;
+			sourceTree = "<group>";
+		};
+		B16E459D74A357BE1D515CE3 /* ScowldUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ScowldUITests;
+			sourceTree = "<group>";
+		};
 		BA82249D2F6521F9002E853D /* Scowld */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Scowld;
@@ -19,6 +48,20 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		2F8B5F9A46F8635BFE252EAE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4B3F9977810B783227B2A9B0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BA8224982F6521F9002E853D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +76,8 @@
 			isa = PBXGroup;
 			children = (
 				BA82249D2F6521F9002E853D /* Scowld */,
+				4C9C520ABD7299AC5DD0C893 /* ScowldTests */,
+				B16E459D74A357BE1D515CE3 /* ScowldUITests */,
 				BA82249C2F6521F9002E853D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +86,8 @@
 			isa = PBXGroup;
 			children = (
 				BA82249B2F6521F9002E853D /* Scowld.app */,
+				99AFCC16236C59ED3BB52E6D /* ScowldTests.xctest */,
+				457C4E3173D1EA33649DE40B /* ScowldUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +95,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0222C0714F991B6E759F934D /* ScowldTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 55339718CEFA6E080FD2D8C9 /* Build configuration list for PBXNativeTarget "ScowldTests" */;
+			buildPhases = (
+				7ACD116311C1B0D96088B42A /* Sources */,
+				2F8B5F9A46F8635BFE252EAE /* Frameworks */,
+				5816D9307D2C7CAE0312A4E1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BF80B40466F4ACCF12942710 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				4C9C520ABD7299AC5DD0C893 /* ScowldTests */,
+			);
+			name = ScowldTests;
+			packageProductDependencies = (
+			);
+			productName = ScowldTests;
+			productReference = 99AFCC16236C59ED3BB52E6D /* ScowldTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		BA82249A2F6521F9002E853D /* Scowld */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BA8224AB2F6521FA002E853D /* Build configuration list for PBXNativeTarget "Scowld" */;
@@ -70,6 +140,29 @@
 			productReference = BA82249B2F6521F9002E853D /* Scowld.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D0FB4BCACCD9E2C5E8930017 /* ScowldUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BDAC81B3431E38697DE6E7CF /* Build configuration list for PBXNativeTarget "ScowldUITests" */;
+			buildPhases = (
+				2B5652F5F8AA548E4FADBD03 /* Sources */,
+				4B3F9977810B783227B2A9B0 /* Frameworks */,
+				74C9D118DD62972F8A83F455 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FCF471D8003FE201475B6D12 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B16E459D74A357BE1D515CE3 /* ScowldUITests */,
+			);
+			name = ScowldUITests;
+			packageProductDependencies = (
+			);
+			productName = ScowldUITests;
+			productReference = 457C4E3173D1EA33649DE40B /* ScowldUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -80,8 +173,16 @@
 				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
+					0222C0714F991B6E759F934D = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = BA82249A2F6521F9002E853D;
+					};
 					BA82249A2F6521F9002E853D = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					D0FB4BCACCD9E2C5E8930017 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = BA82249A2F6521F9002E853D;
 					};
 				};
 			};
@@ -123,11 +224,27 @@
 			projectRoot = "";
 			targets = (
 				BA82249A2F6521F9002E853D /* Scowld */,
+				0222C0714F991B6E759F934D /* ScowldTests */,
+				D0FB4BCACCD9E2C5E8930017 /* ScowldUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		5816D9307D2C7CAE0312A4E1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		74C9D118DD62972F8A83F455 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BA8224992F6521F9002E853D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -138,6 +255,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2B5652F5F8AA548E4FADBD03 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7ACD116311C1B0D96088B42A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BA8224972F6521F9002E853D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -147,7 +278,75 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		BF80B40466F4ACCF12942710 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BA82249A2F6521F9002E853D /* Scowld */;
+			targetProxy = 9A18F348674BC0F3981A9F8A /* PBXContainerItemProxy */;
+		};
+		FCF471D8003FE201475B6D12 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BA82249A2F6521F9002E853D /* Scowld */;
+			targetProxy = 502BE054971DDA9C78B8F005 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		15C9F62DDE13471C34650B48 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 23RV7FYH36;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apoorvdarshan.ScowldTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Scowld.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Scowld";
+			};
+			name = Release;
+		};
+		8B4BA1202E9F09421F29AD66 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 23RV7FYH36;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apoorvdarshan.ScowldUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Scowld;
+			};
+			name = Release;
+		};
+		A76E8C9D4C45440F06D566C2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 23RV7FYH36;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apoorvdarshan.ScowldUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Scowld;
+			};
+			name = Debug;
+		};
 		BA8224A92F6521FA002E853D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -351,9 +550,37 @@
 			};
 			name = Release;
 		};
+		E6B018B69788C1E44C9D27C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 23RV7FYH36;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apoorvdarshan.ScowldTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Scowld.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Scowld";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		55339718CEFA6E080FD2D8C9 /* Build configuration list for PBXNativeTarget "ScowldTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E6B018B69788C1E44C9D27C4 /* Debug */,
+				15C9F62DDE13471C34650B48 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		BA8224962F6521F9002E853D /* Build configuration list for PBXProject "Scowld" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -368,6 +595,15 @@
 			buildConfigurations = (
 				BA8224AC2F6521FA002E853D /* Debug */,
 				BA8224AD2F6521FA002E853D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BDAC81B3431E38697DE6E7CF /* Build configuration list for PBXNativeTarget "ScowldUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A76E8C9D4C45440F06D566C2 /* Debug */,
+				8B4BA1202E9F09421F29AD66 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -171,11 +171,16 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-                    amicaCoordinator = coord
-                    coord.setRuntimeActive(isActive)
-                })
-                .ignoresSafeArea()
+                if ScowldTestEnvironment.loadsCompanion {
+                    AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                        amicaCoordinator = coord
+                        coord.setRuntimeActive(isActive)
+                    })
+                    .ignoresSafeArea()
+                } else {
+                    // UI tests leave the 3D companion out (see ScowldTestEnvironment).
+                    Color.black.ignoresSafeArea()
+                }
 
                 // Assistant captions
                 VStack(spacing: 6) {
@@ -206,6 +211,7 @@ struct HomeView: View {
                             .font(.system(size: 18, weight: .semibold))
                     }
                     .accessibilityLabel("Show home tips")
+                    .accessibilityIdentifier("chat.tips")
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -220,11 +226,14 @@ struct HomeView: View {
         .onAppear {
             ScowldAudioSession.configureAmicaWebAudioPlayback()
 
-            Task {
-                let granted = await SpeechManager().requestPermissions()
-                await MainActor.run {
-                    voicePermissionsGranted = granted
-                    updateHandsFreeWakeListener()
+            // Tests never prompt for, or use, the microphone and speech recognition.
+            if !ScowldTestEnvironment.isRunningTests {
+                Task {
+                    let granted = await SpeechManager().requestPermissions()
+                    await MainActor.run {
+                        voicePermissionsGranted = granted
+                        updateHandsFreeWakeListener()
+                    }
                 }
             }
 
@@ -304,6 +313,7 @@ struct HomeView: View {
             .onSubmit { if !isBusy { stopAndSend() } }
             .disabled(isBusy)
             .focused($messageFieldFocused)
+            .accessibilityIdentifier("chat.messageField")
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
             .background {
@@ -323,6 +333,7 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
         .disabled(!canSendText)
+        .accessibilityIdentifier("chat.send")
     }
 
     private var voiceButton: some View {
@@ -344,6 +355,7 @@ struct HomeView: View {
         .contentShape(Rectangle())
         .opacity(canAttemptVoiceCapture ? 1 : 0.5)
         .accessibilityLabel("Record voice")
+        .accessibilityIdentifier("chat.voice")
         .accessibilityHint("Tap to start recording, or hold and release to send. Slide left while holding to cancel.")
     }
 
@@ -373,6 +385,7 @@ struct HomeView: View {
                     .foregroundStyle(cameraOn ? .amicaBlue : .secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("chat.camera")
 
             handsFreeButton
 
@@ -514,6 +527,7 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(handsFreeModeEnabled ? "Turn off hands-free mode" : "Turn on hands-free mode")
+        .accessibilityIdentifier("chat.handsFree")
         .accessibilityHint("Listens for hey Bella or the custom character name.")
     }
 
@@ -919,7 +933,7 @@ private struct HomeTipsSheet: View {
     }
 }
 
-private enum ElevenLabsBYOKRequestBuilder {
+enum ElevenLabsBYOKRequestBuilder {
     static func makeRequest(voiceID: String, body: Data?) throws -> URLRequest {
         guard let apiKey = KeychainManager.load(key: TTSBackend.elevenLabs.keychainKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -984,7 +998,7 @@ private enum ElevenLabsBYOKRequestBuilder {
     }
 }
 
-private enum ElevenLabsBYOKError: LocalizedError {
+enum ElevenLabsBYOKError: LocalizedError {
     case missingAPIKey
     case invalidVoiceID
 

@@ -10,3 +10,11 @@ marketing/video-edit/node_modules/
 marketing/video-edit/output/
 marketing/video-edit/review/
 marketing/video-edit/public/assets/scowld-raw.mp4
+
+# Python bytecode from the store/release scripts
+__pycache__/
+*.pyc
+
+# Swift package checkouts used by CI test and release runs
+.ios-test-packages/
+.ios-release-packages/

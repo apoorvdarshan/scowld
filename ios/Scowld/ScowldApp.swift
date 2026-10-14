@@ -3,12 +3,25 @@ import StoreKit
 
 @main
 struct ScowldApp: App {
-    @State private var memoryStore = MemoryStore()
+    @State private var memoryStore: MemoryStore
+
+    init() {
+        // Debug simulator test switches only; a no-op in Release and on devices.
+        ScowldTestEnvironment.prepare()
+        let memoryStore = MemoryStore(inMemory: ScowldTestEnvironment.isHostingUnitTests)
+        ScowldTestEnvironment.seedIfRequested(memoryStore)
+        _memoryStore = State(initialValue: memoryStore)
+    }
 
     var body: some Scene {
         WindowGroup {
-            ScowldRootView(memoryStore: memoryStore)
-                .preferredColorScheme(.dark)
+            if ScowldTestEnvironment.isHostingUnitTests {
+                // Unit tests exercise the code directly; the host app stays idle.
+                Color.black.ignoresSafeArea()
+            } else {
+                ScowldRootView(memoryStore: memoryStore)
+                    .preferredColorScheme(.dark)
+            }
         }
     }
 }
@@ -74,6 +87,8 @@ struct ScowldRootView: View {
 
     @MainActor
     private func checkForAppUpdateIfNeeded() async {
+        // Tests never reach the App Store lookup.
+        guard !ScowldTestEnvironment.isRunningTests else { return }
         guard appUpdateState == .idle else { return }
         appUpdateState = .checking
         appUpdateState = await AppUpdateChecker.check(currentVersion: AppUpdateChecker.currentVersion)
@@ -313,6 +328,7 @@ struct AboutView: View {
                 Text(versionDisplay)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("about.version")
                 Text("AI voice companion")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -472,7 +488,7 @@ enum AppUpdateState: Equatable {
     }
 }
 
-private struct AppUpdateChecker {
+struct AppUpdateChecker {
     static var currentVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
     }
@@ -503,7 +519,7 @@ private struct AppUpdateChecker {
         }
     }
 
-    private static func isVersion(_ lhs: String, newerThan rhs: String) -> Bool {
+    static func isVersion(_ lhs: String, newerThan rhs: String) -> Bool {
         let left = lhs.split(separator: ".").map { Int($0) ?? 0 }
         let right = rhs.split(separator: ".").map { Int($0) ?? 0 }
         let count = max(left.count, right.count)
