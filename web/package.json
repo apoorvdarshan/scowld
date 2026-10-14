@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.1",
-    "next": "^16.2.10",
+    "next": "^16.4.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
@@ -25,7 +25,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.2.10",
     "typescript": "^5",
-    "wrangler": "^4.110.0"
+    "wrangler": "^4.151.0"
   },
   "allowScripts": {
     "esbuild@0.25.4": true,
