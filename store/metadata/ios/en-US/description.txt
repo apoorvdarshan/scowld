@@ -37,7 +37,7 @@ HOW IT WORKS
 Built with SwiftUI, iOS Keychain, Gemini, OpenAI, Claude, Ollama, OpenAI-compatible providers, cloud STT providers, ElevenLabs, and a Vercel website.
 Website: https://scowld.xyz
 Blog: https://scowld.xyz/blog
-Instagram: https://www.instagram.com/scowld_/
+Instagram: https://www.instagram.com/apoorvcodes/
 Product Hunt: https://www.producthunt.com/products/scowld
 Privacy Policy: https://scowld.xyz/privacy
 Terms of Service: https://scowld.xyz/terms
