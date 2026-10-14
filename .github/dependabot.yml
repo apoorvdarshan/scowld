@@ -5,18 +5,19 @@
 # do not go stale.
 #
 # What checks each weekly PR before it is merged:
-#   github-actions  ios-tests.yml and store-automation.yml run on the bumped
-#                   workflow files. ios-release.yml runs only on tags and manual
+#   github-actions  CodeQL, dependency review and web.yml run on every PR;
+#                   ios-tests.yml and store-automation.yml run on the bumped
+#                   workflow files they own. ios-release.yml runs only on tags and manual
 #                   validation runs, so a bump to an action used only there is
 #                   first exercised by the next validation run.
 #   pip             store-automation.yml installs requirements-store.txt with
 #                   --require-hashes on the release jobs' Python 3.13 and signs a
 #                   throwaway App Store Connect token with that PyJWT.
-#   npm (/web)      no workflow here builds the website, so build it before
-#                   merging: cd web && npm ci && npm run lint && npm run build.
-#                   Cloudflare Workers Builds builds scowld-web for production
-#                   from main commits that touch web/, so treat merging as
-#                   deploying to scowld.xyz.
+#   npm (/web)      web.yml runs lint, the Vitest suite, the production build
+#                   and a smoke test that serves the build in the local Workers
+#                   runtime. Cloudflare Workers Builds builds scowld-web for
+#                   production from main commits that touch web/, so treat
+#                   merging as deploying to scowld.xyz.
 #
 # Dependabot security updates are on in the repository settings, so the /web
 # fixes for open alerts arrive as one grouped PR (web-security below).

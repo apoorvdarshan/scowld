@@ -10,7 +10,9 @@
     "deploy": "npm run build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "smoke": "bash scripts/smoke-preview.sh"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.11",
@@ -24,7 +26,10 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "~16.3.8",
+    "fast-check": "4.10.2",
+    "fast-xml-parser": "5.11.2",
     "typescript": "^5.9.3",
+    "vitest": "4.1.11",
     "wrangler": "^4.151.0"
   },
   "allowScripts": {

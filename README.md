@@ -17,6 +17,11 @@
 </p>
 
 <p align="center">
+  <a href="https://www.bestpractices.dev/projects/15502"><img src="https://www.bestpractices.dev/projects/15502/badge" alt="OpenSSF Best Practices"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/apoorvdarshan/scowld"><img src="https://api.scorecard.dev/projects/github.com/apoorvdarshan/scowld/badge" alt="OpenSSF Scorecard"></a>
+</p>
+
+<p align="center">
   <img src="assets/avatars.png" alt="Scowld Avatars" width="700">
 </p>
 
@@ -134,13 +139,23 @@ bash scripts/test-ios.sh
 
 Runs the unit (`ScowldTests`) and UI (`ScowldUITests`) tests on a fresh iPhone simulator. GitHub Actions runs them on every pull request that touches the app. Tests never use the network, microphone, camera, or real provider keys. See [docs/ios-testing.md](docs/ios-testing.md).
 
+```bash
+cd web && npm ci && npm run lint && npm test && npm run build && npm run smoke
+```
+
+Checks the website: ESLint, the Vitest suite (including [fast-check](https://fast-check.dev) fuzz properties for the star-history SVG renderer), the production OpenNext build, and a smoke test that serves the build in the local Workers runtime and requests every sitemap page. The **Website** workflow runs the same steps on pull requests that touch `web/`.
+
+### Security checks
+
+Every pull request also runs [CodeQL](.github/workflows/codeql.yml) (TypeScript, Python, GitHub Actions, and Swift when `ios/` changes) and [dependency review](.github/workflows/dependency-review.yml). [OpenSSF Scorecard](.github/workflows/scorecard.yml) runs on `main` and weekly, Dependabot keeps pinned dependencies current, and releases attach a Sigstore-signed source archive. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
 ### Releases
 
-Pushing a `v<version>` tag equal to `MARKETING_VERSION` runs the **iOS Release** workflow: the tests, then only the App Store steps switched on with repository variables (upload, listing, What's New, screenshots, App Review submission), then the GitHub Release. A manual **Run workflow** only validates the signed build with App Store Connect. Every switch is off by default; see [store/README.md](store/README.md). Xcode Cloud was removed for Scowld on 2026-10-14 and must not be re-created.
+Pushing a `v<version>` tag equal to `MARKETING_VERSION` runs the **iOS Release** workflow: the tests, then only the App Store steps switched on with repository variables (upload, listing, What's New, screenshots, App Review submission), then the GitHub Release with a Sigstore-signed source archive. A manual **Run workflow** only validates the signed build with App Store Connect. Every switch is off by default; see [store/README.md](store/README.md). Xcode Cloud was removed for Scowld on 2026-10-14 and must not be re-created.
 
 ### Website Environment Variables
 
-The website does not require hosted AI, speech, or billing environment variables.
+The website does not require hosted AI, speech, or billing environment variables. The star-history SVG (`/api/star-history.svg`) reads public stargazer data with a `GITHUB_TOKEN` Worker secret; without it, the endpoint serves a fallback card.
 
 See [web/.env.example](web/.env.example) for defaults.
 
