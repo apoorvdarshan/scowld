@@ -1,0 +1,76 @@
+# Offline checks of the iOS release automation. Never calls App Store Connect,
+# never uploads, never edits the listing. Safe to run any time.
+
+name: Store automation (offline)
+
+on:
+  pull_request:
+    paths:
+      - 'store/**'
+      - 'scripts/store/**'
+      - 'scripts/release_notes.py'
+      - 'RELEASE_NOTES.md'
+      - 'requirements-store.*'
+      - 'marketing/mockups*/**'
+      - 'ios/Scowld.xcodeproj/project.pbxproj'
+      - '.github/workflows/ios-release.yml'
+      - '.github/workflows/store-automation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'store/**'
+      - 'scripts/store/**'
+      - 'scripts/release_notes.py'
+      - 'RELEASE_NOTES.md'
+      - 'requirements-store.*'
+      - 'marketing/mockups*/**'
+      - 'ios/Scowld.xcodeproj/project.pbxproj'
+      - '.github/workflows/ios-release.yml'
+      - '.github/workflows/store-automation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-automation-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  offline-checks:
+    name: Release scripts (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/
+            /store/
+            /RELEASE_NOTES.md
+            /requirements-store.*
+            /ios/Scowld.xcodeproj/
+            /marketing/mockups*/
+
+      - name: Print iOS switches (must stay safe by default)
+        env:
+          IOS_RELEASE_AUTOMATION: ${{ vars.IOS_RELEASE_AUTOMATION }}
+          IOS_UPLOAD_BUILD: ${{ vars.IOS_UPLOAD_BUILD }}
+          IOS_UPLOAD_LISTING: ${{ vars.IOS_UPLOAD_LISTING }}
+          IOS_UPLOAD_WHATS_NEW: ${{ vars.IOS_UPLOAD_WHATS_NEW }}
+          IOS_UPLOAD_SCREENSHOTS: ${{ vars.IOS_UPLOAD_SCREENSHOTS }}
+          IOS_SUBMIT_REVIEW: ${{ vars.IOS_SUBMIT_REVIEW }}
+          IOS_PUBLIC_RELEASE: ${{ vars.IOS_PUBLIC_RELEASE }}
+        run: python3 scripts/store/print_gates.py
+
+      - name: Test switches, tag check, build wait, listing, screenshots and submission (offline)
+        run: python3 -m unittest -v scripts/store/test_ios_release.py
+
+      - name: Validate the committed listing and screenshots (no network)
+        env:
+          UPLOAD_LISTING: "true"
+          UPLOAD_WHATS_NEW: "true"
+          UPLOAD_SCREENSHOTS: "true"
+        run: python3 scripts/store/asc_release.py --dry-run

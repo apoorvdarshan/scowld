@@ -12,8 +12,12 @@ final class MemoryStore {
     var totalMemoryCount: Int { slots.count }
     private let defaultSlotPrefix = "Chat"
 
+    /// One model instance shared by every store, so Core Data can map the entity
+    /// classes unambiguously when more than one store exists (as in the unit tests).
+    private static let managedObjectModel = NSPersistentContainer(name: "Scowld").managedObjectModel
+
     init(inMemory: Bool = false) {
-        container = NSPersistentContainer(name: "Scowld")
+        container = NSPersistentContainer(name: "Scowld", managedObjectModel: Self.managedObjectModel)
         if inMemory {
             container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
         }

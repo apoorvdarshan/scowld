@@ -137,6 +137,7 @@ struct MemoryView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("chats.newChat")
                 .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 18, trailing: 20))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)

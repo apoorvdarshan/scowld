@@ -1,0 +1,46 @@
+Scowld is an AI voice companion built for natural, expressive conversations with an animated character. Talk by voice or text, get spoken replies, save conversations, and personalize the companion experience from a polished iOS interface.
+
+WHAT YOU GET
+- Animated AI companion with voice and text conversation
+- Optional hands-free wake mode using Bella or your custom companion name
+- Bring-your-own-key AI provider settings
+- Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI support
+- Native iOS speech recognition plus optional cloud STT providers
+- Deepgram, OpenAI Whisper, Groq Whisper, AssemblyAI, and Google Cloud STT options
+- ElevenLabs text-to-speech with your own API key
+- Celine, Claire, bundled voice presets, and custom ElevenLabs voice ID support
+- Saved past chats that can be reused as conversation context
+- Custom character name and system prompt controls
+- Optional AI response captions
+- Camera vision support when you choose to send visual context
+- Multilingual speech settings with iPhone language inheritance
+- App Store update checks, rating, sharing, contact, and social links in About
+
+PRIVACY AND SECURITY
+- No user account is required
+- Provider API keys are entered by you and stored in iOS Keychain
+- Provider API keys are not bundled in the app and are not stored in plain app preferences
+- No subscriptions, paywall, Billing tab, StoreKit purchases, voice credits, or extra credit packs
+- Hands-free wake detection is processed on device while enabled and is not sent to external providers before command recording starts
+- Microphone audio is transcribed only when voice input is used
+- Camera frames are used only when you enable camera and send visual context
+- Scowld does not use Apple's TrueDepth API or ARKit face tracking
+- Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data
+
+HOW IT WORKS
+1. Open Settings and add your provider API keys
+2. Choose AI, speech-to-text, and ElevenLabs text-to-speech options
+3. Talk with the animated companion hands-free, by voice, or by typing a message
+4. Scowld transcribes speech, sends the message to your selected AI provider, and speaks the response with ElevenLabs
+5. Save and switch between past chats when you want separate conversation contexts
+
+Built with SwiftUI, iOS Keychain, Gemini, OpenAI, Claude, Ollama, OpenAI-compatible providers, cloud STT providers, ElevenLabs, and a Vercel website.
+Website: https://scowld.xyz
+Blog: https://scowld.xyz/blog
+Instagram: https://www.instagram.com/scowld_/
+Product Hunt: https://www.producthunt.com/products/scowld
+Privacy Policy: https://scowld.xyz/privacy
+Terms of Service: https://scowld.xyz/terms
+Contact: ad13dtu@gmail.com
+
+Not affiliated with Google, OpenAI, Anthropic, Deepgram, ElevenLabs, Apple, Vercel, or other supported providers.
