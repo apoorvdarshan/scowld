@@ -45,11 +45,6 @@ on:
   push:
     tags:
       - "v*"
-  # TEMPORARY (removed in the next commit): registers this new workflow so the
-  # branch's validation run can be dispatched. Every job is skipped for PRs.
-  pull_request:
-    paths:
-      - ".github/workflows/ios-release.yml"
   workflow_dispatch:
     inputs:
       marketing_version:
@@ -76,7 +71,6 @@ jobs:
       contents: read
 
   prepare:
-    if: github.event_name != 'pull_request' # TEMPORARY, see the trigger note
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
