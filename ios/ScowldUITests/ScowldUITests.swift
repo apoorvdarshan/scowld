@@ -268,7 +268,7 @@ final class ScowldUITests: XCTestCase {
         let key = app.secureTextFields["settings.ai.apiKey"]
         XCTAssertEqual(key.placeholderValue, "OpenAI API key")
         key.tap()
-        key.typeText("sk-ui-test-key")
+        key.typeText("sk-ui-test-key\n") // Return also dismisses the keyboard covering Save.
         let save = app.buttons["settings.ai.save"]
         reveal(save, in: app)
         save.tap()

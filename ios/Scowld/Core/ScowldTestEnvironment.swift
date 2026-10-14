@@ -1,7 +1,10 @@
 import CoreData
 import Foundation
+import os
 import UIKit
 import WebKit
+
+private let testLogger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "Tests")
 
 /// Launch switches used only by the XCTest suites.
 ///
@@ -78,6 +81,7 @@ enum ScowldTestEnvironment {
         guard isUITesting else { return }
         webView.evaluateJavaScript("typeof window.__sendMessageFromNative === 'function'") { [weak webView] result, _ in
             if (result as? Bool) == true {
+                testLogger.info("[Tests] Companion ready for messages")
                 NotificationCenter.default.post(name: companionReadyNotification, object: nil)
             } else if let webView {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -106,17 +110,23 @@ enum ScowldTestEnvironment {
     /// device blocked (fonts, CDNs, telemetry). Never falls back to an
     /// unblocked load: if the rule list cannot be compiled, nothing loads.
     static func loadBlockingExternalRequests(_ webView: WKWebView, request: URLRequest) {
+        // Content-blocker patterns support no alternation (`|`), hence one rule per case.
         let rules = #"""
         [
-          {"trigger": {"url-filter": "^(https?|wss?)://"}, "action": {"type": "block"}},
-          {"trigger": {"url-filter": "^(https?|wss?)://(127\\.0\\.0\\.1|localhost)[:/]"}, "action": {"type": "ignore-previous-rules"}}
+          {"trigger": {"url-filter": "^https?://"}, "action": {"type": "block"}},
+          {"trigger": {"url-filter": "^wss?://"}, "action": {"type": "block"}},
+          {"trigger": {"url-filter": "^https?://127\\.0\\.0\\.1[:/]"}, "action": {"type": "ignore-previous-rules"}},
+          {"trigger": {"url-filter": "^https?://localhost[:/]"}, "action": {"type": "ignore-previous-rules"}}
         ]
         """#
         WKContentRuleListStore.default().compileContentRuleList(
             forIdentifier: "ScowldTestsOffline",
             encodedContentRuleList: rules
-        ) { [weak webView] ruleList, _ in
-            guard let webView, let ruleList else { return }
+        ) { [weak webView] ruleList, error in
+            guard let webView, let ruleList else {
+                testLogger.error("[Tests] Offline rules failed, companion not loaded: \(String(describing: error), privacy: .public)")
+                return
+            }
             webView.configuration.userContentController.add(ruleList)
             webView.load(request)
         }

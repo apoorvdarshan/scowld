@@ -50,6 +50,8 @@ trap cleanup EXIT
 # Simulator builds are signed ad hoc ("Sign to Run Locally"): no certificate or
 # provisioning profile is needed, and the signature carries the application
 # identifier that Keychain access requires (unit and UI tests save provider keys).
+# Failure screenshots and recordings stay in the result bundle; the simulator
+# diagnostics collection is skipped (on CI it only timed out after 10 minutes).
 status=0
 xcodebuild test \
   -project ios/Scowld.xcodeproj \
@@ -64,6 +66,7 @@ xcodebuild test \
   -enableCodeCoverage YES \
   -parallel-testing-enabled NO \
   -maximum-concurrent-test-simulator-destinations 1 \
+  -collect-test-diagnostics never \
   "$@" \
   2>&1 | tee "$results/xcodebuild.log" || status=$?
 
