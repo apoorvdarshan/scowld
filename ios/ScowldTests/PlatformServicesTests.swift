@@ -118,6 +118,16 @@ final class ElevenLabsRequestTests: XCTestCase {
         XCTAssertEqual(settings["use_speaker_boost"] as? Bool, true)
     }
 
+    func testElevenV4GetsOnlyTheVoiceSettingsItSupports() throws {
+        prepare(apiKey: "eleven-key")
+        UserDefaults.standard.set("eleven_v4", forKey: TTSBackend.elevenLabs.modelDefaultsKey)
+        let request = try ElevenLabsBYOKRequestBuilder.makeRequest(voiceID: "v", body: Data(#"{"text":"Hi"}"#.utf8))
+        let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        XCTAssertEqual(body["model_id"] as? String, "eleven_v4")
+        let settings = try XCTUnwrap(body["voice_settings"] as? [String: Any])
+        XCTAssertEqual(Set(settings.keys), ["stability", "similarity_boost"])
+    }
+
     func testBlankVoiceUsesTheSavedVoiceAndCustomVoiceSettingsAreKept() throws {
         prepare(apiKey: "eleven-key")
         UserDefaults.standard.set("savedVoice99", forKey: "amica_elevenlabs_voiceid")

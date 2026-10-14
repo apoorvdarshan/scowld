@@ -7,15 +7,14 @@ enum HostedServiceConfig {
     static let autoLanguageID = "__auto_language__"
     static let deviceLanguageID = "__device_language__"
 
-    static let fastGeminiModel = "gemini-3-flash-preview"
+    static let fastGeminiModel = "gemini-3.5-flash-lite"
     static let defaultGeminiModel = fastGeminiModel
     static let geminiFallbackModels = [
-        "gemini-3-flash-preview",
+        "gemini-3.5-flash-lite",
+        "gemini-3.6-flash",
+        "gemini-3.8-flash",
+        "gemini-4-argon",
         "gemini-3.1-flash-lite",
-        "gemini-3.1-pro-preview",
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
     ]
 
     static let defaultElevenLabsVoiceID = "mHX7OoPk2G45VMAuinIt"
@@ -23,7 +22,7 @@ enum HostedServiceConfig {
     static let defaultDeepgramModel = "nova-3"
 
     static let openAITTSVoiceDefaultsKey = "amica_openai_tts_voice"
-    static let defaultOpenAITTSVoice = "alloy"
+    static let defaultOpenAITTSVoice = "marin"
 
     static func applyBYOKDefaults() {
         let defaults = UserDefaults.standard
@@ -71,6 +70,11 @@ enum HostedServiceConfig {
     static func selectedModel(for provider: AIProvider) -> String {
         let saved = UserDefaults.standard.string(forKey: provider.modelDefaultsKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if let replacement = provider.retiredModels[saved] {
+            // A model the provider has retired or deprecated moves to its successor.
+            UserDefaults.standard.set(replacement, forKey: provider.modelDefaultsKey)
+            return replacement
+        }
         if !saved.isEmpty {
             return saved
         }

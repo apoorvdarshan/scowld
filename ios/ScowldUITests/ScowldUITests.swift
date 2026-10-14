@@ -233,9 +233,9 @@ final class ScowldUITests: XCTestCase {
         // Menu pickers expose "<title>, <selection>" as their label.
         waitUntil(provider, "label == %@", "Provider, OpenAI")
         let model = app.buttons["settings.ai.model"]
+        waitUntil(model, "label == %@", "Model, gpt-6-luna")
+        choose("gpt-5.4-mini", from: model, in: app)
         waitUntil(model, "label == %@", "Model, gpt-5.4-mini")
-        choose("gpt-4.1", from: model, in: app)
-        waitUntil(model, "label == %@", "Model, gpt-4.1")
 
         let status = app.staticTexts["settings.ai.status"]
         XCTAssertEqual(status.label, "Add a key before chatting")
@@ -253,7 +253,7 @@ final class ScowldUITests: XCTestCase {
         let restoredProvider = app.buttons["settings.ai.provider"]
         reveal(restoredProvider, in: app)
         XCTAssertEqual(restoredProvider.label, "Provider, OpenAI")
-        XCTAssertEqual(app.buttons["settings.ai.model"].label, "Model, gpt-4.1")
+        XCTAssertEqual(app.buttons["settings.ai.model"].label, "Model, gpt-5.4-mini")
         XCTAssertEqual(app.staticTexts["settings.ai.status"].label, "Key saved in Keychain")
     }
 

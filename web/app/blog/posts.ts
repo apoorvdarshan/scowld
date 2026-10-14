@@ -134,7 +134,7 @@ export const posts: Post[] = [
         ],
         bullets: [
           "AI chat: Google Gemini, OpenAI, Anthropic Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.",
-          "Speech-to-text: native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.",
+          "Speech-to-text: native iOS speech, OpenAI, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.",
           "Text-to-speech: ElevenLabs and OpenAI voices.",
         ],
       },

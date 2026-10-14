@@ -97,7 +97,7 @@ final class ServiceSettingsTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: "amica_tts_backend"), TTSBackend.elevenLabs.rawValue)
         XCTAssertEqual(defaults.string(forKey: "amica_elevenlabs_model"), HostedServiceConfig.defaultElevenLabsModel)
         XCTAssertEqual(defaults.string(forKey: TTSBackend.openAI.modelDefaultsKey), TTSBackend.openAI.defaultModel)
-        XCTAssertEqual(defaults.string(forKey: HostedServiceConfig.openAITTSVoiceDefaultsKey), "alloy")
+        XCTAssertEqual(defaults.string(forKey: HostedServiceConfig.openAITTSVoiceDefaultsKey), "marin")
         XCTAssertEqual(defaults.string(forKey: "amica_stt_backend"), STTBackend.nativeIOS.rawValue)
         XCTAssertEqual(defaults.string(forKey: "amica_elevenlabs_voiceid"), HostedServiceConfig.defaultElevenLabsVoiceID)
         for backend in STTBackend.allCases where !backend.availableModels.isEmpty {
@@ -109,7 +109,7 @@ final class ServiceSettingsTests: XCTestCase {
         cleanDefaults()
         let defaults = UserDefaults.standard
         defaults.set(AIProvider.claude.rawValue, forKey: "selectedProvider")
-        defaults.set("claude-opus-4-7", forKey: AIProvider.claude.modelDefaultsKey)
+        defaults.set("claude-opus-5-5", forKey: AIProvider.claude.modelDefaultsKey)
         defaults.set(TTSBackend.openAI.rawValue, forKey: "amica_tts_backend")
         defaults.set(STTBackend.deepgram.rawValue, forKey: "amica_stt_backend")
         defaults.set("myVoice123", forKey: "amica_elevenlabs_voiceid")
@@ -118,7 +118,7 @@ final class ServiceSettingsTests: XCTestCase {
         HostedServiceConfig.applyBYOKDefaults()
 
         XCTAssertEqual(defaults.string(forKey: "selectedProvider"), AIProvider.claude.rawValue)
-        XCTAssertEqual(defaults.string(forKey: "selectedModel"), "claude-opus-4-7")
+        XCTAssertEqual(defaults.string(forKey: "selectedModel"), "claude-opus-5-5")
         XCTAssertEqual(defaults.string(forKey: "amica_tts_backend"), TTSBackend.openAI.rawValue)
         XCTAssertEqual(defaults.string(forKey: "amica_stt_backend"), STTBackend.deepgram.rawValue)
         XCTAssertEqual(HostedServiceConfig.selectedElevenLabsVoiceID(), "myVoice123")
@@ -128,8 +128,8 @@ final class ServiceSettingsTests: XCTestCase {
     func testSelectedModelsTrimWhitespaceAndFallBackToDefaults() {
         cleanDefaults()
         let defaults = UserDefaults.standard
-        defaults.set("  gpt-4.1  ", forKey: AIProvider.openai.modelDefaultsKey)
-        XCTAssertEqual(HostedServiceConfig.selectedModel(for: .openai), "gpt-4.1")
+        defaults.set("  gpt-5.5  ", forKey: AIProvider.openai.modelDefaultsKey)
+        XCTAssertEqual(HostedServiceConfig.selectedModel(for: .openai), "gpt-5.5")
         defaults.set("   ", forKey: AIProvider.openai.modelDefaultsKey)
         XCTAssertEqual(HostedServiceConfig.selectedModel(for: .openai), AIProvider.openai.defaultModel)
 
@@ -140,6 +140,50 @@ final class ServiceSettingsTests: XCTestCase {
         XCTAssertEqual(STTBackend.selectedModel(for: .groqWhisper), STTBackend.groqWhisper.defaultModel)
         defaults.set("whisper-large-v3", forKey: STTBackend.groqWhisper.modelDefaultsKey)
         XCTAssertEqual(STTBackend.selectedModel(for: .groqWhisper), "whisper-large-v3")
+    }
+
+    func testRetiredModelsMoveToTheirReplacementAndCustomModelsStay() {
+        cleanDefaults()
+        let defaults = UserDefaults.standard
+        defaults.set("claude-opus-4-1-20250805", forKey: AIProvider.claude.modelDefaultsKey)
+        XCTAssertEqual(HostedServiceConfig.selectedModel(for: .claude), "claude-opus-5-5")
+        XCTAssertEqual(defaults.string(forKey: AIProvider.claude.modelDefaultsKey), "claude-opus-5-5", "the move is saved")
+
+        defaults.set("llama-3.1-8b-instant", forKey: AIProvider.groq.modelDefaultsKey)
+        XCTAssertEqual(HostedServiceConfig.selectedModel(for: .groq), "openai/gpt-oss-20b")
+
+        defaults.set("my-local-finetune", forKey: AIProvider.ollama.modelDefaultsKey)
+        XCTAssertEqual(HostedServiceConfig.selectedModel(for: .ollama), "my-local-finetune")
+
+        defaults.set("tts-1-hd", forKey: TTSBackend.openAI.modelDefaultsKey)
+        XCTAssertEqual(TTSBackend.selectedModel(for: .openAI), "gpt-4o-mini-tts")
+        defaults.set("eleven_turbo_v2_5", forKey: TTSBackend.elevenLabs.modelDefaultsKey)
+        XCTAssertEqual(TTSBackend.selectedModel(for: .elevenLabs), "eleven_flash_v2_5")
+
+        // STT offers no custom models, so anything retired falls back to the default.
+        defaults.set("whisper-1", forKey: STTBackend.openaiWhisper.modelDefaultsKey)
+        XCTAssertEqual(STTBackend.selectedModel(for: .openaiWhisper), "gpt-transcribe")
+    }
+
+    func testEveryReplacementAndDefaultIsAnOfferedModel() {
+        for provider in AIProvider.allCases {
+            XCTAssertTrue(provider.availableModels.contains(provider.defaultModel), provider.rawValue)
+            for (old, new) in provider.retiredModels {
+                XCTAssertTrue(provider.availableModels.contains(new), "\(provider.rawValue): \(old) -> \(new)")
+                XCTAssertFalse(provider.availableModels.contains(old), "\(provider.rawValue) still offers \(old)")
+            }
+        }
+        for backend in TTSBackend.allCases {
+            XCTAssertTrue(backend.availableModels.contains(backend.defaultModel), backend.rawValue)
+            for (old, new) in backend.retiredModels {
+                XCTAssertTrue(backend.availableModels.contains(new), "\(backend.rawValue): \(old) -> \(new)")
+                XCTAssertFalse(backend.availableModels.contains(old), "\(backend.rawValue) still offers \(old)")
+            }
+        }
+        XCTAssertTrue(TTSBackend.openAI.voiceOptions.contains(HostedServiceConfig.defaultOpenAITTSVoice))
+        for backend in STTBackend.allCases where !backend.availableModels.isEmpty {
+            XCTAssertTrue(backend.availableModels.contains(backend.defaultModel), backend.rawValue)
+        }
     }
 
     func testBlankVoiceSelectionsUseTheDefaults() {

@@ -7,7 +7,7 @@ struct OpenAIProvider: LLMProvider {
     let apiKey: String
     let model: String
 
-    init(apiKey: String, model: String = "gpt-5.4-mini") {
+    init(apiKey: String, model: String = AIProvider.openai.defaultModel) {
         self.apiKey = apiKey
         self.model = model
     }
@@ -24,11 +24,7 @@ struct OpenAIProvider: LLMProvider {
             ])
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "messages": apiMessages,
-            "max_completion_tokens": 1024,
-        ]
+        let body = requestBody(messages: apiMessages)
 
         let data = try await performRequest(body: body)
         return try parseResponse(data: data)
@@ -62,14 +58,35 @@ struct OpenAIProvider: LLMProvider {
             }
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "messages": apiMessages,
-            "max_completion_tokens": 1024,
-        ]
+        let body = requestBody(messages: apiMessages)
 
         let data = try await performRequest(body: body)
         return try parseResponse(data: data)
+    }
+
+    // MARK: - Request shape
+
+    private func requestBody(messages: [[String: Any]]) -> [String: Any] {
+        var body: [String: Any] = [
+            "model": model,
+            "messages": messages,
+            // Reasoning tokens share this cap with the reply.
+            "max_completion_tokens": 4096,
+        ]
+        if let effort = Self.reasoningEffort(for: model) {
+            body["reasoning_effort"] = effort
+        }
+        return body
+    }
+
+    /// The lowest reasoning effort each model accepts, for fast spoken replies: newer
+    /// models default to medium. GPT-6.1 Sol and GPT-6 Astra reject "none"; GPT-5
+    /// itself predates it. Other names (older or custom models) send nothing.
+    static func reasoningEffort(for model: String) -> String? {
+        if model.hasPrefix("gpt-6.1-sol") || model.hasPrefix("gpt-6-astra") { return "low" }
+        if model.hasPrefix("gpt-6") || model.hasPrefix("gpt-5.") { return "none" }
+        if model == "gpt-5" || model.hasPrefix("gpt-5-") { return "minimal" }
+        return nil
     }
 
     // MARK: - Private

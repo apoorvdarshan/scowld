@@ -973,17 +973,22 @@ enum ElevenLabsBYOKRequestBuilder {
             body = json
         }
 
-        body["model_id"] = TTSBackend.selectedModel(for: .elevenLabs)
+        let model = TTSBackend.selectedModel(for: .elevenLabs)
+        body["model_id"] = model
         if let languageCode = HostedServiceConfig.selectedServiceLanguageCode() {
             body["language_code"] = languageCode
         }
         if body["voice_settings"] == nil {
-            body["voice_settings"] = [
-                "stability": 0.55,
-                "similarity_boost": 0.8,
-                "style": 0.35,
-                "use_speaker_boost": true,
-            ]
+            // Eleven v3 and v4 take only stability and similarity (no style or speaker boost).
+            let voiceSettings: [String: Any] = model.hasPrefix("eleven_v")
+                ? ["stability": 0.55, "similarity_boost": 0.8]
+                : [
+                    "stability": 0.55,
+                    "similarity_boost": 0.8,
+                    "style": 0.35,
+                    "use_speaker_boost": true,
+                ]
+            body["voice_settings"] = voiceSettings
         }
 
         return body
@@ -2318,7 +2323,8 @@ struct AmicaFullView: UIViewRepresentable {
                         baseURL: baseURL,
                         apiKey: try apiKey(for: provider),
                         model: model,
-                        includeTemperature: provider.includesSamplingTemperature
+                        includeTemperature: provider.includesSamplingTemperature,
+                        extraBody: provider.extraRequestFields(for: model)
                     ),
                     supportsVision: provider.supportsVision
                 )
