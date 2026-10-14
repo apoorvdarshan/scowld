@@ -1,11 +1,12 @@
 # iOS release — GitHub Actions builds, signs and uploads the App Store binary,
 # and creates the GitHub Release. One v* tag → this one pipeline.
 #
-# Xcode Cloud is being removed for Scowld: its "Default" workflow (also started by
-# v* tags) is deleted in App Store Connect once this pipeline has validated. Xcode
-# Cloud triggers live in App Store Connect, not in this repository, so no switch
-# here can stop them; never re-create an Xcode Cloud workflow for v* tags or both
-# pipelines would build the same tag.
+# Xcode Cloud was removed for Scowld on 2026-10-14: its "Default" workflow (which
+# v* tags also started) and its Xcode Cloud product were deleted in App Store
+# Connect after this pipeline validated. Xcode Cloud triggers live in App Store
+# Connect, not in this repository, so no switch here could stop them; never
+# re-create an Xcode Cloud workflow for v* tags, or both pipelines would build
+# the same tag.
 #
 # Trigger
 #   push tag vX.Y[.Z]   release run; the tag must equal MARKETING_VERSION exactly
@@ -30,8 +31,16 @@
 #   IOS_BUILD_WAIT_MINUTES   default 120  (10–300), counted from upload start,
 #                            covering upload + App Store Connect processing
 #
+# Before anything is built, prepare runs the release-script tests and checks only
+# the store files the enabled switches use (an unused file never blocks a
+# release; pull requests and main check all of them in store-automation.yml).
 # With any listing/What's New/screenshot/review switch on, a read-only preflight
-# checks App Store Connect before anything is built or uploaded.
+# then checks App Store Connect: the version exists in a usable state with every
+# repository locale, What's New is new, and nothing would have to ship with it.
+# Store steps run on a pinned Python (setup-python), unbuffered.
+#
+# A failed build keeps its logs as an artifact only after every file in them,
+# binary or text, had the App Store Connect key and issuer IDs removed.
 #
 # Secrets
 #   APP_STORE_CONNECT_API_KEY_ID / _ISSUER_ID / _API_KEY_P8
@@ -96,6 +105,9 @@ jobs:
       marketing_version: ${{ steps.gates.outputs.marketing_version }}
       build_number: ${{ steps.number.outputs.build_number }}
     steps:
+      # The App Store screenshots (marketing/mockups*, 26 MB) are only read when a
+      # tag run may upload them, so they are left out unless IOS_UPLOAD_SCREENSHOTS
+      # is set to something other than an "off" value (the gates validate it below).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -107,9 +119,19 @@ jobs:
             /ios/Scowld.xcodeproj/
             /requirements-store.txt
             /RELEASE_NOTES.md
-            /marketing/mockups*/
+            ${{ github.event_name == 'push' && !contains(fromJSON('["", "0", "false", "no", "off"]'), vars.IOS_UPLOAD_SCREENSHOTS) && '/marketing/mockups*/' || '' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
 
       - name: Test the release scripts (offline)
+        env:
+          # The committed listing, screenshots and release notes are tested on every
+          # pull request and main push (store-automation.yml). A release checks only
+          # the files its switches use (next steps), so an unused one never blocks it.
+          CHECK_COMMITTED_STORE_FILES: "false"
         run: python3 -m unittest scripts/store/test_ios_release.py
 
       - name: Resolve iOS release switches
@@ -148,8 +170,10 @@ jobs:
         if: steps.gates.outputs.build == 'true' || steps.gates.outputs.asc == 'true'
         run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
 
-      # Read-only: the version exists in the right state, What's New is new, and
-      # no in-app product would have to ship with it. Fails before any upload.
+      # Read-only: the version exists in a state that allows the enabled steps and
+      # has every repository locale, What's New is new, screenshots that can no
+      # longer change already match, and no in-app product would have to ship with
+      # it. Fails before any upload.
       - name: Check App Store Connect before building (read-only)
         if: steps.gates.outputs.asc == 'true'
         env:
@@ -162,7 +186,7 @@ jobs:
           SUBMIT_IOS_REVIEW: ${{ steps.gates.outputs.submit }}
           PUBLIC_RELEASE: ${{ steps.gates.outputs.public_release }}
           MARKETING_VERSION: ${{ steps.gates.outputs.marketing_version }}
-        run: python3 scripts/store/asc_release.py --preflight --version "$MARKETING_VERSION"
+        run: python3 -u scripts/store/asc_release.py --preflight --version "$MARKETING_VERSION"
 
       - name: Choose the build number
         id: number
@@ -171,7 +195,7 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-        run: python3 scripts/store/ios_release.py build-number
+        run: python3 -u scripts/store/ios_release.py build-number
 
   build:
     needs: [tests, prepare]
@@ -200,13 +224,14 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /ios/
+            /scripts/store/redact_logs.py
 
       # Scowld has no Swift packages today; once a Package.resolved is committed
       # the pinned packages are cached. The archive itself always builds from a
       # fresh derived-data folder (no build cache for store artifacts).
       - name: Cache pinned Swift packages
         if: hashFiles('ios/**/Package.resolved') != ''
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ios-release-packages
           key: ios-release-spm-${{ runner.os }}-${{ runner.arch }}-xcode27-${{ hashFiles('ios/**/Package.resolved') }}
@@ -367,20 +392,21 @@ jobs:
           echo "uploaded $MARKETING_VERSION ($BUILD_NUMBER); App Store Connect processing is checked next"
 
       - name: Collect logs
+        id: collect
         if: failure()
         run: |
+          set -euo pipefail
           mkdir -p "$RUNNER_TEMP/logs"
           find "${TMPDIR:-/tmp}" -maxdepth 1 -name '*.xcdistributionlogs' -exec cp -R {} "$RUNNER_TEMP/logs/" \; 2>/dev/null || true
-          # xcodebuild and altool echo their command lines into these logs. Artifacts are
-          # not masked like the console, so replace the key and issuer IDs before upload.
-          if [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ]; then
-            grep -rlIF -e "$ASC_KEY_ID" -e "$ASC_ISSUER_ID" "$RUNNER_TEMP/logs" 2>/dev/null | while IFS= read -r file; do
-              perl -pi -e 's/\Q$ENV{ASC_KEY_ID}\E/<ASC_KEY_ID>/g; s/\Q$ENV{ASC_ISSUER_ID}\E/<ASC_ISSUER_ID>/g' "$file"
-            done
-          fi
+          # xcodebuild and altool echo the key and issuer IDs into these logs, and the
+          # distribution logs can hold binary or UTF-16 files. Artifacts are not masked
+          # like the console, so every file is redacted; a file that cannot be is
+          # dropped, and if that fails too nothing is uploaded (next step).
+          python3 scripts/store/redact_logs.py "$RUNNER_TEMP/logs"
+          echo "redacted=true" >> "$GITHUB_OUTPUT"
 
       - name: Keep build logs
-        if: failure()
+        if: failure() && steps.collect.outputs.redacted == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-release-logs-${{ github.run_id }}-${{ github.run_attempt }}
@@ -422,18 +448,30 @@ jobs:
             /scripts/store/
             /requirements-store.txt
 
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
       - name: Install store tooling
         run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
 
+      # Unbuffered (-u), so each poll shows in the live log as it happens.
       - name: Wait for App Store Connect to process this build
         id: wait
+        env:
+          BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
+          UPLOAD_STARTED_AT: ${{ needs.build.outputs.upload_started_at }}
+          WAIT_MINUTES: ${{ needs.prepare.outputs.wait_minutes }}
+          POLL_SECONDS: ${{ needs.prepare.outputs.poll_seconds }}
         run: |
-          python3 scripts/store/ios_release.py wait-build \
+          set -euo pipefail
+          python3 -u scripts/store/ios_release.py wait-build \
             --version "$MARKETING_VERSION" \
-            --build "${{ needs.prepare.outputs.build_number }}" \
-            --started-at "${{ needs.build.outputs.upload_started_at }}" \
-            --wait-minutes "${{ needs.prepare.outputs.wait_minutes }}" \
-            --poll-seconds "${{ needs.prepare.outputs.poll_seconds }}"
+            --build "$BUILD_NUMBER" \
+            --started-at "$UPLOAD_STARTED_AT" \
+            --wait-minutes "$WAIT_MINUTES" \
+            --poll-seconds "$POLL_SECONDS"
 
   app-store-connect:
     needs: [tests, prepare, build, wait-for-build]
@@ -454,6 +492,7 @@ jobs:
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
     steps:
+      # The screenshot images are checked out only when this run uploads them.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -462,7 +501,12 @@ jobs:
             /scripts/store/
             /store/
             /requirements-store.txt
-            /marketing/mockups*/
+            ${{ needs.prepare.outputs.screenshots == 'true' && '/marketing/mockups*/' || '' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
 
       - name: Install store tooling
         run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
@@ -482,7 +526,7 @@ jobs:
           if [ -n "$BUILD_ID" ]; then
             args+=(--build-id "$BUILD_ID" --build-number "$BUILD_NUMBER")
           fi
-          python3 scripts/store/asc_release.py "${args[@]}"
+          python3 -u scripts/store/asc_release.py "${args[@]}"
 
   github-release:
     needs: [tests, prepare, build, wait-for-build, app-store-connect]

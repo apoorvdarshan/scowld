@@ -13,15 +13,25 @@ flags from the resolved IOS_* repository variables:
 
 The listing lives in store/metadata/ios/<locale>/ (exported from the live App
 Store listing by asc_export_listing.py), so the repository is its source of
-truth. Only fields whose text differs from App Store Connect are sent.
+truth. Only fields whose text differs from App Store Connect are sent. What's
+New must be plain text: App Store Connect shows Markdown literally, so it is
+refused.
+
+Reruns are idempotent. In READY_FOR_REVIEW (the version already sits in a draft
+review submission) text can still change but screenshots cannot; in
+WAITING_FOR_REVIEW (already submitted) nothing can. A step that can no longer
+change only checks that App Store Connect already matches the repository, and
+those checks run before anything is written.
 
 Scowld sells nothing in-app (2.0 removed purchases), so no in-app purchase or
 subscription is submitted; submission stops instead if App Store Connect holds
 products that would have to go to review with the version.
 
 `--dry-run` validates the switches and local files only (no network).
-`--preflight` repeats the version, What's New and in-app product checks against
-App Store Connect with GET requests only, before the build is uploaded.
+`--preflight` uses GET requests only, before the build is uploaded: the version
+exists in a state that allows the enabled steps and has every repository
+locale, What's New differs from the live version, screenshots that can no
+longer change already match, and no in-app product would have to ship with it.
 """
 from __future__ import annotations
 
@@ -59,6 +69,14 @@ APP_INFO_FIELDS = (
 )
 WHATS_NEW_FIELD = ("whatsNew", "whats_new.txt", 4000)
 URL_FIELDS = {"marketingUrl", "supportUrl", "privacyPolicyUrl"}
+# App Store Connect shows What's New as plain text, so Markdown would appear
+# literally on the App Store. "- " bullets are plain text and fine.
+MARKDOWN_SYNTAX = (
+    (re.compile(r"\*\*|__"), "bold markers (** or __)"),
+    (re.compile(r"`"), "backticks"),
+    (re.compile(r"\[[^\]\n]+\]\([^)\n]*\)"), "links [text](url)"),
+    (re.compile(r"^ {0,3}#{1,6}(\s|$)", re.MULTILINE), "headings (#)"),
+)
 SCREENSHOT_MANIFEST = "screenshots.json"
 
 # Accepted portrait sizes per App Store Connect display type (landscape = swapped).
@@ -70,6 +88,7 @@ SCREENSHOT_SIZES = {
 SCREENSHOT_SET_MAX = 10
 SCREENSHOT_PROCESSING_SECONDS = 300
 
+# Everything (text and screenshots) can change in these version states.
 EDITABLE_VERSION_STATES = {
     "PREPARE_FOR_SUBMISSION",
     "DEVELOPER_REJECTED",
@@ -78,9 +97,23 @@ EDITABLE_VERSION_STATES = {
     "INVALID_BINARY",
 }
 # READY_FOR_REVIEW means the version already sits in a draft review submission
-# (for example after a failed submit); it can still be submitted.
-SUBMITTABLE_VERSION_STATES = EDITABLE_VERSION_STATES | {"READY_FOR_REVIEW"}
-EDITABLE_APP_INFO_STATES = {"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED"}
+# (for example after a failed submit). Its listing and What's New text can still
+# change and it can still be submitted, but its screenshots can no longer be
+# replaced, so they are only checked against the repository.
+TEXT_EDITABLE_VERSION_STATES = EDITABLE_VERSION_STATES | {"READY_FOR_REVIEW"}
+SUBMITTABLE_VERSION_STATES = TEXT_EDITABLE_VERSION_STATES
+# WAITING_FOR_REVIEW after this pipeline's own submit (a rerun): nothing can change,
+# so every enabled operation only checks that App Store Connect already matches.
+SUBMITTED_VERSION_STATE = "WAITING_FOR_REVIEW"
+# App info (name, subtitle, privacy URL) is editable while its version is.
+EDITABLE_APP_INFO_STATES = {
+    "PREPARE_FOR_SUBMISSION",
+    "DEVELOPER_REJECTED",
+    "REJECTED",
+    "METADATA_REJECTED",
+    "READY_FOR_REVIEW",
+}
+LIVE_APP_INFO_STATES = {"READY_FOR_DISTRIBUTION", "READY_FOR_SALE"}
 LIVE_VERSION_STATES = {"READY_FOR_SALE", "READY_FOR_DISTRIBUTION"}
 # In-app products in these states would have to go to App Review with a version.
 PENDING_PRODUCT_STATES = {"READY_TO_SUBMIT", "DEVELOPER_REJECTED", "READY_FOR_REVIEW"}
@@ -111,6 +144,11 @@ def read_text(path: Path) -> str | None:
         return None
     text = path.read_text(encoding="utf-8").strip()
     return text or None
+
+
+def markdown_syntax(text: str) -> list[str]:
+    """The kinds of Markdown syntax found in text (empty for plain text)."""
+    return [label for pattern, label in MARKDOWN_SYNTAX if pattern.search(text)]
 
 
 # MARK: - HTTP client
@@ -361,6 +399,12 @@ def validate_local_inputs(
             whats_new = load_fields(loc_dir, (WHATS_NEW_FIELD,))
             if WHATS_NEW_FIELD[0] not in whats_new:
                 fail(f"What's New upload is on, but {loc_dir / WHATS_NEW_FIELD[1]} is missing or empty")
+            found = markdown_syntax(whats_new[WHATS_NEW_FIELD[0]])
+            if found:
+                fail(
+                    f"{loc_dir / WHATS_NEW_FIELD[1]} uses Markdown ({', '.join(found)}); App Store "
+                    "Connect shows it literally, so write plain text ('- ' bullets are fine)"
+                )
             entry["whats_new"] = whats_new[WHATS_NEW_FIELD[0]]
         if upload_screenshots:
             entry["screenshots"] = load_screenshot_manifest(loc_dir, root)
@@ -385,12 +429,24 @@ def changed_fields(current: dict[str, Any], wanted: dict[str, str]) -> dict[str,
     }
 
 
+def refuse_locked_change(label: str, locale: str, changes: Any, locked: str) -> None:
+    """A change is needed, but App Store Connect no longer allows it (see `locked`)."""
+    fail(
+        f"{label} ({locale}) differs from App Store Connect ({', '.join(sorted(changes))}), but {locked}; "
+        "change it in App Store Connect (or remove the version from review) so both match, then rerun"
+    )
+
+
 def app_info_state(info: dict[str, Any]) -> str:
     attrs = info.get("attributes") or {}
     return attrs.get("state") or attrs.get("appStoreState") or ""
 
 
-def upload_version_fields(client: Any, version_id: str, locale: str, wanted: dict[str, str], label: str) -> None:
+def upload_version_fields(
+    client: Any, version_id: str, locale: str, wanted: dict[str, str], label: str, *, locked: str | None = None
+) -> None:
+    """Send only the fields that differ. With `locked` (the reason edits are no longer
+    allowed), nothing is written: matching fields pass, differing fields fail."""
     loc = localization_for_locale(client, f"/appStoreVersions/{version_id}/appStoreVersionLocalizations", locale)
     if loc is None:
         fail(f"version has no {locale} localization in App Store Connect; add the language there first")
@@ -398,6 +454,8 @@ def upload_version_fields(client: Any, version_id: str, locale: str, wanted: dic
     if not changes:
         print(f"  {label} ({locale}): already up to date")
         return
+    if locked:
+        refuse_locked_change(label, locale, changes, locked)
     client.patch(
         f"/appStoreVersionLocalizations/{loc['id']}",
         {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": changes}},
@@ -405,27 +463,45 @@ def upload_version_fields(client: Any, version_id: str, locale: str, wanted: dic
     print(f"  {label} ({locale}): updated {', '.join(sorted(changes))}")
 
 
-def upload_app_info_fields(client: Any, app_id: str, locale: str, wanted: dict[str, str]) -> None:
-    """Name, subtitle and privacy URL live on the app info that ships with the version."""
-    if not wanted:
-        return
+def app_info_for_listing(client: Any, app_id: str) -> tuple[dict[str, Any], bool]:
+    """(app info record the listing is compared with, whether it is editable).
+
+    The editable record (it ships with the new version) wins. Without one, the record
+    already submitted with a version (a rerun after submitting) is compared, and
+    otherwise the live one.
+    """
     infos = iter_collection(client, f"/apps/{app_id}/appInfos")
     editable = [info for info in infos if app_info_state(info) in EDITABLE_APP_INFO_STATES]
     if len(editable) > 1:
         fail(f"ambiguous: {len(editable)} editable app infos")
-    target = editable[0] if editable else None
-    live = [info for info in infos if app_info_state(info) in {"READY_FOR_DISTRIBUTION", "READY_FOR_SALE"}]
-    source = target or next(iter(live or infos), None)
+    if editable:
+        return editable[0], True
+    retired = LIVE_APP_INFO_STATES | {"REPLACED_WITH_NEW_INFO", "REPLACED_WITH_NEW_VERSION"}
+    submitted = [info for info in infos if app_info_state(info) not in retired]
+    live = [info for info in infos if app_info_state(info) in LIVE_APP_INFO_STATES]
+    source = submitted[0] if len(submitted) == 1 else next(iter(live or infos), None)
     if source is None:
         fail("app has no app info in App Store Connect")
-    loc = localization_for_locale(client, f"/appInfos/{source['id']}/appInfoLocalizations", locale)
+    return source, False
+
+
+def upload_app_info_fields(
+    client: Any, app_id: str, locale: str, wanted: dict[str, str], *, locked: str | None = None
+) -> None:
+    """Name, subtitle and privacy URL live on the app info that ships with the version."""
+    if not wanted:
+        return
+    info, editable = app_info_for_listing(client, app_id)
+    loc = localization_for_locale(client, f"/appInfos/{info['id']}/appInfoLocalizations", locale)
     if loc is None:
         fail(f"app info has no {locale} localization in App Store Connect; add the language there first")
     changes = changed_fields(loc.get("attributes") or {}, wanted)
     if not changes:
         print(f"  app name/subtitle/privacy URL ({locale}): already up to date")
         return
-    if target is None:
+    if locked:
+        refuse_locked_change("app name/subtitle/privacy URL", locale, changes, locked)
+    if not editable:
         fail(
             f"{', '.join(sorted(changes))} ({locale}) changed, but App Store Connect has no editable "
             "app info; they can only change together with a new version"
@@ -461,9 +537,11 @@ def refuse_stale_whats_new(client: Any, app_id: str, version_id: str, locale: st
         )
 
 
-def upload_whats_new(client: Any, app_id: str, version_id: str, locale: str, text: str) -> None:
+def upload_whats_new(
+    client: Any, app_id: str, version_id: str, locale: str, text: str, *, locked: str | None = None
+) -> None:
     refuse_stale_whats_new(client, app_id, version_id, locale, text)
-    upload_version_fields(client, version_id, locale, {WHATS_NEW_FIELD[0]: text}, "What's New")
+    upload_version_fields(client, version_id, locale, {WHATS_NEW_FIELD[0]: text}, "What's New", locked=locked)
 
 
 # MARK: - Screenshots
@@ -473,10 +551,17 @@ def md5_hex(path: Path) -> str:
     return hashlib.md5(path.read_bytes()).hexdigest()  # noqa: S324 - App Store Connect's checksum
 
 
-def ensure_screenshot_set(client: Any, version_loc_id: str, display_type: str) -> str:
+def find_screenshot_set(client: Any, version_loc_id: str, display_type: str) -> str | None:
     for item in iter_collection(client, f"/appStoreVersionLocalizations/{version_loc_id}/appScreenshotSets?limit=50"):
         if (item.get("attributes") or {}).get("screenshotDisplayType") == display_type:
             return item["id"]
+    return None
+
+
+def ensure_screenshot_set(client: Any, version_loc_id: str, display_type: str) -> str:
+    existing = find_screenshot_set(client, version_loc_id, display_type)
+    if existing is not None:
+        return existing
     created = client.post(
         "/appScreenshotSets",
         {
@@ -556,13 +641,27 @@ def wait_for_screenshots(
             sleep(3)
 
 
-def sync_screenshot_set(client: Any, version_loc_id: str, locale: str, display_type: str, files: list[Path]) -> None:
-    set_id = ensure_screenshot_set(client, version_loc_id, display_type)
-    current = iter_collection(client, f"/appScreenshotSets/{set_id}/appScreenshots?limit=50")
+def sync_screenshot_set(
+    client: Any,
+    version_loc_id: str,
+    locale: str,
+    display_type: str,
+    files: list[Path],
+    *,
+    locked: str | None = None,
+) -> None:
+    """Replace the set when its images differ. With `locked`, nothing is written:
+    an identical set passes and a differing one fails."""
+    set_id = find_screenshot_set(client, version_loc_id, display_type)
+    current = iter_collection(client, f"/appScreenshotSets/{set_id}/appScreenshots?limit=50") if set_id else []
     wanted = [md5_hex(path) for path in files]
     if [(row.get("attributes") or {}).get("sourceFileChecksum") for row in current] == wanted:
         print(f"  screenshots {display_type} ({locale}): already up to date")
         return
+    if locked:
+        refuse_locked_change(f"screenshots {display_type}", locale, ["images"], locked)
+    if set_id is None:
+        set_id = ensure_screenshot_set(client, version_loc_id, display_type)
     # The version is not live yet, so replacing the whole set is safe; rerun on failure.
     for row in current:
         client.delete(f"/appScreenshots/{row['id']}")
@@ -575,12 +674,56 @@ def sync_screenshot_set(client: Any, version_loc_id: str, locale: str, display_t
     print(f"  screenshots {display_type} ({locale}): uploaded {len(new_ids)} in order")
 
 
-def upload_screenshots(client: Any, version_id: str, locale: str, plan: dict[str, list[Path]]) -> None:
+def upload_screenshots(
+    client: Any, version_id: str, locale: str, plan: dict[str, list[Path]], *, locked: str | None = None
+) -> None:
     loc = localization_for_locale(client, f"/appStoreVersions/{version_id}/appStoreVersionLocalizations", locale)
     if loc is None:
         fail(f"version has no {locale} localization in App Store Connect; add the language there first")
     for display_type, files in plan.items():
-        sync_screenshot_set(client, loc["id"], locale, display_type, files)
+        sync_screenshot_set(client, loc["id"], locale, display_type, files, locked=locked)
+
+
+def sync_metadata(
+    client: Any,
+    *,
+    app_id: str,
+    version_id: str,
+    plan: dict[str, dict[str, Any]],
+    listing: bool,
+    whats_new: bool,
+    screenshots: bool,
+    text_locked: str | None,
+    screenshots_locked: str | None,
+    check_only: bool = False,
+) -> None:
+    """Listing, What's New and screenshots for every locale.
+
+    An operation App Store Connect no longer allows for this version (`*_locked` holds
+    the reason) only checks that App Store Connect already matches the repository,
+    which keeps reruns idempotent. Those checks run first, so a change that cannot be
+    made fails before anything is written. `check_only` runs just those checks.
+    """
+    for locked_pass in ((True,) if check_only else (True, False)):
+        for locale, entry in plan.items():
+            if listing and (text_locked is not None) is locked_pass:
+                upload_app_info_fields(client, app_id, locale, entry["app_info"], locked=text_locked)
+                upload_version_fields(client, version_id, locale, entry["version"], "listing", locked=text_locked)
+            if whats_new and (text_locked is not None) is locked_pass:
+                upload_whats_new(client, app_id, version_id, locale, entry["whats_new"], locked=text_locked)
+            if screenshots and (screenshots_locked is not None) is locked_pass:
+                upload_screenshots(client, version_id, locale, entry["screenshots"], locked=screenshots_locked)
+
+
+def metadata_locks(version_string: str, state: str) -> tuple[str | None, str | None]:
+    """(text lock, screenshot lock) for this version state; None = may change."""
+    text_locked = None
+    if state == SUBMITTED_VERSION_STATE:
+        text_locked = f"version {version_string} is {state} and can no longer be edited"
+    screenshots_locked = None
+    if state not in EDITABLE_VERSION_STATES:
+        screenshots_locked = f"version {version_string} is {state}, where screenshots can no longer change"
+    return text_locked, screenshots_locked
 
 
 # MARK: - Build selection and review
@@ -597,13 +740,37 @@ def refuse_pending_in_app_products(client: Any, app_id: str) -> None:
 
 
 def require_version_state(version_string: str, state: str, *, edits_metadata: bool, submit: bool) -> None:
-    if edits_metadata and state not in EDITABLE_VERSION_STATES:
+    if edits_metadata and state not in TEXT_EDITABLE_VERSION_STATES:
         fail(
             f"version {version_string} is not editable (state={state}); expected one of "
-            f"{', '.join(sorted(EDITABLE_VERSION_STATES))}"
+            f"{', '.join(sorted(TEXT_EDITABLE_VERSION_STATES))}"
         )
     if submit and state not in SUBMITTABLE_VERSION_STATES:
         fail(f"version {version_string} cannot be submitted for review (state={state})")
+
+
+def locales_of(client: Any, collection_path: str) -> set[str]:
+    return {
+        (row.get("attributes") or {}).get("locale") or ""
+        for row in iter_collection(client, f"{collection_path}?limit=50")
+    }
+
+
+def require_localizations(
+    client: Any, app_id: str, version_id: str, plan: dict[str, dict[str, Any]], *, listing: bool
+) -> None:
+    """Every repository locale must already exist on the version (and, for the listing,
+    on its app info): the pipeline never adds a language."""
+    missing = sorted(set(plan) - locales_of(client, f"/appStoreVersions/{version_id}/appStoreVersionLocalizations"))
+    if missing:
+        fail(f"version has no {', '.join(missing)} localization in App Store Connect; add the language there first")
+    needs_app_info = sorted(locale for locale, entry in plan.items() if listing and entry.get("app_info"))
+    if needs_app_info:
+        info, _ = app_info_for_listing(client, app_id)
+        present = locales_of(client, f"/appInfos/{info['id']}/appInfoLocalizations")
+        missing = [locale for locale in needs_app_info if locale not in present]
+        if missing:
+            fail(f"app info has no {', '.join(missing)} localization in App Store Connect; add the language there first")
 
 
 def preflight(
@@ -612,21 +779,42 @@ def preflight(
     bundle_id: str,
     version_string: str,
     plan: dict[str, dict[str, Any]],
+    do_listing: bool,
     do_whats_new: bool,
-    edits_metadata: bool,
+    do_screenshots: bool,
     do_submit: bool,
 ) -> None:
     """Read-only checks run before a build is uploaded, so a release fails early.
 
-    The live run repeats every check, because App Store Connect can change in between.
+    The version must exist in a state that allows the enabled steps, with every
+    repository locale; What's New must differ from the live version's; screenshots
+    that can no longer change must already match; no in-app product may have to ship
+    with it. The live run repeats every check, because App Store Connect can change
+    in between.
     """
     app_id = find_app(client, bundle_id)
     version = get_ios_app_store_version(client, app_id, version_string)
     state = (version.get("attributes") or {}).get("appStoreState") or ""
+    edits_metadata = do_listing or do_whats_new or do_screenshots
     require_version_state(version_string, state, edits_metadata=edits_metadata, submit=do_submit)
+    if edits_metadata:
+        require_localizations(client, app_id, version["id"], plan, listing=do_listing)
     if do_whats_new:
         for locale, entry in plan.items():
             refuse_stale_whats_new(client, app_id, version["id"], locale, entry["whats_new"])
+    text_locked, screenshots_locked = metadata_locks(version_string, state)
+    sync_metadata(
+        client,
+        app_id=app_id,
+        version_id=version["id"],
+        plan=plan,
+        listing=do_listing,
+        whats_new=do_whats_new,
+        screenshots=do_screenshots,
+        text_locked=text_locked,
+        screenshots_locked=screenshots_locked,
+        check_only=True,
+    )
     if do_submit:
         refuse_pending_in_app_products(client, app_id)
     print(f"ASC preflight passed: version {version_string} ({state}) is ready for the enabled steps")
@@ -821,6 +1009,7 @@ def main(argv: list[str] | None = None) -> None:
         upload_whats_new=do_whats_new,
         upload_screenshots=do_screenshots,
         metadata_dir=args.metadata_dir,
+        root=ROOT,
     )
     if args.dry_run:
         print(
@@ -840,8 +1029,9 @@ def main(argv: list[str] | None = None) -> None:
             bundle_id=args.bundle_id,
             version_string=args.version,
             plan=plan,
+            do_listing=do_listing,
             do_whats_new=do_whats_new,
-            edits_metadata=edits_metadata,
+            do_screenshots=do_screenshots,
             do_submit=do_submit,
         )
         return
@@ -851,26 +1041,35 @@ def main(argv: list[str] | None = None) -> None:
     state = (version.get("attributes") or {}).get("appStoreState") or ""
     print(f"ASC app={app_id} version={args.version} id={version_id} state={state}")
 
-    if state == "WAITING_FOR_REVIEW":
-        if edits_metadata:
-            fail(f"cannot change the listing while version {args.version} is WAITING_FOR_REVIEW")
-        # A rerun after a successful submit: only accept it if review holds this run's build.
-        confirm_selected_build(client, version_id, args.build_id)
-        print("ASC submit skipped — version already WAITING_FOR_REVIEW with this run's build (idempotent)")
-        return
-    require_version_state(args.version, state, edits_metadata=edits_metadata, submit=do_submit)
-    if do_submit:
-        # Checked before any change, so a blocked submission leaves the listing untouched.
-        refuse_pending_in_app_products(client, app_id)
+    # A rerun after this pipeline already submitted: nothing may change any more, so the
+    # enabled steps only confirm App Store Connect matches, and review must hold this
+    # run's build.
+    already_submitted = state == SUBMITTED_VERSION_STATE
+    if not already_submitted:
+        require_version_state(args.version, state, edits_metadata=edits_metadata, submit=do_submit)
+        if do_submit:
+            # Checked before any change, so a blocked submission leaves the listing untouched.
+            refuse_pending_in_app_products(client, app_id)
 
-    for locale, entry in plan.items():
-        if do_listing:
-            upload_app_info_fields(client, app_id, locale, entry["app_info"])
-            upload_version_fields(client, version_id, locale, entry["version"], "listing")
-        if do_whats_new:
-            upload_whats_new(client, app_id, version_id, locale, entry["whats_new"])
-        if do_screenshots:
-            upload_screenshots(client, version_id, locale, entry["screenshots"])
+    text_locked, screenshots_locked = metadata_locks(args.version, state)
+    sync_metadata(
+        client,
+        app_id=app_id,
+        version_id=version_id,
+        plan=plan,
+        listing=do_listing,
+        whats_new=do_whats_new,
+        screenshots=do_screenshots,
+        text_locked=text_locked,
+        screenshots_locked=screenshots_locked,
+    )
+
+    if already_submitted:
+        if do_submit:
+            confirm_selected_build(client, version_id, args.build_id)
+            print(f"ASC submit skipped — version already {state} with this run's build (idempotent)")
+        print("ASC release step finished")
+        return
 
     if do_submit:
         print("selecting this run's build…")

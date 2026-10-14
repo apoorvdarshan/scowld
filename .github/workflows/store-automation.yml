@@ -1,5 +1,10 @@
 # Offline checks of the iOS release automation. Never calls App Store Connect,
 # never uploads, never edits the listing. Safe to run any time.
+#
+# This is where the committed listing, screenshots and release notes are fully
+# validated on every pull request and main push that touches them. A tag release
+# checks only the files its enabled switches use, so an unused file can never
+# block a release. Uses the same pinned Python as the release workflow.
 
 name: Store automation (offline)
 
@@ -54,6 +59,11 @@ jobs:
             /ios/Scowld.xcodeproj/
             /marketing/mockups*/
 
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
       - name: Print iOS switches (must stay safe by default)
         env:
           IOS_RELEASE_AUTOMATION: ${{ vars.IOS_RELEASE_AUTOMATION }}
@@ -65,7 +75,7 @@ jobs:
           IOS_PUBLIC_RELEASE: ${{ vars.IOS_PUBLIC_RELEASE }}
         run: python3 scripts/store/print_gates.py
 
-      - name: Test switches, tag check, build wait, listing, screenshots and submission (offline)
+      - name: Test switches, tag check, build wait, listing, screenshots, submission, release notes and log redaction (offline)
         run: python3 -m unittest -v scripts/store/test_ios_release.py
 
       - name: Validate the committed listing and screenshots (no network)

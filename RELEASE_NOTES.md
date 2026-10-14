@@ -3,7 +3,8 @@
 The iOS Release workflow publishes the GitHub Release for a `v<version>` tag with
 the section below whose heading is exactly that tag (for example `## v2.0.2`).
 Without a matching section, GitHub's generated notes are used instead. An empty
-matching section fails the release rather than publishing empty notes.
+matching section, or more than one section with the same heading, fails the
+release rather than publishing empty or ambiguous notes.
 
 App Store "What's New" text is separate: it lives in
 `store/metadata/ios/<locale>/whats_new.txt` (see `store/README.md`).

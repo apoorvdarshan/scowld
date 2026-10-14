@@ -136,7 +136,7 @@ Runs the unit (`ScowldTests`) and UI (`ScowldUITests`) tests on a fresh iPhone s
 
 ### Releases
 
-Pushing a `v<version>` tag equal to `MARKETING_VERSION` runs the **iOS Release** workflow: the tests, then only the App Store steps switched on with repository variables (upload, listing, What's New, screenshots, App Review submission), then the GitHub Release. A manual **Run workflow** only validates the signed build with App Store Connect. Every switch is off by default; see [store/README.md](store/README.md). Xcode Cloud is being removed for Scowld and must not be re-created.
+Pushing a `v<version>` tag equal to `MARKETING_VERSION` runs the **iOS Release** workflow: the tests, then only the App Store steps switched on with repository variables (upload, listing, What's New, screenshots, App Review submission), then the GitHub Release. A manual **Run workflow** only validates the signed build with App Store Connect. Every switch is off by default; see [store/README.md](store/README.md). Xcode Cloud was removed for Scowld on 2026-10-14 and must not be re-created.
 
 ### Website Environment Variables
 
