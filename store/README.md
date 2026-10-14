@@ -177,20 +177,30 @@ create a new one (`certificateType: DEVELOPMENT`), and replace both
 | [`scripts/store/ios_release.py`](../scripts/store/ios_release.py) | Switches (`gates`), tag/version check, build number, wait for this run's build |
 | [`scripts/store/asc_release.py`](../scripts/store/asc_release.py) | Listing, What's New, screenshots, build selection, review submission (`--dry-run` = local checks only, `--preflight` = read-only App Store Connect checks) |
 | [`scripts/store/asc_export_listing.py`](../scripts/store/asc_export_listing.py) | Read-only export of the live listing into `store/metadata/ios/` |
-| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests: disabled/invalid switches, tag mismatch, validation mode, build wait timeout/failure/ambiguity/mismatch/old build/missing upload time, selection read-back, token refresh, preflight, listing, plain-text What's New, screenshots, submission, reruns in review, printed switches, release notes, log redaction |
+| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests: disabled/invalid switches, tag mismatch, validation mode, build wait timeout/failure/ambiguity/mismatch/old build/missing upload time, selection read-back, token refresh, ES256 token signing (needs the store tooling), preflight, listing, plain-text What's New, screenshots, submission, reruns in review, printed switches, release notes, log redaction |
 | [`scripts/store/print_gates.py`](../scripts/store/print_gates.py) | Prints the switches in the run log; an invalid value shows as `INVALID` |
 | [`scripts/store/redact_logs.py`](../scripts/store/redact_logs.py) | Removes the App Store Connect key and issuer IDs from failed-build logs before they become an artifact |
 | [`scripts/release_notes.py`](../scripts/release_notes.py) | GitHub Release notes from the matching `RELEASE_NOTES.md` section (else GitHub's generated notes; two sections for one tag fail the release) |
 
-Store steps run on Python 3.13 (`actions/setup-python`), never the runner's
-system Python, and live steps install
-[`requirements-store.txt`](../requirements-store.txt) (PyJWT, hash-pinned;
-regenerate from `requirements-store.in` with the command in it; Dependabot
-proposes updates weekly). Steps that talk to App Store Connect run unbuffered
-(`python3 -u`), so the build wait's progress shows in the live log. The **Store
-automation (offline)** workflow runs the offline tests and validates the whole
-committed listing, screenshots and release notes on every pull request and main
-push that touches these files.
+The jobs that install the store tooling run on Python 3.13
+(`actions/setup-python`): `prepare`, `wait-for-build` and `app-store-connect`
+in the release workflow, and the **Store automation (offline)** workflow. They
+install [`requirements-store.txt`](../requirements-store.txt) (PyJWT,
+hash-pinned, `--require-hashes`). The lock targets that Python only: regenerate
+it from `requirements-store.in` with the `uv` command in it. Dependabot proposes
+updates weekly and also writes the lock without `--universal` markers. The other
+Python steps need only the standard library and run on the runner's own
+`python3`: `redact_logs.py` (and the step that writes the `.p8` key) in the
+`build` job, and `print_gates.py` and `release_notes.py` in `github-release`.
+Steps that talk to App Store Connect run unbuffered (`python3 -u`), so the build
+wait's progress shows in the live log.
+
+The **Store automation (offline)** workflow installs `requirements-store.txt`
+the same way, runs the offline tests (including signing a throwaway App Store
+Connect token with that PyJWT, a test that fails there instead of skipping) and
+validates the whole committed listing, screenshots and release notes on every
+pull request and main push that touches these files. A Dependabot update to the
+store tooling is therefore proven before it can reach a release.
 
 Environment flags read by `asc_release.py` (set by `ios-release.yml` from the
 resolved switches): `UPLOAD_LISTING`, `UPLOAD_WHATS_NEW`, `UPLOAD_SCREENSHOTS`,

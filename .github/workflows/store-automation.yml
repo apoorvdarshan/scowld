@@ -4,7 +4,10 @@
 # This is where the committed listing, screenshots and release notes are fully
 # validated on every pull request and main push that touches them. A tag release
 # checks only the files its enabled switches use, so an unused file can never
-# block a release. Uses the same pinned Python as the release workflow.
+# block a release. Uses the same pinned Python as the release workflow and
+# installs the hash-locked store tooling exactly as the release jobs do, then
+# signs a throwaway App Store Connect token with it, so a Dependabot update to
+# requirements-store.* is proven here instead of in a release.
 
 name: Store automation (offline)
 
@@ -75,7 +78,14 @@ jobs:
           IOS_PUBLIC_RELEASE: ${{ vars.IOS_PUBLIC_RELEASE }}
         run: python3 scripts/store/print_gates.py
 
-      - name: Test switches, tag check, build wait, listing, screenshots, submission, release notes and log redaction (offline)
+      - name: Install the hash-locked store tooling (as the release jobs do)
+        run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
+
+      - name: Test switches, tag check, build wait, token, listing, screenshots, submission, release notes and log redaction (offline)
+        env:
+          # The App Store Connect token test uses the tooling installed above and
+          # must fail, never skip, if it is missing.
+          REQUIRE_STORE_TOOLING: "true"
         run: python3 -m unittest -v scripts/store/test_ios_release.py
 
       - name: Validate the committed listing and screenshots (no network)

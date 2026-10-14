@@ -1,4 +1,8 @@
 # Store automation dependencies (only PyJWT for App Store Connect API tokens).
-# Regenerate the hash-locked requirements-store.txt with:
-#   uv pip compile requirements-store.in --generate-hashes --universal --python-version 3.10 -o requirements-store.txt
+# Every job that installs the lock runs Python 3.13 (actions/setup-python), so it
+# targets that Python only. Dependabot's weekly update also rewrites it without
+# --universal markers, and store-automation.yml installs each update on 3.13 with
+# --require-hashes before it can be merged. Regenerate the hash-locked
+# requirements-store.txt with:
+#   uv pip compile requirements-store.in --generate-hashes --python-version 3.13 -o requirements-store.txt
 PyJWT[crypto]==2.15.0

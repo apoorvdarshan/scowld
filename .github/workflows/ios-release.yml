@@ -37,7 +37,10 @@
 # With any listing/What's New/screenshot/review switch on, a read-only preflight
 # then checks App Store Connect: the version exists in a usable state with every
 # repository locale, What's New is new, and nothing would have to ship with it.
-# Store steps run on a pinned Python (setup-python), unbuffered.
+# The jobs that install the store tooling (prepare, wait-for-build,
+# app-store-connect) run it on Python 3.13 from setup-python, and steps that call
+# App Store Connect run unbuffered (python3 -u). build and github-release run only
+# standard-library helpers on the runner's own python3.
 #
 # A failed build keeps its logs as an artifact only after every file in them,
 # binary or text, had the App Store Connect key and issuer IDs removed.
