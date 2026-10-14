@@ -155,7 +155,6 @@ final class ScowldUITests: XCTestCase {
         let app = launchApp()
         let field = app.textFields["chat.messageField"]
         XCTAssertTrue(field.waitForExistence(timeout: 20))
-        XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 20), "The bundled companion loads in a web view")
         XCTAssertTrue(app.descendants(matching: .any)["chat.voice"].exists)
         XCTAssertTrue(app.buttons["chat.camera"].exists)
 
@@ -183,7 +182,7 @@ final class ScowldUITests: XCTestCase {
     @MainActor
     func testSendingAMessageShowsTheReplyAndSavesTheExchange() throws {
         // The reply comes from the app's local test provider; captions show it on screen.
-        let app = launchApp(extra: ["--ui-testing-stub-ai", "-show_ai_caption", "YES"])
+        let app = launchApp(extra: ["--ui-testing-companion", "--ui-testing-stub-ai", "-show_ai_caption", "YES"])
         XCTAssertTrue(app.staticTexts["chat.companionReady"].waitForExistence(timeout: Self.companionLoadTimeout),
                       "The bundled companion never became ready for messages")
 

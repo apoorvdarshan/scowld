@@ -22,6 +22,9 @@ enum ScowldTestEnvironment {
     static let seedChatArgument = "--ui-testing-seed-chat"
     /// Answers chat messages with `StubLLMProvider` instead of a real provider.
     static let stubAIArgument = "--ui-testing-stub-ai"
+    /// Loads the bundled 3D companion; other UI tests leave it out (it is slow
+    /// on CI simulators and reloads after every settings change).
+    static let companionArgument = "--ui-testing-companion"
     /// Posted once the bundled companion page can accept messages (UI tests only).
     static let companionReadyNotification = Notification.Name("ScowldTestsCompanionReady")
 
@@ -61,6 +64,11 @@ enum ScowldTestEnvironment {
     /// Chat replies come from `StubLLMProvider` (UI tests that send a message).
     static var usesStubAI: Bool {
         isUITesting && CommandLine.arguments.contains(stubAIArgument)
+    }
+
+    /// Always true outside UI tests; UI tests opt in with `--ui-testing-companion`.
+    static var loadsCompanion: Bool {
+        !isUITesting || CommandLine.arguments.contains(companionArgument)
     }
 
     /// A local, instant chat provider for UI tests: no key, no network.

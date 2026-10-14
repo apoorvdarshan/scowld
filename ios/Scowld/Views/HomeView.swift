@@ -172,11 +172,16 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
-                    amicaCoordinator = coord
-                    coord.setRuntimeActive(isActive)
-                })
-                .ignoresSafeArea()
+                if ScowldTestEnvironment.loadsCompanion {
+                    AmicaFullView(memoryStore: memoryStore, onCoordinatorReady: { coord in
+                        amicaCoordinator = coord
+                        coord.setRuntimeActive(isActive)
+                    })
+                    .ignoresSafeArea()
+                } else {
+                    // UI tests that do not need the 3D companion leave it out.
+                    Color.black.ignoresSafeArea()
+                }
 
                 // Assistant captions
                 VStack(spacing: 6) {

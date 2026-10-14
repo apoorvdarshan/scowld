@@ -42,10 +42,11 @@ cancelled; `main` and release runs never are.
   serves the bundled companion and proxies text-to-speech.
 - **UI tests** (`ios/ScowldUITests`): first-launch onboarding (policy acceptance
   gates the app; shown once), the four tabs, the companion screen's composer
-  (send enabled only for text, hands-free toggle remembered), home tips, the
-  character name changing the wake phrase, saving a provider, model and key,
-  the captions preference, creating/renaming/switching/deleting chats and
-  reading a saved transcript, and the About screen.
+  (send enabled only for text, hands-free toggle remembered), sending a message
+  through the bundled companion and seeing the reply caption and the saved
+  exchange, home tips, the character name changing the wake phrase, saving a
+  provider, model and key, the captions preference, creating/renaming/switching/
+  deleting chats and reading a saved transcript, and the About screen.
 - There is no paywall or purchase flow to test: Scowld 2.0 removed them.
 
 ## Test mode (Debug simulator builds only)
@@ -55,13 +56,22 @@ provider key or network is used. The unit-test host app stays idle on a black
 screen.
 
 UI tests launch the app with `--ui-testing` (plus `--ui-testing-reset`,
-`--ui-testing-onboarded`, `--ui-testing-seed-chat`), handled by
-`ScowldTestEnvironment`, which compiles to `false` in Release builds and is inert
-on devices. Under test the app skips the App Store update check, never requests
-microphone or speech-recognition permission (so hands-free listening never
-starts), never switches the camera on, and loads the bundled companion page with
-every request that would leave the device blocked. `--ui-testing-reset` removes
-only Scowld's simulator preferences, saved chats and provider keys before launch.
+`--ui-testing-onboarded`, `--ui-testing-seed-chat`, `--ui-testing-companion`,
+`--ui-testing-stub-ai`), handled by `ScowldTestEnvironment`, which compiles to
+`false` in Release builds and is inert on devices. Under test the app skips the
+App Store update check, never requests microphone or speech-recognition
+permission (so hands-free listening never starts), and never switches the camera
+on. `--ui-testing-reset` removes only Scowld's simulator preferences, saved chats
+and provider keys before launch.
+
+The bundled 3D companion loads only in the test that needs it
+(`--ui-testing-companion`): on CI simulators it renders slowly and it reloads
+after every settings change, so the other tests show a black placeholder behind
+the same native composer. When it loads under test, every request that would
+leave the device is blocked. `--ui-testing-stub-ai` answers chat messages with a
+local test provider (no key, no network), and an invisible `chat.companionReady`
+marker appears once the companion page can take messages, so the message test
+never sends too early.
 
 Not covered: real provider accounts and replies, microphone and camera hardware,
 and on-device speech recognition; check those on a device.
