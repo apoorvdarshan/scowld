@@ -60,13 +60,16 @@ on:
 permissions:
   contents: read
 
-# One group per tag and per manual run, so no run is ever cancelled or dropped
-# (GitHub cancels a pending run when a third run joins a busy group). Two tags
-# for different versions may run side by side: each waits only for its own
-# version and build number, and a shared review draft stops a submission.
+# Every tag release run shares one group, so releases run one at a time: build
+# numbers come from App Store Connect, and two tags must not race each other's
+# upload, listing or review submission. Manual validation runs get their own
+# group, so they never wait for, or cancel, a release run.
 concurrency:
-  group: ios-release-${{ github.event_name == 'push' && github.ref_name || github.run_id }}
+  group: ios-release-${{ github.event_name == 'push' && 'release' || github.run_id }}
   cancel-in-progress: false
+  # Keep every waiting tag run queued; the default (single) would cancel an older
+  # pending run when a third run joins the group.
+  queue: max
 
 jobs:
   tests:
@@ -368,12 +371,19 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/logs"
           find "${TMPDIR:-/tmp}" -maxdepth 1 -name '*.xcdistributionlogs' -exec cp -R {} "$RUNNER_TEMP/logs/" \; 2>/dev/null || true
+          # xcodebuild and altool echo their command lines into these logs. Artifacts are
+          # not masked like the console, so replace the key and issuer IDs before upload.
+          if [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ]; then
+            grep -rlIF -e "$ASC_KEY_ID" -e "$ASC_ISSUER_ID" "$RUNNER_TEMP/logs" 2>/dev/null | while IFS= read -r file; do
+              perl -pi -e 's/\Q$ENV{ASC_KEY_ID}\E/<ASC_KEY_ID>/g; s/\Q$ENV{ASC_ISSUER_ID}\E/<ASC_ISSUER_ID>/g' "$file"
+            done
+          fi
 
       - name: Keep build logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ios-release-logs-${{ github.run_id }}
+          name: ios-release-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/logs
           retention-days: 7
           if-no-files-found: ignore

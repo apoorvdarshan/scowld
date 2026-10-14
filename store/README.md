@@ -78,8 +78,14 @@ built or uploaded otherwise.
 Waiting for the build is its own job, so when a later store step fails (for
 example App Store Connect changed in between), **Re-run failed jobs** reuses the
 processed build instead of waiting again; the store step re-verifies it before
-selecting it. Every tag runs in its own concurrency group, so no release run is
-ever cancelled by a newer one.
+selecting it. Tag runs share one concurrency group with `queue: max`, so releases
+run one at a time and no waiting release run is ever cancelled by a newer one;
+manual validation runs have their own group and never block a release.
+
+When the build job fails, its logs are kept as the `ios-release-logs-<run>-<attempt>`
+artifact (7 days). The App Store Connect key ID and issuer ID are replaced with
+`<ASC_KEY_ID>` / `<ASC_ISSUER_ID>` in those files first, because artifacts are not
+masked like the job log.
 
 ### In-app purchases
 
