@@ -159,7 +159,6 @@ struct HomeView: View {
     @State private var showHomeTips = false
     @State private var assistantSpeechUnlockTask: Task<Void, Never>?
     @State private var assistantSpeechEarliestEndAt: Date?
-    @State private var isCompanionReadyForTests = false
     @AppStorage("show_ai_caption") private var showAICaption = false
     @AppStorage("hands_free_mode_enabled") private var handsFreeModeEnabled = true
     @Environment(\.scenePhase) private var scenePhase
@@ -179,7 +178,7 @@ struct HomeView: View {
                     })
                     .ignoresSafeArea()
                 } else {
-                    // UI tests that do not need the 3D companion leave it out.
+                    // UI tests leave the 3D companion out (see ScowldTestEnvironment).
                     Color.black.ignoresSafeArea()
                 }
 
@@ -199,15 +198,6 @@ struct HomeView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 126)
                 .allowsHitTesting(false)
-
-                // UI tests only (never in Release): marks that the companion can take messages.
-                if isCompanionReadyForTests {
-                    Text("Companion ready")
-                        .font(.caption2)
-                        .foregroundStyle(.clear)
-                        .allowsHitTesting(false)
-                        .accessibilityIdentifier("chat.companionReady")
-                }
             }
             .navigationTitle("Scowld")
             .navigationBarTitleDisplayMode(.inline)
@@ -295,9 +285,6 @@ struct HomeView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .amicaSettingsChanged)) { _ in
             updateHandsFreeWakeListener()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: ScowldTestEnvironment.companionReadyNotification)) { _ in
-            isCompanionReadyForTests = ScowldTestEnvironment.isUITesting
         }
         .onChange(of: handsFreeModeEnabled) {
             updateHandsFreeWakeListener()
@@ -1837,11 +1824,7 @@ struct AmicaFullView: UIViewRepresentable {
         if port > 0 {
             let url = URL(string: "http://127.0.0.1:\(port)/index.html")!
             logger.info("[Amica] Loading from \(url)")
-            if ScowldTestEnvironment.isRunningTests {
-                ScowldTestEnvironment.loadBlockingExternalRequests(webView, request: URLRequest(url: url))
-            } else {
-                webView.load(URLRequest(url: url))
-            }
+            webView.load(URLRequest(url: url))
         }
 
         context.coordinator.webView = webView
@@ -1976,7 +1959,6 @@ struct AmicaFullView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             logger.info("[Amica] Page loaded")
-            ScowldTestEnvironment.reportCompanionReadiness(of: webView)
             // Force full-screen coverage via CSS
             webView.evaluateJavaScript("""
                 var s = document.createElement('style');
@@ -1985,9 +1967,8 @@ struct AmicaFullView: UIViewRepresentable {
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
-            // Enable front camera by default, no preview (never under test)
+            // Enable front camera by default, no preview
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                guard !ScowldTestEnvironment.isRunningTests else { return }
                 webView.evaluateJavaScript("""
                     (function enableCam() {
                         if (window.__toggleWebcam) {
@@ -2300,9 +2281,6 @@ struct AmicaFullView: UIViewRepresentable {
         }
 
         private func buildCurrentProvider() throws -> RuntimeLLMProvider {
-            if ScowldTestEnvironment.usesStubAI {
-                return RuntimeLLMProvider(provider: ScowldTestEnvironment.StubLLMProvider(), supportsVision: false)
-            }
             HostedServiceConfig.applyBYOKDefaults()
             let defaults = UserDefaults.standard
             let providerID = defaults.string(forKey: "selectedProvider") ?? AIProvider.gemini.rawValue

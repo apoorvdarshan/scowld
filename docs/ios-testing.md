@@ -38,15 +38,17 @@ cancelled; `main` and release runs never are.
   Claude, OpenAI-compatible, Ollama — including vision and error mapping),
   cloud speech-to-text requests and parsing (OpenAI, Groq, Deepgram, AssemblyAI,
   Google), WAV encoding and resampling, the Keychain wrapper, the App Store
-  update check, the ElevenLabs request builder, and the loopback server that
-  serves the bundled companion and proxies text-to-speech.
+  update check, the ElevenLabs request builder, the loopback server that
+  serves the bundled companion and proxies text-to-speech, and the native side
+  of the companion bridge (a chat message from the page is answered by the
+  selected provider and saved; no key or an inactive tab never reaches the
+  network; speech without an ElevenLabs key fails without a request).
 - **UI tests** (`ios/ScowldUITests`): first-launch onboarding (policy acceptance
   gates the app; shown once), the four tabs, the companion screen's composer
-  (send enabled only for text, hands-free toggle remembered), sending a message
-  through the bundled companion and seeing the reply caption and the saved
-  exchange, home tips, the character name changing the wake phrase, saving a
-  provider, model and key, the captions preference, creating/renaming/switching/
-  deleting chats and reading a saved transcript, and the About screen.
+  (send enabled only for text, hands-free toggle remembered), home tips, the
+  character name changing the wake phrase, saving a provider, model and key,
+  the captions preference, creating/renaming/switching/deleting chats and
+  reading a saved transcript, and the About screen.
 - There is no paywall or purchase flow to test: Scowld 2.0 removed them.
 
 ## Test mode (Debug simulator builds only)
@@ -56,25 +58,22 @@ provider key or network is used. The unit-test host app stays idle on a black
 screen.
 
 UI tests launch the app with `--ui-testing` (plus `--ui-testing-reset`,
-`--ui-testing-onboarded`, `--ui-testing-seed-chat`, `--ui-testing-companion`,
-`--ui-testing-stub-ai`), handled by `ScowldTestEnvironment`, which compiles to
-`false` in Release builds and is inert on devices. Under test the app skips the
-App Store update check, never requests microphone or speech-recognition
-permission (so hands-free listening never starts), and never switches the camera
-on. `--ui-testing-reset` removes only Scowld's simulator preferences, saved chats
-and provider keys before launch.
+`--ui-testing-onboarded`, `--ui-testing-seed-chat`), handled by
+`ScowldTestEnvironment`, which compiles to `false` in Release builds and is inert
+on devices. Under test the app skips the App Store update check and never
+requests microphone or speech-recognition permission (so hands-free listening
+never starts). `--ui-testing-reset` removes only Scowld's simulator preferences,
+saved chats and provider keys before launch.
 
-The bundled 3D companion loads only in the test that needs it
-(`--ui-testing-companion`): on CI simulators it renders slowly and it reloads
-after every settings change, so the other tests show a black placeholder behind
-the same native composer. When it loads under test, every request that would
-leave the device is blocked. `--ui-testing-stub-ai` answers chat messages with a
-local test provider (no key, no network), and an invisible `chat.companionReady`
-marker appears once the companion page can take messages, so the message test
-never sends too early.
+UI tests leave out the bundled 3D companion (a WebGL page in a web view) and show
+a black placeholder behind the same native composer. CI simulators have no GPU,
+so they render it in software: with it loaded, every UI query took 10–60 seconds
+and an app relaunch timed out. Its native bridge is covered by unit tests
+instead.
 
-Not covered: real provider accounts and replies, microphone and camera hardware,
-and on-device speech recognition; check those on a device.
+Not covered: the companion page's own rendering and JavaScript, real provider
+accounts and replies, microphone and camera hardware, and on-device speech
+recognition; check those on a device.
 
 Signed Release builds come from the iOS Release workflow (see
 [`store/README.md`](../store/README.md)); these Debug simulator tests do not

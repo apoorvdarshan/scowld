@@ -1,10 +1,5 @@
 import CoreData
 import Foundation
-import os
-import UIKit
-import WebKit
-
-private let testLogger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "Tests")
 
 /// Launch switches used only by the XCTest suites.
 ///
@@ -20,13 +15,6 @@ enum ScowldTestEnvironment {
     static let onboardedArgument = "--ui-testing-onboarded"
     /// Adds a saved chat with a short transcript.
     static let seedChatArgument = "--ui-testing-seed-chat"
-    /// Answers chat messages with `StubLLMProvider` instead of a real provider.
-    static let stubAIArgument = "--ui-testing-stub-ai"
-    /// Loads the bundled 3D companion; other UI tests leave it out (it is slow
-    /// on CI simulators and reloads after every settings change).
-    static let companionArgument = "--ui-testing-companion"
-    /// Posted once the bundled companion page can accept messages (UI tests only).
-    static let companionReadyNotification = Notification.Name("ScowldTestsCompanionReady")
 
     static let seededChatName = "Weekend Plans"
     static let seededUserMessage = "Plan a picnic for Saturday"
@@ -61,42 +49,11 @@ enum ScowldTestEnvironment {
         isUITesting || isHostingUnitTests
     }
 
-    /// Chat replies come from `StubLLMProvider` (UI tests that send a message).
-    static var usesStubAI: Bool {
-        isUITesting && CommandLine.arguments.contains(stubAIArgument)
-    }
-
-    /// Always true outside UI tests; UI tests opt in with `--ui-testing-companion`.
+    /// The bundled 3D companion (WebGL in a web view, with its own network
+    /// requests) is left out of UI tests: CI simulators render it in software,
+    /// too slowly to drive the app. Its native bridge is covered by unit tests.
     static var loadsCompanion: Bool {
-        !isUITesting || CommandLine.arguments.contains(companionArgument)
-    }
-
-    /// A local, instant chat provider for UI tests: no key, no network.
-    struct StubLLMProvider: LLMProvider {
-        func generate(messages: [ChatMessage], systemPrompt: String) async throws -> String {
-            let lastUserMessage = messages.last(where: { $0.role == .user })?.content ?? ""
-            return "[happy] Test reply to: \(lastUserMessage)"
-        }
-
-        func generateWithVision(messages: [ChatMessage], systemPrompt: String, image: UIImage) async throws -> String {
-            try await generate(messages: messages, systemPrompt: systemPrompt)
-        }
-    }
-
-    /// UI tests: posts `companionReadyNotification` once the page's native message
-    /// bridge exists, so a test never sends before the companion can receive it.
-    static func reportCompanionReadiness(of webView: WKWebView) {
-        guard isUITesting else { return }
-        webView.evaluateJavaScript("typeof window.__sendMessageFromNative === 'function'") { [weak webView] result, _ in
-            if (result as? Bool) == true {
-                testLogger.info("[Tests] Companion ready for messages")
-                NotificationCenter.default.post(name: companionReadyNotification, object: nil)
-            } else if let webView {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    reportCompanionReadiness(of: webView)
-                }
-            }
-        }
+        !isUITesting
     }
 
     /// Applies the launch switches once, before any stored state is read.
@@ -112,32 +69,6 @@ enum ScowldTestEnvironment {
         memoryStore.setActiveSlot(id: slot.id)
         memoryStore.saveExchange(userMessage: seededUserMessage, assistantResponse: seededAssistantMessage)
         #endif
-    }
-
-    /// Loads the bundled companion page with every request that leaves the
-    /// device blocked (fonts, CDNs, telemetry). Never falls back to an
-    /// unblocked load: if the rule list cannot be compiled, nothing loads.
-    static func loadBlockingExternalRequests(_ webView: WKWebView, request: URLRequest) {
-        // Content-blocker patterns support no alternation (`|`), hence one rule per case.
-        let rules = #"""
-        [
-          {"trigger": {"url-filter": "^https?://"}, "action": {"type": "block"}},
-          {"trigger": {"url-filter": "^wss?://"}, "action": {"type": "block"}},
-          {"trigger": {"url-filter": "^https?://127\\.0\\.0\\.1[:/]"}, "action": {"type": "ignore-previous-rules"}},
-          {"trigger": {"url-filter": "^https?://localhost[:/]"}, "action": {"type": "ignore-previous-rules"}}
-        ]
-        """#
-        WKContentRuleListStore.default().compileContentRuleList(
-            forIdentifier: "ScowldTestsOffline",
-            encodedContentRuleList: rules
-        ) { [weak webView] ruleList, error in
-            guard let webView, let ruleList else {
-                testLogger.error("[Tests] Offline rules failed, companion not loaded: \(String(describing: error), privacy: .public)")
-                return
-            }
-            webView.configuration.userContentController.add(ruleList)
-            webView.load(request)
-        }
     }
 
     #if DEBUG && targetEnvironment(simulator)
