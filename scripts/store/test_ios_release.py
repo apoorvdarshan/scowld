@@ -1533,6 +1533,50 @@ class CreateVersionTests(unittest.TestCase):
         self.assertIn("would create", output)
         self.assertEqual(client.calls, [])
 
+    def test_dry_run_rejects_a_bad_version_like_a_live_run(self) -> None:
+        for bad in ("2.0.2-beta", "v2.0.2", "2.0.2.1"):
+            with self.subTest(bad=bad):
+                client = VersionsClient([self.LIVE])
+                with mock.patch.object(asc_release, "client_from_environment",
+                                       side_effect=AssertionError("network")):
+                    code, output = self.create(client, None, "--dry-run", "--version", bad)
+                self.assertEqual(code, 1)
+                self.assertIn("must look like", output)
+                self.assertEqual(client.calls, [])
+
+    def test_create_version_never_runs_together_with_the_preflight(self) -> None:
+        for flags in (self.ON, {}, {**self.ON, "SUBMIT_IOS_REVIEW": "true", "UPLOAD_LISTING": "true"}):
+            with self.subTest(flags=flags):
+                client = VersionsClient([self.LIVE])
+                code, output = self.create(client, flags, "--preflight", "--version", VERSION)
+                self.assertEqual(code, 1)
+                self.assertIn("separate steps", output)
+                self.assertEqual(client.calls, [])
+
+    def test_a_created_version_that_does_not_read_back_fails_naming_it(self) -> None:
+        class Vanishing(VersionsClient):
+            def post(self, path: str, body: dict) -> dict:
+                result = super().post(path, body)
+                self.rows.pop()  # App Store Connect does not list it yet
+                return result
+
+        class Doubled(VersionsClient):
+            def post(self, path: str, body: dict) -> dict:
+                result = super().post(path, body)
+                self.rows.append(self.rows[-1])
+                return result
+
+        for fake_class, found in ((Vanishing, 0), (Doubled, 2)):
+            with self.subTest(found=found):
+                client = fake_class([self.LIVE])
+                code, output = self.create(client)
+                self.assertEqual(code, 1)
+                self.assertIn(f"created App Store version {VERSION}, but reading it back found {found} records",
+                              output)
+                self.assertIn("check it in App Store Connect before rerunning", output)
+                self.assertNotIn("IOS_CREATE_VERSION", output)
+                self.assertEqual([call[:2] for call in client.writes()], [("POST", "/appStoreVersions")])
+
 
 class AscCliTests(unittest.TestCase):
     def run_cli(self, env: dict[str, str], *args: str) -> tuple[int, str]:
