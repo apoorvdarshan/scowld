@@ -1,0 +1,6 @@
+User-Agent: *
+Allow: /
+Disallow: /api/
+
+Host: https://www.scowld.xyz
+Sitemap: https://www.scowld.xyz/sitemap.xml

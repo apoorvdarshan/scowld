@@ -5,7 +5,7 @@
 # (ios/Scowld/Resources/amica.bundle) is prebuilt, minified third-party
 # JavaScript and is not analyzed.
 #
-#   javascript-typescript  web/ (scowld.xyz, Next.js on Cloudflare Workers)
+#   javascript-typescript  web/ (scowld.xyz: static pages and a Cloudflare Worker)
 #   python                 scripts/ (test, release and store tooling)
 #   actions                .github/workflows/
 #   swift                  ios/ (the app), built with Xcode 26 on macOS

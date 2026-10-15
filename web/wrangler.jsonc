@@ -1,12 +1,17 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "scowld-web",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2026-07-10",
-  "compatibility_flags": ["nodejs_compat"],
+  // Serves public/ as static assets. Only /api/* runs src/worker.js first;
+  // every other request is answered from the assets without invoking it.
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-15",
   "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
+    "directory": "./public",
+    "binding": "ASSETS",
+    // /privacy serves privacy.html, and /privacy.html redirects to /privacy.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
   },
   "routes": [
     {

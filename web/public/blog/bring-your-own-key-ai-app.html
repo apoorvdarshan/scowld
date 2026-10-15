@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What 'Bring Your Own Key' Means for an AI App | Scowld</title>
+<meta name="description" content="Scowld is a bring-your-own-key (BYOK) iOS AI companion — no subscription, no server storing your keys. Here's how BYOK works and why it's more private and often cheaper.">
+<meta name="keywords" content="bring your own key AI app, BYOK AI iOS, free AI companion app, open source AI companion, no subscription AI app">
+<meta name="author" content="Apoorv Darshan">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://www.scowld.xyz/blog/bring-your-own-key-ai-app">
+<meta name="theme-color" content="#eef3fb">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/icon-48.png" type="image/png" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/zen-maru-gothic-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/zen-maru-gothic-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Scowld">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://www.scowld.xyz/blog/bring-your-own-key-ai-app">
+<meta property="og:title" content="What 'Bring Your Own Key' Means for an AI App">
+<meta property="og:description" content="Scowld is a bring-your-own-key (BYOK) iOS AI companion — no subscription, no server storing your keys. Here's how BYOK works and why it's more private and often cheaper.">
+<meta property="og:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Scowld AI voice companion">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:creator" content="@apoorvdarshan">
+<meta name="twitter:title" content="What 'Bring Your Own Key' Means for an AI App">
+<meta name="twitter:description" content="Scowld is a bring-your-own-key (BYOK) iOS AI companion — no subscription, no server storing your keys. Here's how BYOK works and why it's more private and often cheaper.">
+<meta name="twitter:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
+<meta name="twitter:image:alt" content="Scowld AI voice companion for iOS">
+<meta property="article:published_time" content="2026-07-09">
+<meta property="article:modified_time" content="2026-07-09">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"What 'Bring Your Own Key' Means for an AI App","description":"Scowld is a bring-your-own-key (BYOK) iOS AI companion — no subscription, no server storing your keys. Here's how BYOK works and why it's more private and often cheaper.","datePublished":"2026-07-09","dateModified":"2026-07-09","url":"https://www.scowld.xyz/blog/bring-your-own-key-ai-app","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.scowld.xyz/blog/bring-your-own-key-ai-app"},"image":"https://www.scowld.xyz/og-image-scowld.jpg","keywords":"bring your own key AI app, BYOK AI iOS, free AI companion app, open source AI companion, no subscription AI app","author":{"@type":"Person","name":"Apoorv Darshan","url":"https://x.com/apoorvdarshan"},"publisher":{"@type":"Organization","name":"Scowld","logo":{"@type":"ImageObject","url":"https://www.scowld.xyz/logo.png"}}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.scowld.xyz"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.scowld.xyz/blog"},{"@type":"ListItem","position":3,"name":"What 'Bring Your Own Key' Means for an AI App","item":"https://www.scowld.xyz/blog/bring-your-own-key-ai-app"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is a bring-your-own-key app actually free?","acceptedAnswer":{"@type":"Answer","text":"The Scowld app is free and open source with no subscription. You only pay the AI, speech-to-text, and text-to-speech providers you choose, based on your own usage."}},{"@type":"Question","name":"Can Scowld see my API keys?","acceptedAnswer":{"@type":"Answer","text":"No. Keys are stored in the iOS Keychain on your device and requests go directly to the provider. There is no Scowld server that receives or stores your keys."}}]}</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="brand" href="/"><img src="/icon-48.png" alt="" width="34" height="34">Scowld</a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="/blog" aria-current="page">Blog</a>
+    <a class="nav-hide-small" href="https://github.com/apoorvdarshan/scowld">GitHub</a>
+    <a class="nav-app" href="https://apps.apple.com/in/app/scowld-ai-voice-companion/id6760672848">Get the app</a>
+  </nav>
+</header>
+<main id="main">
+<div class="page-head">
+  <p class="crumb"><a href="/blog">All posts</a></p>
+  <h1>What 'Bring Your Own Key' Means for an AI App</h1>
+  <p class="dateline">Published <time datetime="2026-07-09">July 9, 2026</time>. 5 minute read.</p>
+</div>
+<article class="prose">
+<p>&quot;Bring your own key&quot; (BYOK) means an app doesn't sell you AI usage — instead, you bring an API key from a provider you already trust, and the app talks to that provider directly on your behalf. Scowld is built this way from the ground up.</p>
+<p>The practical result: there's no Scowld subscription, no paywall, and no middle-man server holding your conversations or your keys.</p>
+
+<h2>Why BYOK matters</h2>
+<ul>
+  <li>Privacy: requests go from your device straight to the provider you configured. Scowld runs no backend that receives, proxies off-device, or stores your keys or chats.</li>
+  <li>Cost: you pay your chosen provider for actual usage instead of a flat monthly fee, which is often far cheaper for typical use.</li>
+  <li>Control: switch providers and models whenever you want, and stop instantly by removing the key.</li>
+</ul>
+
+<h2>Where your keys are stored</h2>
+<p>Keys you enter live in the iOS Keychain on your device. They are not bundled in the app binary, not written to plain preferences, and not committed to the open-source repository. Delete the app or remove a key in Settings and it's gone.</p>
+
+<h2>Which providers Scowld supports</h2>
+<p>You can mix and match across AI chat, speech-to-text, and text-to-speech:</p>
+<ul>
+  <li>AI chat: Google Gemini, OpenAI, Anthropic Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.</li>
+  <li>Speech-to-text: native iOS speech, OpenAI, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
+  <li>Text-to-speech: ElevenLabs and OpenAI voices.</li>
+</ul>
+
+<h2>Getting started</h2>
+<p>Download Scowld, open Settings, choose an AI provider, and paste your key. Add an ElevenLabs or OpenAI key under Text-to-Speech if you want spoken replies. That's the whole setup — no account, no card on file with Scowld. Scowld is also open source under the MIT License, so you can read exactly how your keys are handled.</p>
+
+<h2>Frequently asked questions</h2>
+<div class="faq-entry">
+<p><strong>Is a bring-your-own-key app actually free?</strong></p>
+<p>The Scowld app is free and open source with no subscription. You only pay the AI, speech-to-text, and text-to-speech providers you choose, based on your own usage.</p>
+</div>
+<div class="faq-entry">
+<p><strong>Can Scowld see my API keys?</strong></p>
+<p>No. Keys are stored in the iOS Keychain on your device and requests go directly to the provider. There is no Scowld server that receives or stores your keys.</p>
+</div>
+
+<h2>Try Scowld</h2>
+<p>Scowld is a free, open-source iOS AI voice companion. Download it on the <a href="https://apps.apple.com/app/id6760672848">App Store</a> or read more <a href="/">about Scowld</a>.</p>
+</article>
+</main>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-about">
+      <a class="brand" href="/"><img src="/icon-48.png" alt="" width="34" height="34">Scowld</a>
+      <p>A free, open-source AI voice companion for iPhone and iPad.</p>
+    </div>
+    <nav aria-labelledby="footer-site">
+      <h2 id="footer-site">Scowld</h2>
+      <ul>
+        <li><a href="https://apps.apple.com/in/app/scowld-ai-voice-companion/id6760672848">App Store</a></li>
+        <li><a href="/blog">Blog</a></li>
+        <li><a href="https://github.com/apoorvdarshan/scowld">Source code</a></li>
+        <li><a href="https://www.producthunt.com/products/scowld">Product Hunt</a></li>
+        <li><a href="/privacy">Privacy Policy</a></li>
+        <li><a href="/terms">Terms of Service</a></li>
+      </ul>
+    </nav>
+    <nav aria-labelledby="footer-contact">
+      <h2 id="footer-contact">Contact</h2>
+      <ul>
+        <li><a href="https://x.com/apoorvdarshan">X @apoorvdarshan</a></li>
+        <li><a href="https://www.instagram.com/apoorvcodes/">Instagram @apoorvcodes</a></li>
+        <li><a href="mailto:ad13dtu@gmail.com">Email</a></li>
+        <li><a href="https://ko-fi.com/apoorvdarshan">Support on Ko-fi</a></li>
+      </ul>
+    </nav>
+  </div>
+  <p class="footer-copy">© 2026 Apoorv Darshan. Scowld is open source under the MIT License.</p>
+</footer>
+</body>
+</html>

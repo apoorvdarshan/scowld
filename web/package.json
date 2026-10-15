@@ -1,46 +1,29 @@
 {
   "name": "scowld-web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "rm -rf .open-next && NEXT_PRIVATE_STANDALONE=true NEXT_PRIVATE_OUTPUT_TRACE_ROOT=$PWD next build && opennextjs-cloudflare build --skipNextBuild",
-    "cf:build": "npm run build",
-    "preview": "npm run build && opennextjs-cloudflare preview",
-    "deploy": "npm run build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "start": "next start",
-    "lint": "eslint",
+    "dev": "wrangler dev",
+    "build": "node scripts/check-site.js",
+    "deploy": "npm run build && wrangler deploy",
+    "lint": "eslint --max-warnings=0 && html-validate --max-warnings=0 \"public/**/*.html\"",
     "test": "vitest run",
-    "smoke": "bash scripts/smoke-preview.sh"
-  },
-  "dependencies": {
-    "@opennextjs/cloudflare": "^1.20.11",
-    "next": "~16.3.8",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "smoke": "bash scripts/smoke.sh"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "eslint": "^9.39.5",
-    "eslint-config-next": "~16.3.8",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
     "fast-check": "4.10.2",
     "fast-xml-parser": "5.11.2",
-    "typescript": "^5.9.3",
-    "vitest": "4.1.11",
+    "globals": "^17.13.0",
+    "html-validate": "^11.16.2",
+    "vitest": "5.0.4",
     "wrangler": "^4.151.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
     "fsevents@2.3.3": true,
-    "unrs-resolver@1.12.2": true,
     "workerd@1.20261012.1": true
-  },
-  "overrides": {
-    "@node-minify/core": {
-      "glob": "^10.5.0"
-    }
   }
 }
