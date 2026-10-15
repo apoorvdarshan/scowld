@@ -105,7 +105,9 @@ struct AboutView: View {
     private let termsURL = URL(string: "https://scowld.xyz/terms")!
     private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld")!
     private let githubRepoURL = URL(string: "https://github.com/apoorvdarshan/scowld")!
-    private let githubIssuesURL = URL(string: "https://github.com/apoorvdarshan/scowld/issues")!
+    // Open the repository's issue forms directly (.github/ISSUE_TEMPLATE).
+    private let githubBugReportURL = URL(string: "https://github.com/apoorvdarshan/scowld/issues/new?template=bug_report.yml")!
+    private let githubFeatureRequestURL = URL(string: "https://github.com/apoorvdarshan/scowld/issues/new?template=feature_request.yml")!
     private let contactURL = URL(string: "mailto:ad13dtu@gmail.com?subject=Scowld%20Contact")!
     private let developerXURL = URL(string: "https://x.com/apoorvdarshan")!
 
@@ -130,13 +132,6 @@ struct AboutView: View {
                             requestReview()
                         }
 
-                        linkRow(
-                            title: "Star on GitHub",
-                            subtitle: "github.com/apoorvdarshan/scowld",
-                            systemImage: "star.circle.fill",
-                            url: githubRepoURL
-                        )
-
                         ShareLink(item: websiteURL) {
                             aboutRowContent(
                                 title: "Share Scowld",
@@ -155,21 +150,37 @@ struct AboutView: View {
                         )
                     }
 
-                    aboutSection("Contact", icon: "envelope") {
+                    aboutSection("Open Source", icon: "chevron.left.forwardslash.chevron.right") {
+                        linkRow(
+                            title: "Open Source on GitHub",
+                            subtitle: "github.com/apoorvdarshan/scowld · MIT",
+                            systemImage: "chevron.left.forwardslash.chevron.right",
+                            url: githubRepoURL
+                        )
+
+                        linkRow(
+                            title: "Star on GitHub",
+                            subtitle: "Support the project with a star",
+                            systemImage: "star.circle.fill",
+                            url: githubRepoURL
+                        )
+
                         linkRow(
                             title: "Report an Issue",
-                            subtitle: "github.com/apoorvdarshan/scowld/issues",
+                            subtitle: "Bug report form on GitHub",
                             systemImage: "exclamationmark.bubble.fill",
-                            url: githubIssuesURL
+                            url: githubBugReportURL
                         )
 
                         linkRow(
                             title: "Request a Feature",
-                            subtitle: "github.com/apoorvdarshan/scowld/issues",
+                            subtitle: "Feature request form on GitHub",
                             systemImage: "sparkles",
-                            url: githubIssuesURL
+                            url: githubFeatureRequestURL
                         )
+                    }
 
+                    aboutSection("Contact", icon: "envelope") {
                         linkRow(
                             title: "Contact",
                             subtitle: "ad13dtu@gmail.com",
@@ -195,20 +206,6 @@ struct AboutView: View {
                     }
 
                     aboutSection("Credits", icon: "doc.plaintext") {
-                        linkRow(
-                            title: "Open Source on GitHub",
-                            subtitle: "github.com/apoorvdarshan/scowld",
-                            systemImage: "chevron.left.forwardslash.chevron.right",
-                            url: githubRepoURL
-                        )
-
-                        linkRow(
-                            title: "Star the Repo",
-                            subtitle: "Support the project on GitHub",
-                            systemImage: "star.fill",
-                            url: githubRepoURL
-                        )
-
                         aboutInfoRow(
                             title: "Character model",
                             subtitle: "Arbius AI (MIT)",
