@@ -5,4 +5,4 @@
 # --require-hashes before it can be merged. Regenerate the hash-locked
 # requirements-store.txt with:
 #   uv pip compile requirements-store.in --generate-hashes --python-version 3.13 -o requirements-store.txt
-PyJWT[crypto]==2.15.0
+PyJWT[crypto]==2.15.1
