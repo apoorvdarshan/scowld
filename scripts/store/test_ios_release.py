@@ -68,6 +68,7 @@ TAG = "v2.0.2"
 VERSION = "2.0.2"
 ALL_ON = {
     "IOS_RELEASE_AUTOMATION": "true",
+    "IOS_CREATE_VERSION": "true",
     "IOS_UPLOAD_BUILD": "true",
     "IOS_UPLOAD_LISTING": "true",
     "IOS_UPLOAD_WHATS_NEW": "true",
@@ -75,8 +76,9 @@ ALL_ON = {
     "IOS_SUBMIT_REVIEW": "true",
     "IOS_PUBLIC_RELEASE": "true",
 }
-OPS = ("upload_build", "listing", "whats_new", "screenshots", "submit", "public_release")
-ASC_FLAGS = ("UPLOAD_LISTING", "UPLOAD_WHATS_NEW", "UPLOAD_SCREENSHOTS", "SUBMIT_IOS_REVIEW", "PUBLIC_RELEASE")
+OPS = ("create_version", "upload_build", "listing", "whats_new", "screenshots", "submit", "public_release")
+ASC_FLAGS = ("UPLOAD_LISTING", "UPLOAD_WHATS_NEW", "UPLOAD_SCREENSHOTS", "SUBMIT_IOS_REVIEW", "PUBLIC_RELEASE",
+             "CREATE_IOS_VERSION")
 
 
 def gates(env: dict[str, str], *, event: str = "push", ref: str = TAG) -> dict:
@@ -131,7 +133,8 @@ class GateTests(unittest.TestCase):
             self.assertFalse(gates({"IOS_RELEASE_AUTOMATION": "true", "IOS_UPLOAD_LISTING": value})["listing"])
 
     def test_invalid_values_are_rejected_even_when_master_is_off(self) -> None:
-        for name in ("IOS_RELEASE_AUTOMATION", "IOS_UPLOAD_BUILD", "IOS_SUBMIT_REVIEW", "IOS_PUBLIC_RELEASE"):
+        for name in ("IOS_RELEASE_AUTOMATION", "IOS_CREATE_VERSION", "IOS_UPLOAD_BUILD", "IOS_SUBMIT_REVIEW",
+                     "IOS_PUBLIC_RELEASE"):
             for value in ("maybe", "enabled", "2"):
                 with self.subTest(name=name, value=value), self.assertRaisesRegex(ReleaseError, name):
                     gates({name: value})
@@ -209,6 +212,14 @@ class GateTests(unittest.TestCase):
             with self.subTest(event=event), self.assertRaisesRegex(ReleaseError, "unsupported event"):
                 gates({}, event=event)
 
+    def test_create_version_needs_only_the_master_switch(self) -> None:
+        result = gates({"IOS_RELEASE_AUTOMATION": "true", "IOS_CREATE_VERSION": "true"})
+        self.assertTrue(result["create_version"])
+        self.assertFalse(result["build"])
+        self.assertFalse(result["asc"])
+        self.assertFalse(gates({"IOS_CREATE_VERSION": "true"})["create_version"])
+        self.assertFalse(gates(ALL_ON, event="workflow_dispatch", ref="main")["create_version"])
+
     def test_project_versions_are_consistent(self) -> None:
         self.assertRegex(ios_release.single_project_value("MARKETING_VERSION"), r"^\d+(\.\d+)*$")
         self.assertRegex(ios_release.single_project_value("CURRENT_PROJECT_VERSION"), r"^\d+$")
@@ -232,6 +243,7 @@ class GateTests(unittest.TestCase):
         self.assertEqual(written["mode"], "validate")
         self.assertEqual(written["build"], "true")
         self.assertEqual(written["upload_build"], "false")
+        self.assertEqual(written["create_version"], "false")
         self.assertEqual(written["asc"], "false")
         self.assertEqual(written["marketing_version"], "9.9.9")
 
@@ -1397,6 +1409,129 @@ class PreflightTests(unittest.TestCase):
     def test_preflight_does_not_need_a_build(self) -> None:
         code, err = self.run_preflight(RouteClient(self.routes()), SUBMIT_IOS_REVIEW="true", PUBLIC_RELEASE="true")
         self.assertEqual(code, 0, err)
+
+
+class VersionsClient(RouteClient):
+    """Fake App Store Connect app with the given iOS versions; POST /appStoreVersions adds one."""
+
+    def __init__(self, versions: list[tuple[str, str]], *, app_id: str = asc_release.DEFAULT_APP_ID) -> None:
+        self.rows = [{"id": f"V{i}", "attributes": {"versionString": number, "appStoreState": state}}
+                     for i, (number, state) in enumerate(versions)]
+        super().__init__({
+            "/apps?*": {"data": [{"id": app_id, "attributes": {"bundleId": asc_release.DEFAULT_BUNDLE_ID}}]},
+            f"/apps/{app_id}/appStoreVersions?*": lambda _path: {"data": list(self.rows)},
+        })
+
+    def post(self, path: str, body: dict) -> dict:
+        result = super().post(path, body)
+        if path == "/appStoreVersions":
+            number = body["data"]["attributes"]["versionString"]
+            self.rows.append({"id": result["data"]["id"],
+                              "attributes": {"versionString": number, "appStoreState": "PREPARE_FOR_SUBMISSION"}})
+        return result
+
+
+class CreateVersionTests(unittest.TestCase):
+    """--create-version (IOS_CREATE_VERSION): add the tag's App Store version only when it is missing."""
+
+    ON = {"CREATE_IOS_VERSION": "true"}
+    LIVE = ("2.0.1", "READY_FOR_SALE")
+
+    def create(self, client: RouteClient, flags: dict[str, str] | None = None, *args: str) -> tuple[int, str]:
+        env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+        env.update(self.ON if flags is None else flags)
+        out = io.StringIO()
+        code = 0
+        argv = ["--create-version", *(args or ("--version", VERSION))]
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(asc_release, "client_from_environment", return_value=client), \
+                redirect_stdout(out), redirect_stderr(out):
+            try:
+                asc_release.main(argv)
+            except SystemExit as exc:
+                code = exc.code if isinstance(exc.code, int) else 1
+        return code, out.getvalue()
+
+    def test_switch_off_makes_no_calls(self) -> None:
+        client = VersionsClient([self.LIVE])
+        code, output = self.create(client, {})
+        self.assertEqual(code, 0, output)
+        self.assertIn("skipped", output)
+        self.assertEqual(client.calls, [])
+
+    def test_existing_version_is_left_alone(self) -> None:
+        client = VersionsClient([self.LIVE, (VERSION, "READY_FOR_REVIEW")])
+        code, output = self.create(client)
+        self.assertEqual(code, 0, output)
+        self.assertIn(f"{VERSION} already exists (READY_FOR_REVIEW)", output)
+        self.assertEqual(client.writes(), [])
+
+    def test_missing_version_is_created_for_this_app_and_read_back(self) -> None:
+        client = VersionsClient([self.LIVE])
+        code, output = self.create(client)
+        self.assertEqual(code, 0, output)
+        self.assertEqual([call[:2] for call in client.writes()], [("POST", "/appStoreVersions")])
+        body = client.writes()[0][2]["data"]
+        self.assertEqual(body["type"], "appStoreVersions")
+        self.assertEqual(body["attributes"], {"platform": "IOS", "versionString": VERSION})
+        self.assertEqual(body["relationships"]["app"]["data"], {"type": "apps", "id": asc_release.DEFAULT_APP_ID})
+        self.assertEqual(client.calls[-1][0], "GET", "the created version must be read back")
+        self.assertIn(f"created App Store version {VERSION} (PREPARE_FOR_SUBMISSION)", output)
+
+    def test_another_version_on_its_way_blocks_creation(self) -> None:
+        for state in ("PREPARE_FOR_SUBMISSION", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE"):
+            with self.subTest(state=state):
+                client = VersionsClient([("2.0", "READY_FOR_SALE"), ("2.0.1", state)])
+                code, output = self.create(client)
+                self.assertEqual(code, 1)
+                self.assertIn(f"is still {state}", output)
+                self.assertIn("nothing was changed", output)
+                self.assertEqual(client.writes(), [])
+
+    def test_version_not_newer_than_an_existing_one_is_refused(self) -> None:
+        for existing in ("2.1", "2.0.10", "3"):
+            with self.subTest(existing=existing):
+                client = VersionsClient([(existing, "READY_FOR_SALE")])
+                code, output = self.create(client)
+                self.assertEqual(code, 1)
+                self.assertIn(f"not newer than the existing version {existing}", output)
+                self.assertEqual(client.writes(), [])
+        # 2.1 and 2.1.0 are the same version to the App Store.
+        client = VersionsClient([("2.1.0", "READY_FOR_SALE")])
+        code, output = self.create(client, None, "--version", "2.1")
+        self.assertEqual(code, 1)
+        self.assertEqual(client.writes(), [])
+
+    def test_older_finished_versions_allow_creation(self) -> None:
+        client = VersionsClient([("1.0", "REPLACED_WITH_NEW_VERSION"), ("1.1", "REMOVED_FROM_SALE"),
+                                 ("1.2", "DEVELOPER_REMOVED_FROM_SALE"), self.LIVE])
+        code, output = self.create(client)
+        self.assertEqual(code, 0, output)
+        self.assertEqual([call[:2] for call in client.writes()], [("POST", "/appStoreVersions")])
+
+    def test_other_app_or_bad_version_fails_without_writing(self) -> None:
+        client = VersionsClient([self.LIVE], app_id="1234567890")
+        code, output = self.create(client)
+        self.assertEqual(code, 1)
+        self.assertIn(f"expected {asc_release.DEFAULT_APP_ID}", output)
+        self.assertEqual(client.writes(), [])
+        for bad in ("2.0.2-beta", "v2.0.2", "2.0.2.1", "٢.٠"):
+            with self.subTest(bad=bad):
+                client = VersionsClient([self.LIVE])
+                code, output = self.create(client, None, "--version", bad)
+                self.assertEqual(code, 1)
+                self.assertIn("must look like", output)
+                self.assertEqual(client.calls, [])
+
+    def test_needs_a_version_and_dry_run_makes_no_calls(self) -> None:
+        client = VersionsClient([self.LIVE])
+        code, output = self.create(client, None, "--dry-run")
+        self.assertEqual(code, 1)
+        self.assertIn("needs --version", output)
+        code, output = self.create(client, None, "--dry-run", "--version", VERSION)
+        self.assertEqual(code, 0, output)
+        self.assertIn("would create", output)
+        self.assertEqual(client.calls, [])
 
 
 class AscCliTests(unittest.TestCase):
