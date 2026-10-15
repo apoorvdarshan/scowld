@@ -127,6 +127,10 @@ final class LiveConversation {
             }
         }
         audio.onPlaybackFinished = { [weak self] in self?.playbackFinished(session: number) }
+        audio.onInterrupted = { [weak self] in
+            guard self?.sessionNumber == number else { return }
+            self?.end()
+        }
         do {
             try audio.start(
                 inputSampleRate: wire.inputSampleRate,

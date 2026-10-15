@@ -302,6 +302,19 @@ final class LiveConversationTests: XCTestCase {
         XCTAssertTrue(socket.isClosed)
     }
 
+    func testAnAudioInterruptionEndsTheConversation() async throws {
+        let h = makeConversation(.gemini)
+        var ended = 0
+        h.conversation.onEnded = { ended += 1 }
+        h.conversation.start(microphone: true)
+        let socket = try XCTUnwrap(h.sockets.last)
+        h.audio()?.interrupt()
+        XCTAssertEqual(h.conversation.phase, .idle)
+        XCTAssertEqual(ended, 1)
+        XCTAssertTrue(socket.isClosed)
+        XCTAssertNil(h.conversation.errorMessage, "An interruption isn't an error")
+    }
+
     func testEventsFromAnEndedConversationAreIgnored() async throws {
         let h = makeConversation(.gemini)
         h.conversation.start(microphone: true)

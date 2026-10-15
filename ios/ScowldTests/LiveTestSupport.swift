@@ -104,6 +104,7 @@ final class FakeSocketFactory: @unchecked Sendable {
 final class FakeLiveAudio: LiveAudioIO {
     var onMicrophoneAudio: (@Sendable (Data) -> Void)?
     var onPlaybackFinished: (() -> Void)?
+    var onInterrupted: (() -> Void)?
     var isPlaying = false
     var playbackPosition: TimeInterval = 0
     var scheduledEnd: TimeInterval = 0
@@ -139,6 +140,11 @@ final class FakeLiveAudio: LiveAudioIO {
     /// The microphone hears something.
     func speak(_ pcm16: Data) {
         onMicrophoneAudio?(pcm16)
+    }
+
+    /// A phone call or another app takes the audio.
+    func interrupt() {
+        onInterrupted?()
     }
 
     /// Everything scheduled has played.

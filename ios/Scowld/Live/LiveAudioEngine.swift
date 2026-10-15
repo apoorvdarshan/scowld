@@ -17,6 +17,9 @@ protocol LiveAudioIO: AnyObject {
     var onMicrophoneAudio: (@Sendable (Data) -> Void)? { get set }
     /// Called on the main actor when everything scheduled has finished playing.
     var onPlaybackFinished: (() -> Void)? { get set }
+    /// Called on the main actor when the system stops the audio (a phone call,
+    /// another app taking over, or a route change it can't recover from).
+    var onInterrupted: (() -> Void)? { get set }
     var isPlaying: Bool { get }
 
     func start(inputSampleRate: Double, outputSampleRate: Double, microphone: Bool) throws
@@ -46,8 +49,10 @@ enum LiveAudioError: LocalizedError {
 final class LiveAudioEngine: LiveAudioIO {
     var onMicrophoneAudio: (@Sendable (Data) -> Void)?
     var onPlaybackFinished: (() -> Void)?
+    var onInterrupted: (() -> Void)?
 
     private let engine = AVAudioEngine()
+    private var observers: [NSObjectProtocol] = []
     private let player = AVAudioPlayerNode()
     private var playbackFormat: AVAudioFormat?
     private var outputSampleRate = 24_000.0
@@ -95,11 +100,13 @@ final class LiveAudioEngine: LiveAudioIO {
         engine.prepare()
         try engine.start()
         isRunning = true
+        observeInterruptions()
         logger.info("[LiveAudio] Started (microphone: \(microphone))")
     }
 
     func play(_ pcm16: Data) -> LipSyncChunk? {
-        guard isRunning, let format = playbackFormat else { return nil }
+        // The player throws (an Objective-C exception) if the engine has stopped.
+        guard isRunning, engine.isRunning, let format = playbackFormat else { return nil }
         let frameCount = pcm16.count / 2
         guard frameCount > 0,
               let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frameCount)),
@@ -153,7 +160,17 @@ final class LiveAudioEngine: LiveAudioIO {
     }
 
     func stop() {
-        stopPlayback()
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        observers.removeAll()
+        if engine.isRunning {
+            stopPlayback()
+        } else {
+            generation += 1
+            pendingBuffers = 0
+            queueEndFrame = 0
+        }
         // The input node is only touched if this engine used the microphone:
         // creating it would start microphone use.
         if hasMicrophoneTap {
@@ -170,12 +187,45 @@ final class LiveAudioEngine: LiveAudioIO {
         isRunning = false
         onMicrophoneAudio = nil
         onPlaybackFinished = nil
+        onInterrupted = nil
         // Leave the voice-chat route (lower volume, Bluetooth HFP) for normal playback.
         ScowldAudioSession.configureAmicaWebAudioPlayback()
         logger.info("[LiveAudio] Stopped")
     }
 
     // MARK: - Internals
+
+    private func observeInterruptions() {
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] notification in
+            let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            guard rawType.flatMap(AVAudioSession.InterruptionType.init) == .began else { return }
+            MainActor.assumeIsolated {
+                self?.onInterrupted?()
+            }
+        })
+        // A route change (headphones, Bluetooth) stops the engine; restart it.
+        observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.restartAfterConfigurationChange()
+            }
+        })
+    }
+
+    private func restartAfterConfigurationChange() {
+        guard isRunning, !engine.isRunning else { return }
+        generation += 1
+        pendingBuffers = 0
+        queueEndFrame = 0
+        do {
+            engine.prepare()
+            try engine.start()
+            logger.info("[LiveAudio] Restarted after an audio route change")
+        } catch {
+            logger.error("[LiveAudio] Couldn't restart: \(error.localizedDescription, privacy: .public)")
+            onInterrupted?()
+        }
+    }
 
     private func bufferFinished(generation finishedGeneration: Int) {
         guard finishedGeneration == generation, pendingBuffers > 0 else { return }
@@ -201,6 +251,8 @@ final class LiveAudioEngine: LiveAudioIO {
               let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
             throw LiveAudioError.microphoneUnavailable
         }
+        // Voice processing can deliver more than one channel; the provider wants mono.
+        converter.downmix = true
         let sink = onMicrophoneAudio
         input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat, block: Self.microphoneTap(converter: converter, targetFormat: targetFormat, sink: sink))
         hasMicrophoneTap = true
