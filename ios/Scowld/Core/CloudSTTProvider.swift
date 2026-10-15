@@ -251,10 +251,12 @@ enum CloudSTTManager {
     // MARK: - Google Cloud STT
 
     private static func transcribeGoogle(audioData: Data, apiKey: String, model: String) async throws -> String {
-        let url = URL(string: "https://speech.googleapis.com/v1/speech:recognize?key=\(apiKey)")!
+        let url = URL(string: "https://speech.googleapis.com/v1/speech:recognize")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // The key goes in a header, never the URL, so it cannot end up in logged URLs.
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
         let base64Audio = audioData.base64EncodedString()
         let body: [String: Any] = [

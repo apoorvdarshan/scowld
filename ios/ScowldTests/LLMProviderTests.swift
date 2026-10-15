@@ -42,7 +42,8 @@ final class LLMProviderTests: XCTestCase {
         let url = try XCTUnwrap(sent.request.url)
         XCTAssertEqual(url.host, "generativelanguage.googleapis.com")
         XCTAssertEqual(url.path, "/v1beta/models/gemini-2.5-flash:generateContent")
-        XCTAssertEqual(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "key" }?.value, "test-key")
+        XCTAssertNil(url.query, "The API key must not be sent in the URL")
+        XCTAssertEqual(sent.request.value(forHTTPHeaderField: "x-goog-api-key"), "test-key")
         XCTAssertEqual(sent.request.httpMethod, "POST")
 
         let contents = try XCTUnwrap(sent.json["contents"] as? [[String: Any]])
@@ -88,7 +89,10 @@ final class LLMProviderTests: XCTestCase {
         _ = try await GeminiProvider(apiKey: "k", model: "m")
             .generateWithVision(messages: conversation, systemPrompt: "S", image: image())
 
-        let contents = try XCTUnwrap(try lastRequest().json["contents"] as? [[String: Any]])
+        let sent = try lastRequest()
+        XCTAssertNil(sent.request.url?.query, "The API key must not be sent in the URL")
+        XCTAssertEqual(sent.request.value(forHTTPHeaderField: "x-goog-api-key"), "k")
+        let contents = try XCTUnwrap(sent.json["contents"] as? [[String: Any]])
         let lastParts = try XCTUnwrap(contents.last?["parts"] as? [[String: Any]])
         XCTAssertEqual(lastParts.first?["text"] as? String, "What do you see?")
         let inline = try XCTUnwrap(lastParts.last?["inline_data"] as? [String: String])
