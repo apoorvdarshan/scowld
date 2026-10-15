@@ -493,10 +493,9 @@
 				INFOPLIST_KEY_CFBundleName = "Scowld - AI Voice Companion";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Scowld uses your front camera to see you and your environment during conversations. Nothing is recorded or stored.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Scowld can connect to local AI providers you configure on your network.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Scowld listens to your voice so you can talk naturally with her.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Scowld converts your speech to text so she can understand what you say.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "When you turn the camera on, Scowld shares what your front camera sees with the AI provider you chose, during a conversation. Scowld doesn't record or store it.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "During a live conversation, Scowld streams your voice to the AI provider you chose so you can talk with her.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "With hands-free on, Scowld listens on this iPhone for her name to start a conversation. This stays on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -533,10 +532,9 @@
 				INFOPLIST_KEY_CFBundleName = "Scowld - AI Voice Companion";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Scowld uses your front camera to see you and your environment during conversations. Nothing is recorded or stored.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Scowld can connect to local AI providers you configure on your network.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Scowld listens to your voice so you can talk naturally with her.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Scowld converts your speech to text so she can understand what you say.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "When you turn the camera on, Scowld shares what your front camera sees with the AI provider you chose, during a conversation. Scowld doesn't record or store it.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "During a live conversation, Scowld streams your voice to the AI provider you chose so you can talk with her.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "With hands-free on, Scowld listens on this iPhone for her name to start a conversation. This stays on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

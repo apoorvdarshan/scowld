@@ -3,8 +3,8 @@ import XCTest
 /// End-to-end journeys through the real app on a simulator.
 ///
 /// Every launch passes `--ui-testing`: the Debug simulator build then never
-/// reaches the network, the microphone, speech recognition or the camera, and
-/// shows no permission prompts. The 3D companion is left out (CI simulators
+/// reaches the network, the microphone, speech recognition or the camera, never
+/// starts a live conversation, and shows no permission prompts. The 3D companion is left out (CI simulators
 /// render it in software, far too slowly); its native bridge has unit tests.
 /// `--ui-testing-reset` starts from a fresh install (preferences, saved chats
 /// and provider keys); persistence checks relaunch without it.
@@ -153,8 +153,15 @@ final class ScowldUITests: XCTestCase {
         let app = launchApp()
         let field = app.textFields["chat.messageField"]
         XCTAssertTrue(field.waitForExistence(timeout: 20))
-        XCTAssertTrue(app.descendants(matching: .any)["chat.voice"].exists)
-        XCTAssertTrue(app.buttons["chat.camera"].exists)
+        let live = app.buttons["chat.live"]
+        XCTAssertTrue(live.exists)
+        XCTAssertEqual(live.label, "Start live conversation")
+        let camera = app.buttons["chat.camera"]
+        XCTAssertEqual(camera.label, "Turn on camera vision", "The camera is off until turned on")
+        camera.tap()
+        waitUntil(camera, "label == %@", "Turn off camera vision")
+        camera.tap()
+        waitUntil(camera, "label == %@", "Turn on camera vision")
 
         let send = app.buttons["chat.send"]
         XCTAssertFalse(send.isEnabled, "Nothing to send yet")
@@ -188,6 +195,7 @@ final class ScowldUITests: XCTestCase {
         XCTAssertTrue(sheet.waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Hands-free wake"].exists)
         XCTAssertTrue(app.staticTexts["Say \"Bella\" or \"hey Bella\". If you set a custom name, say that name or \"hey\" plus it."].exists)
+        XCTAssertTrue(app.staticTexts["Live voice"].exists)
         sheet.buttons["Done"].tap()
         waitUntil(sheet, "exists == false")
     }
@@ -223,19 +231,28 @@ final class ScowldUITests: XCTestCase {
     }
 
     @MainActor
-    func testProviderModelAndKeyAreSavedToTheKeychain() throws {
+    func testLiveProviderModelVoiceAndKeyAreSaved() throws {
         let app = launchApp()
         openTab("Settings", in: app)
 
         let provider = app.buttons["settings.ai.provider"]
         reveal(provider, in: app)
-        choose("OpenAI", from: provider, in: app)
         // Menu pickers expose "<title>, <selection>" as their label.
-        waitUntil(provider, "label == %@", "Provider, OpenAI")
+        XCTAssertEqual(provider.label, "Provider, Google Gemini Live", "Gemini is the default")
+        XCTAssertFalse(app.staticTexts["Speech-to-Text"].exists, "There is no separate speech-to-text step")
+        XCTAssertFalse(app.staticTexts["Text-to-Speech"].exists, "There is no separate text-to-speech step")
+
+        choose("OpenAI Realtime", from: provider, in: app)
+        waitUntil(provider, "label == %@", "Provider, OpenAI Realtime")
         let model = app.buttons["settings.ai.model"]
-        waitUntil(model, "label == %@", "Model, gpt-6-luna")
-        choose("gpt-5.4-mini", from: model, in: app)
-        waitUntil(model, "label == %@", "Model, gpt-5.4-mini")
+        waitUntil(model, "label == %@", "Model, gpt-realtime-2.1-mini")
+        choose("gpt-realtime-2.1", from: model, in: app)
+        waitUntil(model, "label == %@", "Model, gpt-realtime-2.1")
+        let voice = app.buttons["settings.ai.voice"]
+        waitUntil(voice, "label == %@", "Voice, Marin - Natural, warm")
+        choose("Cedar - Natural, lower", from: voice, in: app)
+        waitUntil(voice, "label == %@", "Voice, Cedar - Natural, lower")
+        XCTAssertTrue(button(startingWith: "Get your OpenAI API key", in: app).exists)
 
         let status = app.staticTexts["settings.ai.status"]
         XCTAssertEqual(status.label, "Add a key before chatting")
@@ -252,9 +269,23 @@ final class ScowldUITests: XCTestCase {
         openTab("Settings", in: app)
         let restoredProvider = app.buttons["settings.ai.provider"]
         reveal(restoredProvider, in: app)
-        XCTAssertEqual(restoredProvider.label, "Provider, OpenAI")
-        XCTAssertEqual(app.buttons["settings.ai.model"].label, "Model, gpt-5.4-mini")
+        XCTAssertEqual(restoredProvider.label, "Provider, OpenAI Realtime")
+        XCTAssertEqual(app.buttons["settings.ai.model"].label, "Model, gpt-realtime-2.1")
+        XCTAssertEqual(app.buttons["settings.ai.voice"].label, "Voice, Cedar - Natural, lower")
         XCTAssertEqual(app.staticTexts["settings.ai.status"].label, "Key saved in Keychain")
+    }
+
+    @MainActor
+    func testGrokVoiceExplainsThatItCannotSeeTheCamera() throws {
+        let app = launchApp()
+        openTab("Settings", in: app)
+        let provider = app.buttons["settings.ai.provider"]
+        reveal(provider, in: app)
+        choose("xAI Grok Voice", from: provider, in: app)
+        waitUntil(provider, "label == %@", "Provider, xAI Grok Voice")
+        XCTAssertEqual(app.buttons["settings.ai.model"].label, "Model, grok-voice-latest")
+        XCTAssertEqual(app.buttons["settings.ai.voice"].label, "Voice, Ara - Warm, friendly")
+        XCTAssertTrue(app.staticTexts["Grok Voice can't see the camera. Choose Gemini or OpenAI for vision."].exists)
     }
 
     @MainActor

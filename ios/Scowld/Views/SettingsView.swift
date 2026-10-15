@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 import UIKit
 
 // MARK: - Settings View
@@ -7,38 +6,18 @@ import UIKit
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @State private var selectedVoicePickerID = HostedServiceConfig.defaultElevenLabsVoiceID
-    @State private var customVoiceID = ""
-    @State private var selectedOpenAITTSVoice = HostedServiceConfig.defaultOpenAITTSVoice
-    @State private var previewPlayer: AVAudioPlayer?
-    @State private var previewError: String?
     @State private var selectedLanguageID = HostedServiceConfig.deviceLanguageID
     @State private var showAICaption = false
     @State private var isLoadingSettings = false
     @State private var selectedAIProviderID = AIProvider.gemini.rawValue
     @State private var selectedAIModel = AIProvider.gemini.defaultModel
     @State private var aiModelIsCustom = false
+    @State private var selectedVoice = AIProvider.gemini.defaultVoice
     @State private var aiAPIKey = ""
     @State private var hasSavedAIAPIKey = false
-    @State private var ollamaURL = OllamaConfig.defaultURL
     @State private var aiSettingsMessage: String?
-    @State private var selectedSTTBackendID = STTBackend.nativeIOS.rawValue
-    @State private var selectedSTTModel = STTBackend.nativeIOS.defaultModel
-    @State private var sttModelIsCustom = false
-    @State private var sttAPIKey = ""
-    @State private var hasSavedSTTAPIKey = false
-    @State private var sttSettingsMessage: String?
-    @State private var selectedTTSBackendID = TTSBackend.elevenLabs.rawValue
-    @State private var selectedTTSModel = TTSBackend.elevenLabs.defaultModel
-    @State private var ttsModelIsCustom = false
-    @State private var ttsAPIKey = ""
-    @State private var hasSavedTTSAPIKey = false
-    @State private var ttsSettingsMessage: String?
-
     // MARK: - Secret visibility
     @State private var revealAIKey = false
-    @State private var revealSTTKey = false
-    @State private var revealTTSKey = false
 
     // MARK: - Character Settings
     @State private var hasCharacterChanges = false
@@ -59,7 +38,7 @@ struct SettingsView: View {
                     settingsSection(
                         "Conversation",
                         icon: "bubble.left.and.bubble.right",
-                        footer: "Language helps supported speech providers choose transcription and voice output language. Captions control the assistant's spoken response overlay."
+                        footer: "Language sets the language she answers in. Captions show what she says while she talks."
                     ) {
                         settingRow {
                             Picker("Language", selection: $selectedLanguageID) {
@@ -100,134 +79,6 @@ struct SettingsView: View {
                     }
 
                     aiProviderSection
-                    sttProviderSection
-
-                    settingsSection(
-                        "Text-to-Speech",
-                        icon: "speaker.wave.3",
-                        footer: ttsSectionFooter
-                    ) {
-                        settingRow {
-                            Picker("Provider", selection: $selectedTTSBackendID) {
-                                ForEach(TTSBackend.allCases, id: \.rawValue) { backend in
-                                    Text(backend.displayName).tag(backend.rawValue)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .accessibilityIdentifier("settings.tts.provider")
-                            .onChange(of: selectedTTSBackendID) {
-                                guard !isLoadingSettings else { return }
-                                loadTTSBackendSettings()
-                            }
-                        }
-
-                        modelSelectionRows(
-                            models: selectedTTSBackend.availableModels,
-                            selection: $selectedTTSModel,
-                            isCustom: $ttsModelIsCustom,
-                            identifier: "settings.tts"
-                        )
-
-                        settingRow {
-                            apiKeyField(placeholder: ttsAPIKeyPlaceholder, text: $ttsAPIKey, isRevealed: $revealTTSKey, identifier: "settings.tts.apiKey")
-                        }
-
-                        if selectedTTSBackend == .elevenLabs {
-                            settingRow {
-                                Picker("Voice", selection: $selectedVoicePickerID) {
-                                    ForEach(ScowldVoiceLibrary.presetVoices) { voice in
-                                        Text(LocalizedStringKey(voice.name)).tag(voice.voiceID)
-                                    }
-                                    Text("Custom Voice ID").tag(ScowldVoiceLibrary.customID)
-                                }
-                                .pickerStyle(.menu)
-                                .onChange(of: selectedVoicePickerID) {
-                                    guard !isLoadingSettings else { return }
-                                    saveSelectedVoice()
-                                    resetPreviewState()
-                                }
-                            }
-
-                            if selectedVoicePickerID == ScowldVoiceLibrary.customID {
-                                settingRow {
-                                    TextField("ElevenLabs Voice ID", text: $customVoiceID)
-                                        .autocorrectionDisabled()
-                                        .textInputAutocapitalization(.never)
-                                        .onChange(of: customVoiceID) {
-                                            guard !isLoadingSettings else { return }
-                                            saveSelectedVoice()
-                                            resetPreviewState()
-                                        }
-                                }
-
-                                settingsActionRow(
-                                    title: "Where to get a custom voice ID",
-                                    subtitle: "elevenlabs.io/app/voice-library",
-                                    systemImage: "info.circle"
-                                ) {
-                                    openURL(URL(string: "https://elevenlabs.io/app/voice-library")!)
-                                }
-                            } else if let voice = ScowldVoiceLibrary.option(for: selectedVoicePickerID) {
-                                settingRow {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(LocalizedStringKey(voice.description))
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                        Text(voice.voiceID)
-                                            .font(.caption.monospaced())
-                                            .foregroundStyle(.tertiary)
-                                            .textSelection(.enabled)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                            }
-
-                            settingsActionRow(
-                                title: previewButtonTitle,
-                                subtitle: selectedVoiceHasBundledPreview ? "Plays a bundled local sample" : nil,
-                                systemImage: previewButtonIcon,
-                                isDisabled: !selectedVoiceHasBundledPreview
-                            ) {
-                                playBundledVoicePreview()
-                            }
-
-                            if let previewError {
-                                settingsInfoRow(title: previewError, systemImage: "exclamationmark.triangle.fill", color: .red)
-                            }
-
-                            settingsInfoRow(
-                                title: "Preset samples are bundled in the app and play locally from this device.",
-                                systemImage: "speaker.wave.2.fill"
-                            )
-                        } else if selectedTTSBackend == .openAI {
-                            settingRow {
-                                Picker("Voice", selection: $selectedOpenAITTSVoice) {
-                                    ForEach(TTSBackend.openAIVoices(for: selectedTTSModel), id: \.self) { voice in
-                                        Text(voice.capitalized).tag(voice)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .onChange(of: selectedOpenAITTSVoice) {
-                                    guard !isLoadingSettings else { return }
-                                    saveOpenAITTSVoice()
-                                }
-                                .onChange(of: selectedTTSModel) {
-                                    // Realtime models lack fable, nova and onyx.
-                                    guard !TTSBackend.openAIVoices(for: selectedTTSModel).contains(selectedOpenAITTSVoice) else { return }
-                                    selectedOpenAITTSVoice = TTSBackend.openAIRealtimeVoice(for: selectedOpenAITTSVoice)
-                                }
-                            }
-
-                            settingsInfoRow(
-                                title: "OpenAI voices use your OpenAI API key. Realtime models speak over a live connection. There's no local preview.",
-                                systemImage: "info.circle"
-                            )
-                        }
-
-                        glassSaveRow(status: ttsSettingsMessage ?? ttsSaveSubtitle, identifier: "settings.tts") {
-                            saveTTSSettings()
-                        }
-                    }
 
                     settingsSection(
                         "Character",
@@ -342,9 +193,9 @@ struct SettingsView: View {
 
     private var aiProviderSection: some View {
         settingsSection(
-            "BYOK AI",
-            icon: "brain.head.profile",
-            footer: "Scowld sends chat and optional vision requests directly to your selected provider using the key saved in Keychain."
+            "Live Voice",
+            icon: "waveform.and.mic",
+            footer: "Scowld streams your voice to the provider you choose and plays her voice back. Your API key stays in the iOS Keychain and is sent only to that provider."
         ) {
             settingRow {
                 Picker("Provider", selection: $selectedAIProviderID) {
@@ -360,14 +211,6 @@ struct SettingsView: View {
                 }
             }
 
-            if selectedAIProvider == .ollama {
-                settingRow {
-                    TextField("Ollama URL", text: $ollamaURL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
-            }
-
             modelSelectionRows(
                 models: selectedAIProvider.availableModels,
                 selection: $selectedAIModel,
@@ -375,57 +218,40 @@ struct SettingsView: View {
                 identifier: "settings.ai"
             )
 
-            if selectedAIProvider.requiresAPIKey {
-                settingRow {
-                    apiKeyField(placeholder: aiAPIKeyPlaceholder, text: $aiAPIKey, isRevealed: $revealAIKey, identifier: "settings.ai.apiKey")
+            settingRow {
+                Picker("Voice", selection: $selectedVoice) {
+                    ForEach(selectedAIProvider.voices) { voice in
+                        Text("\(voice.name) - \(voice.style)").tag(voice.id)
+                    }
                 }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings.ai.voice")
+            }
+
+            settingRow {
+                apiKeyField(placeholder: aiAPIKeyPlaceholder, text: $aiAPIKey, isRevealed: $revealAIKey, identifier: "settings.ai.apiKey")
+            }
+
+            settingsActionRow(
+                title: String.localizedStringWithFormat(
+                    NSLocalizedString("Get your %@ API key", comment: "Link to the provider's API key page"),
+                    selectedAIProvider.shortName
+                ),
+                subtitle: selectedAIProvider.keyHost,
+                systemImage: "key.fill"
+            ) {
+                openURL(selectedAIProvider.keyURL)
+            }
+
+            if selectedAIProvider.cameraSupport == .unsupported {
+                settingsInfoRow(
+                    title: NSLocalizedString("Grok Voice can't see the camera. Choose Gemini or OpenAI for vision.", comment: "xAI camera note"),
+                    systemImage: "eye.slash"
+                )
             }
 
             glassSaveRow(status: aiSettingsMessage ?? aiSaveSubtitle, identifier: "settings.ai") {
                 saveAISettings()
-            }
-        }
-    }
-
-    private var sttProviderSection: some View {
-        settingsSection(
-            "Speech-to-Text",
-            icon: "waveform.badge.mic",
-            footer: "Native iOS uses no API key. Cloud STT providers use your API key from Keychain."
-        ) {
-            settingRow {
-                Picker("Provider", selection: $selectedSTTBackendID) {
-                    ForEach(STTBackend.allCases, id: \.rawValue) { backend in
-                        Text(backend.displayName).tag(backend.rawValue)
-                    }
-                }
-                .pickerStyle(.menu)
-                .accessibilityIdentifier("settings.stt.provider")
-                .onChange(of: selectedSTTBackendID) {
-                    guard !isLoadingSettings else { return }
-                    loadSTTBackendSettings()
-                }
-            }
-
-            if !selectedSTTBackend.availableModels.isEmpty {
-                modelSelectionRows(
-                    models: selectedSTTBackend.availableModels,
-                    selection: $selectedSTTModel,
-                    isCustom: $sttModelIsCustom,
-                    identifier: "settings.stt"
-                )
-            }
-
-            if selectedSTTBackend.requiresAPIKey {
-                settingRow {
-                    apiKeyField(placeholder: sttAPIKeyPlaceholder, text: $sttAPIKey, isRevealed: $revealSTTKey, identifier: "settings.stt.apiKey")
-                }
-            }
-
-            settingsInfoRow(title: selectedSTTBackend.footerText, systemImage: "info.circle")
-
-            glassSaveRow(status: sttSettingsMessage ?? sttSaveSubtitle, identifier: "settings.stt") {
-                saveSTTSettings()
             }
         }
     }
@@ -698,24 +524,6 @@ struct SettingsView: View {
             .padding(.leading, 62)
     }
 
-    private var selectedPreviewVoiceID: String {
-        ScowldVoiceLibrary.voiceID(for: selectedVoicePickerID, customVoiceID: customVoiceID)
-    }
-
-    private var previewButtonTitle: String {
-        selectedVoiceHasBundledPreview
-            ? NSLocalizedString("Play sample", comment: "Play voice preview button")
-            : NSLocalizedString("Sample unavailable", comment: "Disabled voice preview button")
-    }
-
-    private var previewButtonIcon: String {
-        selectedVoiceHasBundledPreview ? "play.circle.fill" : "exclamationmark.circle"
-    }
-
-    private var selectedVoiceHasBundledPreview: Bool {
-        BundledElevenLabsVoicePreviews.hasPreview(forVoiceID: selectedPreviewVoiceID)
-    }
-
     private var selectedLanguageDescription: String? {
         switch selectedLanguageID {
         case HostedServiceConfig.deviceLanguageID:
@@ -727,13 +535,13 @@ struct SettingsView: View {
                 )
             }
             return NSLocalizedString(
-                "This iPhone language is not in the supported shortcut list, so providers will use auto.",
+                "This iPhone language isn't in the list, so she answers in the language you speak.",
                 comment: "Unsupported device language description"
             )
         default:
             return ScowldLanguageLibrary.option(for: selectedLanguageID).map {
                 String.localizedStringWithFormat(
-                    NSLocalizedString("Forces STT and TTS toward %@.", comment: "Selected service language description"),
+                    NSLocalizedString("She answers in %@.", comment: "Selected service language description"),
                     NSLocalizedString($0.name, comment: "Language name")
                 )
             }
@@ -744,49 +552,12 @@ struct SettingsView: View {
         AIProvider(rawValue: selectedAIProviderID) ?? .gemini
     }
 
-    private var selectedSTTBackend: STTBackend {
-        STTBackend(rawValue: selectedSTTBackendID) ?? .nativeIOS
-    }
-
-    private var selectedTTSBackend: TTSBackend {
-        TTSBackend(rawValue: selectedTTSBackendID) ?? .elevenLabs
-    }
-
     private var aiAPIKeyPlaceholder: String {
-        hasSavedAIAPIKey ? "Saved API key - type to replace" : "\(selectedAIProvider.displayName) API key"
-    }
-
-    private var sttAPIKeyPlaceholder: String {
-        hasSavedSTTAPIKey ? "Saved API key - type to replace" : "\(selectedSTTBackend.displayName) API key"
-    }
-
-    private var ttsAPIKeyPlaceholder: String {
-        hasSavedTTSAPIKey ? "Saved API key - type to replace" : "\(selectedTTSBackend.displayName) API key"
-    }
-
-    private var ttsSectionFooter: String {
-        switch selectedTTSBackend {
-        case .elevenLabs:
-            return "ElevenLabs speech uses your API key from Keychain. Celine, Claire, and custom voice IDs are supported."
-        case .openAI:
-            return "OpenAI text-to-speech reuses your OpenAI API key from Keychain and its built-in voices."
-        }
+        hasSavedAIAPIKey ? "Saved API key - type to replace" : "\(selectedAIProvider.shortName) API key"
     }
 
     private var aiSaveSubtitle: String {
-        selectedAIProvider.requiresAPIKey
-            ? (hasSavedAIAPIKey ? "Key saved in Keychain" : "Add a key before chatting")
-            : "No API key required"
-    }
-
-    private var sttSaveSubtitle: String {
-        selectedSTTBackend.requiresAPIKey
-            ? (hasSavedSTTAPIKey ? "Key saved in Keychain" : "Add a key for cloud STT")
-            : "No API key required"
-    }
-
-    private var ttsSaveSubtitle: String {
-        hasSavedTTSAPIKey ? "Key saved in Keychain" : "Add a key for spoken replies"
+        hasSavedAIAPIKey ? "Key saved in Keychain" : "Add a key before chatting"
     }
 
     // MARK: - Settings Persistence
@@ -796,15 +567,8 @@ struct SettingsView: View {
         HostedServiceConfig.applyBYOKDefaults()
 
         let defaults = UserDefaults.standard
-        selectedAIProviderID = defaults.string(forKey: "selectedProvider") ?? AIProvider.gemini.rawValue
+        selectedAIProviderID = HostedServiceConfig.selectedProvider().rawValue
         loadAIProviderSettings(resetMessage: false)
-        selectedSTTBackendID = defaults.string(forKey: "amica_stt_backend") ?? STTBackend.nativeIOS.rawValue
-        loadSTTBackendSettings(resetMessage: false)
-        selectedTTSBackendID = defaults.string(forKey: "amica_tts_backend") ?? TTSBackend.elevenLabs.rawValue
-        loadTTSBackendSettings(resetMessage: false)
-        let voiceID = HostedServiceConfig.selectedElevenLabsVoiceID()
-        selectedVoicePickerID = ScowldVoiceLibrary.pickerID(for: voiceID)
-        customVoiceID = selectedVoicePickerID == ScowldVoiceLibrary.customID ? voiceID : ""
         selectedLanguageID = HostedServiceConfig.selectedServiceLanguageID()
         let storedCharacterName = defaults.string(forKey: "character_name")?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -826,37 +590,11 @@ struct SettingsView: View {
         let provider = selectedAIProvider
         selectedAIModel = HostedServiceConfig.selectedModel(for: provider)
         aiModelIsCustom = !provider.availableModels.contains(selectedAIModel)
-        aiAPIKey = provider.requiresAPIKey ? (KeychainManager.load(key: provider.keychainKey) ?? "") : ""
-        hasSavedAIAPIKey = provider.requiresAPIKey && !aiAPIKey.isEmpty
-        ollamaURL = KeychainManager.load(key: OllamaConfig.keychainURLKey) ?? OllamaConfig.defaultURL
+        selectedVoice = HostedServiceConfig.selectedVoice(for: provider)
+        aiAPIKey = KeychainManager.load(key: provider.keychainKey) ?? ""
+        hasSavedAIAPIKey = !aiAPIKey.isEmpty
         if resetMessage {
             aiSettingsMessage = nil
-        }
-    }
-
-    private func loadSTTBackendSettings(resetMessage: Bool = true) {
-        let backend = selectedSTTBackend
-        selectedSTTModel = STTBackend.selectedModel(for: backend)
-        sttModelIsCustom = !backend.availableModels.isEmpty && !backend.availableModels.contains(selectedSTTModel)
-        sttAPIKey = backend.requiresAPIKey ? (KeychainManager.load(key: backend.keychainKey) ?? "") : ""
-        hasSavedSTTAPIKey = backend.requiresAPIKey && !sttAPIKey.isEmpty
-        if resetMessage {
-            sttSettingsMessage = nil
-        }
-    }
-
-    private func loadTTSBackendSettings(resetMessage: Bool = true) {
-        let backend = selectedTTSBackend
-        selectedTTSModel = TTSBackend.selectedModel(for: backend)
-        ttsModelIsCustom = !backend.availableModels.isEmpty && !backend.availableModels.contains(selectedTTSModel)
-        ttsAPIKey = KeychainManager.load(key: backend.keychainKey) ?? ""
-        hasSavedTTSAPIKey = !ttsAPIKey.isEmpty
-        let savedVoice = HostedServiceConfig.selectedOpenAITTSVoice()
-        selectedOpenAITTSVoice = TTSBackend.openAIVoices(for: selectedTTSModel).contains(savedVoice)
-            ? savedVoice
-            : TTSBackend.openAIRealtimeVoice(for: savedVoice)
-        if resetMessage {
-            ttsSettingsMessage = nil
         }
     }
 
@@ -865,58 +603,13 @@ struct SettingsView: View {
         let defaults = UserDefaults.standard
         let provider = selectedAIProvider
         let model = selectedAIModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        defaults.set(provider.rawValue, forKey: "selectedProvider")
+        defaults.set(provider.rawValue, forKey: HostedServiceConfig.providerDefaultsKey)
         defaults.set(model.isEmpty ? provider.defaultModel : model, forKey: provider.modelDefaultsKey)
-        defaults.set(model.isEmpty ? provider.defaultModel : model, forKey: "selectedModel")
+        defaults.set(selectedVoice, forKey: provider.voiceDefaultsKey)
+        saveKeyIfNeeded(aiAPIKey, key: provider.keychainKey)
 
-        if provider == .ollama {
-            let url = ollamaURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            _ = KeychainManager.save(key: OllamaConfig.keychainURLKey, value: url.isEmpty ? OllamaConfig.defaultURL : url)
-        } else {
-            saveKeyIfNeeded(aiAPIKey, key: provider.keychainKey)
-        }
-
-        hasSavedAIAPIKey = provider.requiresAPIKey && KeychainManager.exists(key: provider.keychainKey)
+        hasSavedAIAPIKey = KeychainManager.exists(key: provider.keychainKey)
         aiSettingsMessage = "Saved"
-        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
-    }
-
-    private func saveSTTSettings() {
-        dismissKeyboard()
-        let defaults = UserDefaults.standard
-        let backend = selectedSTTBackend
-        let model = selectedSTTModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        defaults.set(backend.rawValue, forKey: "amica_stt_backend")
-        if !backend.availableModels.isEmpty {
-            defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: backend.modelDefaultsKey)
-        }
-
-        if backend.requiresAPIKey {
-            saveKeyIfNeeded(sttAPIKey, key: backend.keychainKey)
-        }
-
-        hasSavedSTTAPIKey = backend.requiresAPIKey && KeychainManager.exists(key: backend.keychainKey)
-        sttSettingsMessage = "Saved"
-        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
-    }
-
-    private func saveTTSSettings() {
-        dismissKeyboard()
-        let defaults = UserDefaults.standard
-        let backend = selectedTTSBackend
-        let model = selectedTTSModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        defaults.set(backend.rawValue, forKey: "amica_tts_backend")
-        defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: backend.modelDefaultsKey)
-        if backend == .elevenLabs {
-            defaults.set(model.isEmpty ? backend.defaultModel : model, forKey: "amica_elevenlabs_model")
-            saveSelectedVoice()
-        } else if backend == .openAI {
-            saveOpenAITTSVoice()
-        }
-        saveKeyIfNeeded(ttsAPIKey, key: backend.keychainKey)
-
-        hasSavedTTSAPIKey = KeychainManager.exists(key: backend.keychainKey)
-        ttsSettingsMessage = "Saved"
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 
@@ -933,24 +626,6 @@ struct SettingsView: View {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         _ = KeychainManager.save(key: key, value: trimmed)
-    }
-
-    private func saveSelectedVoice() {
-        let defaults = UserDefaults.standard
-        HostedServiceConfig.applyBYOKDefaults()
-        defaults.set(
-            ScowldVoiceLibrary.voiceID(for: selectedVoicePickerID, customVoiceID: customVoiceID),
-            forKey: "amica_elevenlabs_voiceid"
-        )
-        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
-    }
-
-    private func saveOpenAITTSVoice() {
-        UserDefaults.standard.set(
-            selectedOpenAITTSVoice,
-            forKey: HostedServiceConfig.openAITTSVoiceDefaultsKey
-        )
-        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 
     private func saveLanguageSettings() {
@@ -1009,44 +684,6 @@ struct SettingsView: View {
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 
-    private func playBundledVoicePreview() {
-        previewError = nil
-        previewPlayer?.stop()
-
-        guard let url = BundledElevenLabsVoicePreviews.url(forVoiceID: selectedPreviewVoiceID) else {
-            previewError = NSLocalizedString(
-                "No bundled sample is available for this custom voice ID.",
-                comment: "Missing voice preview error"
-            )
-            return
-        }
-
-        playPreviewAudio(from: url)
-    }
-
-    private func resetPreviewState() {
-        previewPlayer?.stop()
-        previewPlayer = nil
-        previewError = nil
-    }
-
-    private func playPreviewAudio(from url: URL) {
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playback, mode: .default)
-            try audioSession.setActive(true)
-
-            let player = try AVAudioPlayer(contentsOf: url)
-            player.prepareToPlay()
-            player.play()
-            previewPlayer = player
-        } catch {
-            previewError = String.localizedStringWithFormat(
-                NSLocalizedString("Could not play sample: %@", comment: "Voice preview playback error"),
-                error.localizedDescription
-            )
-        }
-    }
 }
 
 private struct KeyboardDismissInstaller: UIViewRepresentable {

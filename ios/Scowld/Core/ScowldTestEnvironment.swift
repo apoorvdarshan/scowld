@@ -44,7 +44,8 @@ enum ScowldTestEnvironment {
     }
 
     /// While tests run, Scowld never reaches the network, the microphone, speech
-    /// recognition or the camera, and never shows a permission prompt.
+    /// recognition or the camera, never starts a live conversation, and never shows
+    /// a permission prompt.
     static var isRunningTests: Bool {
         isUITesting || isHostingUnitTests
     }
@@ -95,10 +96,7 @@ enum ScowldTestEnvironment {
             try? FileManager.default.removeItem(at: storeDirectory.appendingPathComponent("Scowld.sqlite\(suffix)"))
         }
 
-        let keychainKeys = AIProvider.allCases.map(\.keychainKey)
-            + STTBackend.allCases.map(\.keychainKey)
-            + TTSBackend.allCases.map(\.keychainKey)
-            + [OllamaConfig.keychainURLKey]
+        let keychainKeys = AIProvider.allCases.map(\.keychainKey) + LegacySettingsCleanup.legacyKeychainKeys
         for key in Set(keychainKeys) {
             KeychainManager.delete(key: key)
         }

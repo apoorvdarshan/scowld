@@ -67,91 +67,8 @@ final class AppUpdateCheckerTests: XCTestCase {
     }
 }
 
-/// The ElevenLabs text-to-speech request built from the user's settings.
-@MainActor
-final class ElevenLabsRequestTests: XCTestCase {
-    private func prepare(apiKey: String?) {
-        let defaults = DefaultsSnapshot()
-        defaults.clear()
-        let keychain = KeychainSnapshot(keys: [TTSBackend.elevenLabs.keychainKey])
-        if let apiKey {
-            _ = KeychainManager.save(key: TTSBackend.elevenLabs.keychainKey, value: apiKey)
-        } else {
-            KeychainManager.delete(key: TTSBackend.elevenLabs.keychainKey)
-        }
-        addTeardownBlock { @MainActor in
-            keychain.restore()
-            defaults.restore()
-        }
-    }
-
-    func testMissingKeyIsReportedWithSettingsGuidance() {
-        prepare(apiKey: nil)
-        XCTAssertThrowsError(try ElevenLabsBYOKRequestBuilder.makeRequest(voiceID: "abc", body: nil)) { error in
-            XCTAssertEqual(
-                (error as? LocalizedError)?.errorDescription,
-                "ElevenLabs API key is missing. Add it in Settings > Text-to-Speech."
-            )
-        }
-    }
-
-    func testRequestUsesTheVoiceModelLanguageAndDefaultVoiceSettings() throws {
-        prepare(apiKey: "  eleven-key \n")
-        UserDefaults.standard.set("eleven_multilingual_v2", forKey: TTSBackend.elevenLabs.modelDefaultsKey)
-        UserDefaults.standard.set("fr", forKey: HostedServiceConfig.serviceLanguageDefaultsKey)
-
-        let request = try ElevenLabsBYOKRequestBuilder.makeRequest(
-            voiceID: " HxuFAkkGVeQs1sDIMF5g ",
-            body: Data(#"{"text":"Bonjour"}"#.utf8)
-        )
-        XCTAssertEqual(request.url?.absoluteString, "https://api.elevenlabs.io/v1/text-to-speech/HxuFAkkGVeQs1sDIMF5g?output_format=mp3_44100_128")
-        XCTAssertEqual(request.httpMethod, "POST")
-        XCTAssertEqual(request.value(forHTTPHeaderField: "xi-api-key"), "eleven-key")
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "audio/mpeg")
-
-        let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
-        XCTAssertEqual(body["text"] as? String, "Bonjour")
-        XCTAssertEqual(body["model_id"] as? String, "eleven_multilingual_v2")
-        XCTAssertEqual(body["language_code"] as? String, "fr")
-        let settings = try XCTUnwrap(body["voice_settings"] as? [String: Any])
-        XCTAssertEqual(settings["stability"] as? Double, 0.55)
-        XCTAssertEqual(settings["use_speaker_boost"] as? Bool, true)
-    }
-
-    func testElevenV4GetsOnlyTheVoiceSettingsItSupports() throws {
-        prepare(apiKey: "eleven-key")
-        UserDefaults.standard.set("eleven_v4", forKey: TTSBackend.elevenLabs.modelDefaultsKey)
-        let request = try ElevenLabsBYOKRequestBuilder.makeRequest(voiceID: "v", body: Data(#"{"text":"Hi"}"#.utf8))
-        let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
-        XCTAssertEqual(body["model_id"] as? String, "eleven_v4")
-        let settings = try XCTUnwrap(body["voice_settings"] as? [String: Any])
-        XCTAssertEqual(Set(settings.keys), ["stability", "similarity_boost"])
-    }
-
-    func testBlankVoiceUsesTheSavedVoiceAndCustomVoiceSettingsAreKept() throws {
-        prepare(apiKey: "eleven-key")
-        UserDefaults.standard.set("savedVoice99", forKey: "amica_elevenlabs_voiceid")
-        let request = try ElevenLabsBYOKRequestBuilder.makeRequest(
-            voiceID: "  ",
-            body: Data(#"{"text":"Hi","voice_settings":{"stability":0.1}}"#.utf8)
-        )
-        XCTAssertEqual(request.url?.path, "/v1/text-to-speech/savedVoice99")
-        let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
-        XCTAssertEqual((body["voice_settings"] as? [String: Any])?["stability"] as? Double, 0.1)
-    }
-
-    func testErrorBodyIsValidJSONEvenWithQuotesAndNewlines() throws {
-        struct Failure: LocalizedError {
-            var errorDescription: String? { "Bad \"voice\"\nid \\ here" }
-        }
-        let data = ElevenLabsBYOKRequestBuilder.errorResponseBody(Failure())
-        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: String])
-        XCTAssertEqual(json["error"], "Bad \"voice\" id \\ here")
-    }
-}
-
-/// The loopback HTTP server that serves the bundled companion and proxies
-/// text-to-speech. Only 127.0.0.1 is contacted.
+/// The loopback HTTP server that serves the bundled companion page. Only
+/// 127.0.0.1 is contacted.
 @MainActor
 final class AmicaLocalServerTests: XCTestCase {
     private func send(_ method: String, _ path: String, body: Data? = nil) async throws -> (HTTPURLResponse, Data) {
@@ -198,21 +115,11 @@ final class AmicaLocalServerTests: XCTestCase {
         XCTAssertEqual(preflight.value(forHTTPHeaderField: "Access-Control-Allow-Methods"), "GET, POST, OPTIONS")
     }
 
-    func testSpeechProxyRefusesWithoutAKeyAndRejectsUnknownPaths() async throws {
-        let keychain = KeychainSnapshot(keys: [TTSBackend.elevenLabs.keychainKey, AIProvider.openai.keychainKey])
-        KeychainManager.delete(key: TTSBackend.elevenLabs.keychainKey)
-        KeychainManager.delete(key: AIProvider.openai.keychainKey)
-        addTeardownBlock { @MainActor in keychain.restore() }
-
-        let (unknown, _) = try await send("GET", "/api/elevenlabs/voices")
-        XCTAssertEqual(unknown.statusCode, 404)
-
-        let (elevenLabs, elevenLabsBody) = try await send("POST", "/api/elevenlabs/text-to-speech/abc", body: Data(#"{"text":"Hi"}"#.utf8))
-        XCTAssertEqual(elevenLabs.statusCode, 401)
-        XCTAssertTrue(String(decoding: elevenLabsBody, as: UTF8.self).contains("ElevenLabs API key is missing"))
-
-        let (openAI, openAIBody) = try await send("POST", "/api/openai-tts/v1/audio/speech", body: Data(#"{"input":"Hi"}"#.utf8))
-        XCTAssertEqual(openAI.statusCode, 401)
-        XCTAssertEqual(String(decoding: openAIBody, as: UTF8.self), #"{"error":"No OpenAI API key"}"#)
+    /// The old text-to-speech proxies are gone: those paths are just missing files.
+    func testNoSpeechProxyRemains() async throws {
+        for path in ["/api/elevenlabs/text-to-speech/abc", "/api/openai-tts/v1/audio/speech"] {
+            let (response, _) = try await send("POST", path, body: Data(#"{"text":"Hi"}"#.utf8))
+            XCTAssertEqual(response.statusCode, 404, path)
+        }
     }
 }

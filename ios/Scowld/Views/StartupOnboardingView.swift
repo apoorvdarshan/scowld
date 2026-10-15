@@ -72,14 +72,14 @@ struct StartupOnboardingView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Talk naturally.")
                         .font(.system(size: 40, weight: .bold, design: .rounded))
-                    Text("Scowld turns voice into a flowing conversation with speech, captions, optional vision, and saved past chats.")
+                    Text("Talk with her live: she hears you, answers out loud in her own voice, and lets you interrupt anytime. Captions, optional vision, and saved past chats included.")
                         .font(.headline)
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
                 }
 
                 VStack(spacing: 12) {
-                    OnboardingFeatureRow(icon: "waveform", title: "Voice turns", subtitle: "Speak or type, then hear her answer.")
+                    OnboardingFeatureRow(icon: "waveform", title: "Live voice", subtitle: "Talk naturally, or type. She answers out loud.")
                     OnboardingFeatureRow(icon: "eye.fill", title: "Optional vision", subtitle: "Use camera context when you want it.")
                     OnboardingFeatureRow(icon: "text.bubble.fill", title: "Past chats", subtitle: "Keep conversations as reference.")
                 }
