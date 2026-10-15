@@ -169,21 +169,27 @@ nonisolated final class LiveSession: @unchecked Sendable {
         onEvent(.ready)
     }
 
+    // Locks by hand rather than with `withLock`: the closure version crashed the
+    // Swift 6.3 compiler (Xcode 26), which the CodeQL Swift analysis builds with.
     private func enqueue(_ message: String, audioBytes: Int) {
-        let outbox: AsyncStream<String>.Continuation? = lock.withLock {
-            guard !isClosed else { return nil }
-            if isReady, let outbox { return outbox }
-            queued.append((message, audioBytes))
-            queuedAudioBytes += audioBytes
-            dropOldestQueuedAudio()
-            return nil
+        lock.lock()
+        if isClosed {
+            lock.unlock()
+            return
         }
-        outbox?.yield(message)
+        if isReady, let outbox {
+            lock.unlock()
+            outbox.yield(message)
+            return
+        }
+        queued.append((message, audioBytes))
+        queuedAudioBytes += audioBytes
+        dropOldestQueuedAudio()
+        lock.unlock()
     }
 
     /// Keeps only the latest few seconds of speech while waiting; other messages
-    /// stay. Called with the lock held. (A closure here, inside `withLock`,
-    /// crashed the Swift 6.3 compiler.)
+    /// stay. Called with the lock held.
     private func dropOldestQueuedAudio() {
         var index = 0
         while queuedAudioBytes > Self.maximumQueuedAudioBytes, index < queued.count {
