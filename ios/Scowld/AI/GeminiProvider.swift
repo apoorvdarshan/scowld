@@ -14,7 +14,7 @@ struct GeminiProvider: LLMProvider {
     }
 
     func generate(messages: [ChatMessage], systemPrompt: String) async throws -> String {
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)")!
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
 
         var contents: [[String: Any]] = []
 
@@ -40,7 +40,7 @@ struct GeminiProvider: LLMProvider {
     }
 
     func generateWithVision(messages: [ChatMessage], systemPrompt: String, image: UIImage) async throws -> String {
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)")!
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
 
         // Convert image to base64
         guard let imageData = image.jpegData(compressionQuality: 0.7) else {
@@ -116,6 +116,8 @@ struct GeminiProvider: LLMProvider {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // The key goes in a header, never the URL, so it cannot end up in logged URLs.
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)

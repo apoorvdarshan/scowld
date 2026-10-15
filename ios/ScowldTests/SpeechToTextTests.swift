@@ -150,7 +150,8 @@ final class CloudTranscriptionTests: XCTestCase {
         XCTAssertEqual(text, "")
 
         let sent = try XCTUnwrap(StubURLProtocol.requests.last)
-        XCTAssertEqual(sent.request.url?.absoluteString, "https://speech.googleapis.com/v1/speech:recognize?key=stt-key")
+        XCTAssertEqual(sent.request.url?.absoluteString, "https://speech.googleapis.com/v1/speech:recognize")
+        XCTAssertEqual(sent.request.value(forHTTPHeaderField: "x-goog-api-key"), "stt-key")
         let config = try XCTUnwrap(sent.json["config"] as? [String: Any])
         XCTAssertEqual(config["encoding"] as? String, "LINEAR16")
         XCTAssertEqual(config["sampleRateHertz"] as? Int, 16_000)
