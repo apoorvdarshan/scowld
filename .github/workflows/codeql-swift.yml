@@ -1,0 +1,67 @@
+# Static analysis (SAST) of the Swift app (ios/) with GitHub CodeQL. Swift
+# extraction needs a macOS runner and a full compile under the CodeQL tracer, so
+# this ~30-minute build runs weekly, for each release tag and on demand rather
+# than on every pull request; codeql.yml analyzes the JavaScript, Python and
+# workflows on every pull request.
+
+name: CodeQL (Swift)
+
+on:
+  # Release tags (the same v* tags ios-release.yml ships), so every release is analyzed.
+  push:
+    tags:
+      - "v*"
+  schedule:
+    # Weekly on Mondays.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (swift)
+    # Not xcode-27: CodeQL's Swift extractor runs as x86_64 under Rosetta and
+    # starts the compiler's macro plugin server, which is arm64-only in Xcode 27
+    # ("swift-plugin-server ... Bad CPU type in executable"). macos-26 ships
+    # Xcode 26, whose toolchain still includes x86_64.
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to code scanning
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /ios/
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: swift
+          build-mode: manual
+
+      # CodeQL only analyzes code it sees being compiled, so this builds from a
+      # fresh derived-data folder and never restores build products. Simulator
+      # builds need no signing certificate.
+      - name: Build the app for CodeQL
+        run: |
+          xcodebuild -version
+          xcodebuild build \
+            -project ios/Scowld.xcodeproj \
+            -scheme Scowld \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/codeql-build" \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: /language:swift
