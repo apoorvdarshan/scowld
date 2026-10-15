@@ -1,16 +1,16 @@
 {
   "APP_IPHONE_67": [
-    "marketing/mockups/aria.png",
-    "marketing/mockups/custom.png",
-    "marketing/mockups/bella.png",
-    "marketing/mockups/chats.png",
-    "marketing/mockups/ciel.png"
+    "store/metadata/screenshots/ios/iphone-6.9/aria.png",
+    "store/metadata/screenshots/ios/iphone-6.9/custom.png",
+    "store/metadata/screenshots/ios/iphone-6.9/bella.png",
+    "store/metadata/screenshots/ios/iphone-6.9/chats.png",
+    "store/metadata/screenshots/ios/iphone-6.9/ciel.png"
   ],
   "APP_IPAD_PRO_3GEN_129": [
-    "marketing/mockups ipad/aria.png",
-    "marketing/mockups ipad/custom.png",
-    "marketing/mockups ipad/bella.png",
-    "marketing/mockups ipad/chats.png",
-    "marketing/mockups ipad/ciel.png"
+    "store/metadata/screenshots/ios/ipad-13/aria.png",
+    "store/metadata/screenshots/ios/ipad-13/custom.png",
+    "store/metadata/screenshots/ios/ipad-13/bella.png",
+    "store/metadata/screenshots/ios/ipad-13/chats.png",
+    "store/metadata/screenshots/ios/ipad-13/ciel.png"
   ]
 }

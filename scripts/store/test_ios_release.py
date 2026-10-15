@@ -687,22 +687,22 @@ class LocalInputTests(unittest.TestCase):
         self.assert_fails(r"screenshots\.json does not exist", upload_screenshots=True)
 
     def test_screenshot_manifest_is_validated(self) -> None:
-        good = png(self.root / "marketing" / "a.png", 1260, 2736)
-        png(self.root / "marketing" / "ipad.png", 2064, 2752, seed=1)
-        png(self.root / "marketing" / "small.png", 1179, 2556, seed=2)
-        png(self.root / "marketing" / "alpha.png", 1290, 2796, alpha=True, seed=3)
+        good = png(self.root / "store" / "metadata" / "screenshots" / "a.png", 1260, 2736)
+        png(self.root / "store" / "metadata" / "screenshots" / "ipad.png", 2064, 2752, seed=1)
+        png(self.root / "store" / "metadata" / "screenshots" / "small.png", 1179, 2556, seed=2)
+        png(self.root / "store" / "metadata" / "screenshots" / "alpha.png", 1290, 2796, alpha=True, seed=3)
         manifest = self.loc / "screenshots.json"
 
-        manifest.write_text(json.dumps({"APP_IPHONE_67": ["marketing/a.png"], "APP_IPAD_PRO_3GEN_129": ["marketing/ipad.png"]}))
+        manifest.write_text(json.dumps({"APP_IPHONE_67": ["store/metadata/screenshots/a.png"], "APP_IPAD_PRO_3GEN_129": ["store/metadata/screenshots/ipad.png"]}))
         plan = self.validate(upload_screenshots=True)["en-US"]["screenshots"]
         self.assertEqual(plan["APP_IPHONE_67"], [good.resolve()])
 
         cases = {
-            "1179x2556; APP_IPHONE_67 accepts": {"APP_IPHONE_67": ["marketing/small.png"]},
-            "alpha channel": {"APP_IPHONE_67": ["marketing/alpha.png"]},
-            "unsupported display type": {"APP_WATCH": ["marketing/a.png"]},
+            "1179x2556; APP_IPHONE_67 accepts": {"APP_IPHONE_67": ["store/metadata/screenshots/small.png"]},
+            "alpha channel": {"APP_IPHONE_67": ["store/metadata/screenshots/alpha.png"]},
+            "unsupported display type": {"APP_WATCH": ["store/metadata/screenshots/a.png"]},
             "not an image file in this repository": {"APP_IPHONE_67": ["../outside.png"]},
-            "lists 11 images": {"APP_IPHONE_67": ["marketing/a.png"] * 11},
+            "lists 11 images": {"APP_IPHONE_67": ["store/metadata/screenshots/a.png"] * 11},
             "must list at least one": {"APP_IPHONE_67": []},
         }
         for pattern, content in cases.items():
@@ -713,8 +713,8 @@ class LocalInputTests(unittest.TestCase):
         self.assert_fails("not valid JSON", upload_screenshots=True)
 
     def test_landscape_screenshots_are_accepted(self) -> None:
-        png(self.root / "marketing" / "wide.png", 2796, 1290)
-        (self.loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["marketing/wide.png"]}))
+        png(self.root / "store" / "metadata" / "screenshots" / "wide.png", 2796, 1290)
+        (self.loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["store/metadata/screenshots/wide.png"]}))
         self.assertEqual(len(self.validate(upload_screenshots=True)["en-US"]["screenshots"]["APP_IPHONE_67"]), 1)
 
     @committed_files_test

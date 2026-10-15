@@ -19,7 +19,6 @@ on:
       - 'scripts/release_notes.py'
       - 'RELEASE_NOTES.md'
       - 'requirements-store.*'
-      - 'marketing/mockups*/**'
       - 'ios/Scowld.xcodeproj/project.pbxproj'
       - '.github/workflows/ios-release.yml'
       - '.github/workflows/store-automation.yml'
@@ -31,7 +30,6 @@ on:
       - 'scripts/release_notes.py'
       - 'RELEASE_NOTES.md'
       - 'requirements-store.*'
-      - 'marketing/mockups*/**'
       - 'ios/Scowld.xcodeproj/project.pbxproj'
       - '.github/workflows/ios-release.yml'
       - '.github/workflows/store-automation.yml'
@@ -60,7 +58,6 @@ jobs:
             /RELEASE_NOTES.md
             /requirements-store.*
             /ios/Scowld.xcodeproj/
-            /marketing/mockups*/
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0

@@ -109,9 +109,10 @@ jobs:
       marketing_version: ${{ steps.gates.outputs.marketing_version }}
       build_number: ${{ steps.number.outputs.build_number }}
     steps:
-      # The App Store screenshots (marketing/mockups*, 26 MB) are only read when a
-      # tag run may upload them, so they are left out unless IOS_UPLOAD_SCREENSHOTS
-      # is set to something other than an "off" value (the gates validate it below).
+      # The App Store screenshots (store/metadata/screenshots/, 26 MB) are only read
+      # when a tag run may upload them, so they are left out unless
+      # IOS_UPLOAD_SCREENSHOTS is set to something other than an "off" value (the
+      # gates validate it below).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -120,10 +121,11 @@ jobs:
             /scripts/store/
             /scripts/release_notes.py
             /store/
+            !/store/metadata/screenshots/
             /ios/Scowld.xcodeproj/
             /requirements-store.txt
             /RELEASE_NOTES.md
-            ${{ github.event_name == 'push' && !contains(fromJSON('["", "0", "false", "no", "off"]'), vars.IOS_UPLOAD_SCREENSHOTS) && '/marketing/mockups*/' || '' }}
+            ${{ github.event_name == 'push' && !contains(fromJSON('["", "0", "false", "no", "off"]'), vars.IOS_UPLOAD_SCREENSHOTS) && '/store/metadata/screenshots/' || '' }}
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -504,8 +506,9 @@ jobs:
           sparse-checkout: |
             /scripts/store/
             /store/
+            !/store/metadata/screenshots/
             /requirements-store.txt
-            ${{ needs.prepare.outputs.screenshots == 'true' && '/marketing/mockups*/' || '' }}
+            ${{ needs.prepare.outputs.screenshots == 'true' && '/store/metadata/screenshots/' || '' }}
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
