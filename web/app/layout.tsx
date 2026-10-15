@@ -104,7 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               ],
               author: { "@type": "Person", name: "Apoorv Darshan", url: "https://x.com/apoorvdarshan" },
               sameAs: [
-                "https://www.instagram.com/scowld_/",
+                "https://www.instagram.com/apoorvcodes/",
                 "https://www.producthunt.com/products/scowld",
                 "https://github.com/apoorvdarshan/scowld",
                 "https://x.com/apoorvdarshan",
@@ -142,7 +142,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               logo: "https://www.scowld.xyz/logo.png",
               founder: { "@type": "Person", name: "Apoorv Darshan" },
               sameAs: [
-                "https://www.instagram.com/scowld_/",
+                "https://www.instagram.com/apoorvcodes/",
                 "https://www.producthunt.com/products/scowld",
                 "https://github.com/apoorvdarshan/scowld",
                 "https://x.com/apoorvdarshan",

@@ -65,7 +65,7 @@ App Store Connect submission details for Scowld v2.0.1. Each field is in a code 
     Built with SwiftUI, iOS Keychain, Gemini, OpenAI, Claude, Ollama, OpenAI-compatible providers, cloud STT providers, ElevenLabs, and a Cloudflare-hosted website.
     Website: https://scowld.xyz
     Blog: https://scowld.xyz/blog
-    Instagram: https://www.instagram.com/scowld_/
+    Instagram: https://www.instagram.com/apoorvcodes/
     Product Hunt: https://www.producthunt.com/products/scowld
     Privacy Policy: https://scowld.xyz/privacy
     Terms of Service: https://scowld.xyz/terms

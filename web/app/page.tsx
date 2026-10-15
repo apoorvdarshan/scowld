@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 const links = {
   appStore: "https://apps.apple.com/in/app/scowld-ai-voice-companion/id6760672848",
   productHunt: "https://www.producthunt.com/products/scowld",
-  instagram: "https://www.instagram.com/scowld_/",
+  instagram: "https://www.instagram.com/apoorvcodes/",
   github: "https://github.com/apoorvdarshan/scowld",
   koFi: "https://ko-fi.com/apoorvdarshan",
   x: "https://x.com/apoorvdarshan",
