@@ -19,7 +19,7 @@ enum STTBackend: String, CaseIterable {
     var displayName: String {
         switch self {
         case .nativeIOS: "Native iOS"
-        case .openaiWhisper: "OpenAI Whisper"
+        case .openaiWhisper: "OpenAI"
         case .groqWhisper: "Groq Whisper"
         case .deepgram: "Deepgram"
         case .assemblyAI: "AssemblyAI"
@@ -47,15 +47,15 @@ enum STTBackend: String, CaseIterable {
     var availableModels: [String] {
         switch self {
         case .openaiWhisper:
-            ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"]
+            ["gpt-transcribe"]
         case .groqWhisper:
             ["whisper-large-v3-turbo", "whisper-large-v3"]
         case .deepgram:
-            ["nova-3", "nova-3-general", "nova-2"]
+            ["nova-3", "nova-2"]
         case .assemblyAI:
-            ["universal-3-pro", "universal-2", "slam-1", "best"]
+            ["universal-3-5-pro", "universal-2"]
         case .googleCloud:
-            ["latest_short", "latest_long", "telephony_short", "telephony", "command_and_search", "default"]
+            ["latest_short", "latest_long", "command_and_search", "default"]
         default:
             []
         }
@@ -63,10 +63,10 @@ enum STTBackend: String, CaseIterable {
 
     var defaultModel: String {
         switch self {
-        case .openaiWhisper: "gpt-4o-mini-transcribe"
+        case .openaiWhisper: "gpt-transcribe"
         case .groqWhisper: "whisper-large-v3-turbo"
         case .deepgram: "nova-3"
-        case .assemblyAI: "universal-3-pro"
+        case .assemblyAI: "universal-3-5-pro"
         case .googleCloud: "latest_short"
         default: ""
         }
@@ -93,7 +93,7 @@ enum STTBackend: String, CaseIterable {
         case .openaiWhisper: "Cloud STT using OpenAI transcription models."
         case .groqWhisper: "Fast Whisper models on Groq hardware."
         case .deepgram: "Deepgram Nova speech models."
-        case .assemblyAI: "AssemblyAI Universal and Slam speech models."
+        case .assemblyAI: "AssemblyAI Universal speech models."
         case .googleCloud: "Google Cloud Speech-to-Text models."
         case .whisperBrowser: "Runs Whisper locally in the browser. Free, on-device."
         case .none: "Voice input disabled. Use text input only."
@@ -129,7 +129,7 @@ enum CloudSTTManager {
         }
     }
 
-    // MARK: - OpenAI Whisper
+    // MARK: - OpenAI
 
     private static func transcribeOpenAI(audioData: Data, apiKey: String, model: String) async throws -> String {
         let url = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
@@ -219,7 +219,8 @@ enum CloudSTTManager {
         transcriptReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
         transcriptReq.httpBody = try JSONSerialization.data(withJSONObject: [
             "audio_url": uploadUrl,
-            "speech_models": [model],
+            // Universal-3.5 Pro covers 18 languages; Universal-2 takes the rest.
+            "speech_models": model == "universal-3-5-pro" ? [model, "universal-2"] : [model],
         ])
 
         let (transcriptData, _) = try await URLSession.shared.data(for: transcriptReq)

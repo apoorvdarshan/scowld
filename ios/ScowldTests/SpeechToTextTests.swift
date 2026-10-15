@@ -98,7 +98,7 @@ final class CloudTranscriptionTests: XCTestCase {
 
     func testOpenAIWhisperUploadsMultipartAudioWithTheSelectedModel() async throws {
         prepare(.openaiWhisper)
-        UserDefaults.standard.set("whisper-1", forKey: STTBackend.openaiWhisper.modelDefaultsKey)
+        UserDefaults.standard.set("gpt-transcribe", forKey: STTBackend.openaiWhisper.modelDefaultsKey)
         StubURLProtocol.install { _ in .json(["text": "hello world"]) }
 
         let text = try await CloudSTTManager.transcribe(audioData: audio, backend: .openaiWhisper)
@@ -109,7 +109,7 @@ final class CloudTranscriptionTests: XCTestCase {
         XCTAssertEqual(sent.request.value(forHTTPHeaderField: "Authorization"), "Bearer stt-key")
         XCTAssertTrue(sent.request.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("multipart/form-data; boundary=") == true)
         let body = String(decoding: sent.body, as: UTF8.self)
-        XCTAssertTrue(body.contains("name=\"model\"\r\n\r\nwhisper-1\r\n"))
+        XCTAssertTrue(body.contains("name=\"model\"\r\n\r\ngpt-transcribe\r\n"))
         XCTAssertTrue(body.contains("filename=\"audio.wav\""))
         XCTAssertTrue(body.contains("RIFF-test-audio"))
     }
@@ -174,7 +174,8 @@ final class CloudTranscriptionTests: XCTestCase {
         let requests = StubURLProtocol.requests
         XCTAssertEqual(requests.map { $0.request.url?.path ?? "" }, ["/v2/upload", "/v2/transcript", "/v2/transcript/t-1"])
         XCTAssertEqual(requests[1].json["audio_url"] as? String, "https://cdn.assemblyai.com/upload/abc")
-        XCTAssertEqual(requests[1].json["speech_models"] as? [String], [STTBackend.assemblyAI.defaultModel])
+        // Universal-3.5 Pro, with Universal-2 for languages it does not cover.
+        XCTAssertEqual(requests[1].json["speech_models"] as? [String], ["universal-3-5-pro", "universal-2"])
         XCTAssertTrue(requests.allSatisfy { $0.request.value(forHTTPHeaderField: "Authorization") == "stt-key" })
     }
 

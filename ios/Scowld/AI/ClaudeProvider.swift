@@ -7,7 +7,7 @@ struct ClaudeProvider: LLMProvider {
     let apiKey: String
     let model: String
 
-    init(apiKey: String, model: String = "claude-sonnet-4-6") {
+    init(apiKey: String, model: String = AIProvider.claude.defaultModel) {
         self.apiKey = apiKey
         self.model = model
     }
@@ -22,14 +22,7 @@ struct ClaudeProvider: LLMProvider {
             ])
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "max_tokens": 1024,
-            "system": systemPrompt,
-            "messages": apiMessages,
-        ]
-
-        let data = try await performRequest(body: body)
+        let data = try await performRequest(body: requestBody(messages: apiMessages, systemPrompt: systemPrompt))
         return try parseResponse(data: data)
     }
 
@@ -66,15 +59,44 @@ struct ClaudeProvider: LLMProvider {
             }
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "max_tokens": 1024,
-            "system": systemPrompt,
-            "messages": apiMessages,
-        ]
-
-        let data = try await performRequest(body: body)
+        let data = try await performRequest(body: requestBody(messages: apiMessages, systemPrompt: systemPrompt))
         return try parseResponse(data: data)
+    }
+
+    // MARK: - Request shape
+
+    /// Models that accept `output_config.effort` (Claude Haiku 4.5 and Sonnet 4.5 reject it).
+    private static let effortModelPrefixes = [
+        "claude-fable-", "claude-mythos-", "claude-opus-5", "claude-sonnet-5", "claude-haiku-5",
+        "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5", "claude-sonnet-4-6",
+    ]
+
+    /// Models that take server-side refusal fallbacks (`fallbacks: "default"`).
+    private static let serverFallbackModels: Set = [
+        "claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5",
+    ]
+    static let serverFallbackBeta = "server-side-fallback-2026-07-01"
+
+    private var usesServerFallback: Bool { Self.serverFallbackModels.contains(model) }
+
+    private func requestBody(messages: [[String: Any]], systemPrompt: String) -> [String: Any] {
+        var body: [String: Any] = [
+            "model": model,
+            // Current models think adaptively (Opus 5.5 always does) and those tokens
+            // count toward max_tokens, so leave room beyond the short spoken reply.
+            "max_tokens": 8192,
+            "system": systemPrompt,
+            "messages": messages,
+        ]
+        if Self.effortModelPrefixes.contains(where: model.hasPrefix) {
+            // Spoken chat: low effort keeps replies fast (Opus 5.5 defaults to medium).
+            body["output_config"] = ["effort": "low"]
+        }
+        if usesServerFallback {
+            // A declined request is retried on a model chosen for that refusal category.
+            body["fallbacks"] = "default"
+        }
+        return body
     }
 
     // MARK: - Private
@@ -85,6 +107,9 @@ struct ClaudeProvider: LLMProvider {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        if usesServerFallback {
+            request.setValue(Self.serverFallbackBeta, forHTTPHeaderField: "anthropic-beta")
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -102,12 +127,22 @@ struct ClaudeProvider: LLMProvider {
         return data
     }
 
+    /// Joins the reply's text blocks. Thinking blocks (which come first on current
+    /// models, with empty text by default) are skipped.
     private func parseResponse(data: Data) throws -> String {
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let content = json["content"] as? [[String: Any]],
-              let firstBlock = content.first,
-              let text = firstBlock["text"] as? String
+              let content = json["content"] as? [[String: Any]]
         else {
+            throw LLMError.invalidResponse
+        }
+        let text = content
+            .filter { $0["type"] as? String == "text" }
+            .compactMap { $0["text"] as? String }
+            .joined()
+        guard !text.isEmpty else {
+            if json["stop_reason"] as? String == "refusal" {
+                throw LLMError.serverError(200, "Claude declined to answer that message.")
+            }
             throw LLMError.invalidResponse
         }
         return text

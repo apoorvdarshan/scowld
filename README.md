@@ -36,7 +36,7 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 - **Hands-free wake mode** - When enabled, the app listens on device for Bella or the saved custom companion name to start voice recording.
 - **Home tips** - A top-right info button explains the wake phrases and composer controls.
 - **BYOK AI providers** - Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.
-- **BYOK speech-to-text** - Native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, Google Cloud STT, browser Whisper, or text-only mode.
+- **BYOK speech-to-text** - Native iOS speech, OpenAI, Groq Whisper, Deepgram, AssemblyAI, Google Cloud STT, browser Whisper, or text-only mode.
 - **BYOK text-to-speech** - ElevenLabs (Celine, Claire, bundled voice presets, custom voice IDs, model selection, and bundled local voice previews) and OpenAI voices.
 - **Vision** - Optional front-camera context can be sent to the AI when enabled.
 - **Past chats** - Conversations are saved locally and can be selected as context for future replies.

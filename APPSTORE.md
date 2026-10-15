@@ -34,7 +34,7 @@ App Store Connect submission details for Scowld v2.0.1. Each field is in a code 
     - Bring-your-own-key AI provider settings
     - Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI support
     - Native iOS speech recognition plus optional cloud STT providers
-    - Deepgram, OpenAI Whisper, Groq Whisper, AssemblyAI, and Google Cloud STT options
+    - Deepgram, OpenAI, Groq Whisper, AssemblyAI, and Google Cloud STT options
     - ElevenLabs text-to-speech with your own API key
     - Celine, Claire, bundled voice presets, and custom ElevenLabs voice ID support
     - Saved past chats that can be reused as conversation context

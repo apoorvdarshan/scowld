@@ -61,7 +61,7 @@ const faqs = [
   },
   {
     q: "What speech-to-text and text-to-speech options are available?",
-    a: "Voice input works with native iOS speech recognition or cloud providers like OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text. Spoken replies use ElevenLabs or OpenAI voices.",
+    a: "Voice input works with native iOS speech recognition or cloud providers like OpenAI, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text. Spoken replies use ElevenLabs or OpenAI voices.",
   },
   {
     q: "Are my API keys stored securely?",

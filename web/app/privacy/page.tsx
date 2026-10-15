@@ -96,7 +96,7 @@ export default function Privacy() {
             <p>Scowld can integrate with third-party providers you configure. These providers may process data needed to provide app features:</p>
             <ul>
               <li><strong className="legal__strong-dim">AI providers</strong>, including Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.</li>
-              <li><strong className="legal__strong-dim">Speech-to-text providers</strong>, including native iOS speech, OpenAI Whisper, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
+              <li><strong className="legal__strong-dim">Speech-to-text providers</strong>, including native iOS speech, OpenAI, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
               <li><strong className="legal__strong-dim">ElevenLabs</strong> and <strong className="legal__strong-dim">OpenAI</strong> for text-to-speech.</li>
               <li><strong className="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, speech recognition, camera, microphone, and app distribution.</li>
               <li><strong className="legal__strong-dim">Cloudflare</strong> for website deployment and delivery.</li>

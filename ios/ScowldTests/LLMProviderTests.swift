@@ -50,7 +50,37 @@ final class LLMProviderTests: XCTestCase {
         let system = try XCTUnwrap(sent.json["systemInstruction"] as? [String: Any])
         XCTAssertEqual((system["parts"] as? [[String: String]])?.first?["text"], "SYSTEM")
         let config = try XCTUnwrap(sent.json["generationConfig"] as? [String: Any])
-        XCTAssertEqual(config["maxOutputTokens"] as? Int, 1024)
+        XCTAssertEqual(config["maxOutputTokens"] as? Int, 8192)
+        // Gemini 2.5 still takes a temperature and has no thinking level.
+        XCTAssertEqual(config["temperature"] as? Double, 0.8)
+        XCTAssertNil(config["thinkingConfig"])
+    }
+
+    func testGemini3UsesTheLowestThinkingLevelAndNoTemperature() async throws {
+        stub { _ in .json(["candidates": [["content": ["parts": [["text": "ok"]]]]]]) }
+        let expected: [String: String?] = [
+            "gemini-3.5-flash-lite": nil,   // already minimal by default
+            "gemini-3.6-flash": "MINIMAL",
+            "gemini-3.8-flash": "LOW",      // rejects MINIMAL
+            "gemini-4-argon": "LOW",
+        ]
+        for (model, level) in expected {
+            _ = try await GeminiProvider(apiKey: "k", model: model).generate(messages: conversation, systemPrompt: "S")
+            let config = try XCTUnwrap(try lastRequest().json["generationConfig"] as? [String: Any])
+            XCTAssertNil(config["temperature"], model)
+            XCTAssertEqual((config["thinkingConfig"] as? [String: String])?["thinkingLevel"], level, model)
+        }
+    }
+
+    func testGeminiSkipsThoughtPartsAndJoinsTheText() async throws {
+        stub { _ in .json(["candidates": [["content": ["parts": [
+            ["text": "planning", "thought": true],
+            ["text": "[happy] Hi ", "thoughtSignature": "sig"],
+            ["text": "there"],
+        ]]]]]) }
+        let reply = try await GeminiProvider(apiKey: "k", model: "gemini-3.6-flash")
+            .generate(messages: conversation, systemPrompt: "S")
+        XCTAssertEqual(reply, "[happy] Hi there")
     }
 
     func testGeminiVisionAttachesTheImageToTheLastUserMessage() async throws {
@@ -71,15 +101,17 @@ final class LLMProviderTests: XCTestCase {
 
     func testOpenAIRequestAndReply() async throws {
         stub { _ in .json(Self.openAIReply) }
-        let reply = try await OpenAIProvider(apiKey: "sk-test", model: "gpt-4.1")
+        let reply = try await OpenAIProvider(apiKey: "sk-test", model: "gpt-6-luna")
             .generate(messages: conversation, systemPrompt: "SYSTEM")
         XCTAssertEqual(reply, "[happy] Stubbed reply")
 
         let sent = try lastRequest()
         XCTAssertEqual(sent.request.url?.absoluteString, "https://api.openai.com/v1/chat/completions")
         XCTAssertEqual(sent.request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
-        XCTAssertEqual(sent.json["model"] as? String, "gpt-4.1")
-        XCTAssertEqual(sent.json["max_completion_tokens"] as? Int, 1024)
+        XCTAssertEqual(sent.json["model"] as? String, "gpt-6-luna")
+        XCTAssertEqual(sent.json["max_completion_tokens"] as? Int, 4096)
+        XCTAssertEqual(sent.json["reasoning_effort"] as? String, "none")
+        XCTAssertNil(sent.json["temperature"])
         let messages = try XCTUnwrap(sent.json["messages"] as? [[String: Any]])
         XCTAssertEqual(messages.compactMap { $0["role"] as? String }, ["system", "user", "assistant", "user"])
         XCTAssertEqual(messages.first?["content"] as? String, "SYSTEM")
@@ -87,7 +119,7 @@ final class LLMProviderTests: XCTestCase {
 
     func testOpenAIVisionSendsAnImageURLPart() async throws {
         stub { _ in .json(Self.openAIReply) }
-        _ = try await OpenAIProvider(apiKey: "k", model: "gpt-4o")
+        _ = try await OpenAIProvider(apiKey: "k", model: "gpt-5.4-mini")
             .generateWithVision(messages: conversation, systemPrompt: "S", image: image())
         let messages = try XCTUnwrap(try lastRequest().json["messages"] as? [[String: Any]])
         let parts = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
@@ -96,11 +128,20 @@ final class LLMProviderTests: XCTestCase {
         XCTAssertTrue(imageURL.hasPrefix("data:image/jpeg;base64,"))
     }
 
+    func testOpenAIReasoningEffortIsTheLowestEachModelAccepts() {
+        XCTAssertEqual(OpenAIProvider.reasoningEffort(for: "gpt-6-luna"), "none")
+        XCTAssertEqual(OpenAIProvider.reasoningEffort(for: "gpt-5.6-terra"), "none")
+        XCTAssertEqual(OpenAIProvider.reasoningEffort(for: "gpt-6.1-sol"), "low")
+        XCTAssertEqual(OpenAIProvider.reasoningEffort(for: "gpt-6-astra"), "low")
+        XCTAssertEqual(OpenAIProvider.reasoningEffort(for: "gpt-5-mini"), "minimal")
+        XCTAssertNil(OpenAIProvider.reasoningEffort(for: "my-fine-tune"))
+    }
+
     // MARK: - Claude
 
     func testClaudeRequestAndReply() async throws {
         stub { _ in .json(["content": [["type": "text", "text": "[thinking] Let me see"]]]) }
-        let reply = try await ClaudeProvider(apiKey: "anthropic-key", model: "claude-sonnet-4-6")
+        let reply = try await ClaudeProvider(apiKey: "anthropic-key", model: "claude-sonnet-5-5")
             .generate(messages: conversation, systemPrompt: "SYSTEM")
         XCTAssertEqual(reply, "[thinking] Let me see")
 
@@ -111,6 +152,50 @@ final class LLMProviderTests: XCTestCase {
         XCTAssertEqual(sent.json["system"] as? String, "SYSTEM")
         let messages = try XCTUnwrap(sent.json["messages"] as? [[String: Any]])
         XCTAssertEqual(messages.compactMap { $0["role"] as? String }, ["user", "assistant", "user"])
+    }
+
+    func testClaudeSkipsThinkingBlocksAndJoinsTheText() async throws {
+        stub { _ in .json(["content": [
+            ["type": "thinking", "thinking": "", "signature": "sig"],
+            ["type": "text", "text": "[happy] Hello "],
+            ["type": "text", "text": "there"],
+        ], "stop_reason": "end_turn"]) }
+        let reply = try await ClaudeProvider(apiKey: "k", model: "claude-opus-5-5")
+            .generate(messages: conversation, systemPrompt: "S")
+        XCTAssertEqual(reply, "[happy] Hello there")
+    }
+
+    func testClaudeRefusalSurfacesAReadableError() async throws {
+        stub { _ in .json(["content": [], "stop_reason": "refusal"]) }
+        do {
+            _ = try await ClaudeProvider(apiKey: "k", model: "claude-sonnet-5-5")
+                .generate(messages: conversation, systemPrompt: "S")
+            XCTFail("a refusal must not return a reply")
+        } catch LLMError.serverError(_, let message) {
+            XCTAssertTrue(message.contains("declined"))
+        }
+    }
+
+    func testCurrentClaudeModelsUseLowEffortAndServerFallbacks() async throws {
+        stub { _ in .json(["content": [["type": "text", "text": "ok"]]]) }
+        _ = try await ClaudeProvider(apiKey: "k", model: "claude-sonnet-5-5")
+            .generate(messages: conversation, systemPrompt: "S")
+        let sent = try lastRequest()
+        XCTAssertEqual((sent.json["output_config"] as? [String: String])?["effort"], "low")
+        XCTAssertEqual(sent.json["fallbacks"] as? String, "default")
+        XCTAssertEqual(sent.request.value(forHTTPHeaderField: "anthropic-beta"), "server-side-fallback-2026-07-01")
+        XCTAssertEqual(sent.json["max_tokens"] as? Int, 8192)
+        XCTAssertNil(sent.json["temperature"], "current Claude models reject sampling parameters")
+    }
+
+    func testClaudeHaikuGetsNeitherEffortNorFallbacks() async throws {
+        stub { _ in .json(["content": [["type": "text", "text": "ok"]]]) }
+        _ = try await ClaudeProvider(apiKey: "k", model: "claude-haiku-4-5")
+            .generate(messages: conversation, systemPrompt: "S")
+        let sent = try lastRequest()
+        XCTAssertNil(sent.json["output_config"], "Haiku 4.5 rejects the effort parameter")
+        XCTAssertNil(sent.json["fallbacks"])
+        XCTAssertNil(sent.request.value(forHTTPHeaderField: "anthropic-beta"))
     }
 
     func testClaudeVisionSendsABase64ImageBlock() async throws {
@@ -125,6 +210,22 @@ final class LLMProviderTests: XCTestCase {
     }
 
     // MARK: - OpenAI-compatible and Ollama
+
+    func testMoonshotTurnsThinkingDownForSpokenReplies() async throws {
+        stub { _ in .json(Self.openAIReply) }
+        let k26 = OpenAICompatibleProvider(
+            baseURL: "https://api.moonshot.ai/v1", apiKey: "k", model: "kimi-k2.6",
+            includeTemperature: AIProvider.moonshot.includesSamplingTemperature,
+            extraBody: AIProvider.moonshot.extraRequestFields(for: "kimi-k2.6")
+        )
+        _ = try await k26.generate(messages: conversation, systemPrompt: "S")
+        let sent = try lastRequest().json
+        XCTAssertEqual((sent["thinking"] as? [String: String])?["type"], "disabled")
+        XCTAssertNil(sent["temperature"], "Kimi models reject any temperature but their fixed one")
+
+        XCTAssertEqual(AIProvider.moonshot.extraRequestFields(for: "kimi-k3")["reasoning_effort"] as? String, "low")
+        XCTAssertTrue(AIProvider.groq.extraRequestFields(for: "openai/gpt-oss-20b").isEmpty)
+    }
 
     func testOpenAICompatibleProviderBuildsTheEndpointAndOptionalSampling() async throws {
         stub { _ in .json(Self.openAIReply) }
