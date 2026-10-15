@@ -8,7 +8,6 @@
 "Character model: Arbius AI (MIT)" = "Character model: Arbius AI (MIT)";
 "Credits" = "Credits";
 "Message Scowld..." = "Message Scowld...";
-"Message..." = "Message...";
 "Voice" = "Voice";
 "Past Chats" = "Past Chats";
 "Tap a chat to read it. The active chat is used as reference for future replies." = "Tap a chat to read it. The active chat is used as reference for future replies.";
@@ -81,11 +80,10 @@
 "The live connection ended." = "The live connection ended.";
 "Connecting to %@..." = "Connecting to %@...";
 "%@ is talking. Speak to interrupt." = "%@ is talking. Speak to interrupt.";
-"%@ is talking." = "%@ is talking.";
 "Listening..." = "Listening...";
-"Type to her, or tap the mic to talk." = "Type to her, or tap the mic to talk.";
 "Allow microphone access in iPhone Settings to talk with her." = "Allow microphone access in iPhone Settings to talk with her.";
 "Get your %@ API key" = "Get your %@ API key";
 "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision." = "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision.";
 "She answers in %@." = "She answers in %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "This iPhone language isn't in the list, so she answers in the language you speak.";
+"Allow camera access in iPhone Settings so she can see." = "Allow camera access in iPhone Settings so she can see.";

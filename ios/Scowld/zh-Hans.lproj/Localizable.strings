@@ -8,7 +8,6 @@
 "Character model: Arbius AI (MIT)" = "角色模型：Arbius AI (MIT)";
 "Credits" = "鸣谢";
 "Message Scowld..." = "给 Scowld 发消息...";
-"Message..." = "消息...";
 "Voice" = "语音";
 "Past Chats" = "历史聊天";
 "Tap a chat to read it. The active chat is used as reference for future replies." = "轻点聊天即可阅读。当前聊天会作为未来回复的参考。";
@@ -81,11 +80,10 @@
 "The live connection ended." = "实时连接已结束。";
 "Connecting to %@..." = "正在连接 %@...";
 "%@ is talking. Speak to interrupt." = "%@正在说话。开口说话即可打断。";
-"%@ is talking." = "%@正在说话。";
 "Listening..." = "正在聆听...";
-"Type to her, or tap the mic to talk." = "给她打字，或轻点麦克风开始说话。";
 "Allow microphone access in iPhone Settings to talk with her." = "请在 iPhone“设置”中允许访问麦克风，才能和她对话。";
 "Get your %@ API key" = "获取你的 %@ API 密钥";
 "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision." = "Grok Voice 无法看到相机画面。如需视觉功能，请选择 Gemini 或 OpenAI。";
 "She answers in %@." = "她用%@回答。";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "这台 iPhone 的语言不在列表中，因此她会用你说的语言回答。";
+"Allow camera access in iPhone Settings so she can see." = "请在 iPhone“设置”中允许访问相机，这样她才能看见。";

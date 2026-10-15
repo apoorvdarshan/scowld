@@ -151,27 +151,17 @@ final class ScowldUITests: XCTestCase {
     @MainActor
     func testCompanionScreenComposerControls() throws {
         let app = launchApp()
-        let field = app.textFields["chat.messageField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 20))
         let live = app.buttons["chat.live"]
-        XCTAssertTrue(live.exists)
+        XCTAssertTrue(live.waitForExistence(timeout: 20))
         XCTAssertEqual(live.label, "Start live conversation")
+        XCTAssertFalse(app.textFields["chat.messageField"].exists, "Conversations are voice only")
+        XCTAssertFalse(app.buttons["chat.send"].exists)
         let camera = app.buttons["chat.camera"]
         XCTAssertEqual(camera.label, "Turn on camera vision", "The camera is off until turned on")
         camera.tap()
         waitUntil(camera, "label == %@", "Turn off camera vision")
         camera.tap()
         waitUntil(camera, "label == %@", "Turn on camera vision")
-
-        let send = app.buttons["chat.send"]
-        XCTAssertFalse(send.isEnabled, "Nothing to send yet")
-        field.tap()
-        field.typeText(" ")
-        XCTAssertFalse(send.isEnabled, "Whitespace is not a message")
-        field.typeText("Hello Bella")
-        waitUntil(send, "enabled == true")
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 30))
-        waitUntil(send, "enabled == false")
 
         let handsFree = app.buttons["chat.handsFree"]
         XCTAssertEqual(handsFree.label, "Turn off hands-free mode", "Hands-free is on by default")
@@ -253,6 +243,8 @@ final class ScowldUITests: XCTestCase {
         choose("Cedar - Natural, lower", from: voice, in: app)
         waitUntil(voice, "label == %@", "Voice, Cedar - Natural, lower")
         XCTAssertTrue(button(startingWith: "Get your OpenAI API key", in: app).exists)
+        let preview = app.buttons["settings.ai.voicePreview"]
+        XCTAssertFalse(preview.isEnabled, "A preview needs a key")
 
         let status = app.staticTexts["settings.ai.status"]
         XCTAssertEqual(status.label, "Add a key before chatting")
@@ -260,6 +252,7 @@ final class ScowldUITests: XCTestCase {
         XCTAssertEqual(key.placeholderValue, "OpenAI API key")
         key.tap()
         key.typeText("sk-ui-test-key\n") // Return also dismisses the keyboard covering Save.
+        waitUntil(preview, "enabled == true")
         let save = app.buttons["settings.ai.save"]
         reveal(save, in: app)
         save.tap()

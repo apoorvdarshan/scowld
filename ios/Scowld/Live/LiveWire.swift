@@ -51,14 +51,13 @@ nonisolated protocol LiveWire: Sendable {
     func request(for config: LiveSessionConfig) -> URLRequest
     func setupMessages(for config: LiveSessionConfig, resumptionHandle: String?) -> [String]
     func audioMessage(_ pcm16: Data) -> String
-    /// Typed text, optionally with the latest camera frame, followed by a request for a reply.
+    /// Text, optionally with a camera frame, followed by a request for a reply. Settings
+    /// uses it to have a voice read a preview line.
     func textMessages(_ text: String, image: Data?) -> [String]
     /// A camera frame on its own (no reply requested). Empty if the provider takes no images.
     func imageMessages(_ jpeg: Data) -> [String]
     /// Tells the provider how much of a reply the user actually heard, or nil if unsupported.
     func truncateMessage(itemID: String, audioEndMs: Int) -> String?
-    /// Stops a reply in progress (before typed text asks for a new one).
-    func cancelReplyMessages() -> [String]
     func parse(_ message: String) -> [LiveEvent]
 }
 
@@ -129,11 +128,6 @@ nonisolated struct GeminiLiveWire: LiveWire {
 
     func truncateMessage(itemID: String, audioEndMs: Int) -> String? {
         nil
-    }
-
-    /// New input interrupts a Gemini reply on its own.
-    func cancelReplyMessages() -> [String] {
-        []
     }
 
     func parse(_ message: String) -> [LiveEvent] {
@@ -256,9 +250,6 @@ nonisolated struct OpenAIRealtimeWire: LiveWire {
         ])
     }
 
-    func cancelReplyMessages() -> [String] {
-        [LiveJSON.string(["type": "response.cancel"])]
-    }
 
     func parse(_ message: String) -> [LiveEvent] {
         Self.parseRealtimeEvent(message)
@@ -287,8 +278,6 @@ nonisolated struct OpenAIRealtimeWire: LiveWire {
             return [.turnComplete]
         case "error":
             let error = json["error"] as? [String: Any]
-            // Cancelling a reply that had already finished is harmless.
-            if error?["code"] as? String == "response_cancel_not_active" { return [] }
             return [.error(error?["message"] as? String ?? "The provider reported an error.")]
         default:
             return []
@@ -329,7 +318,7 @@ nonisolated struct XAIVoiceWire: LiveWire {
         LiveJSON.string(["type": "input_audio_buffer.append", "audio": pcm16.base64EncodedString()])
     }
 
-    /// xAI's voice API documents no image input, so typed text goes alone.
+    /// xAI's voice API documents no image input, so text goes alone.
     func textMessages(_ text: String, image: Data?) -> [String] {
         let content: [[String: Any]] = [["type": "input_text", "text": text]]
         return [
@@ -346,9 +335,6 @@ nonisolated struct XAIVoiceWire: LiveWire {
         nil
     }
 
-    func cancelReplyMessages() -> [String] {
-        [LiveJSON.string(["type": "response.cancel"])]
-    }
 
     func parse(_ message: String) -> [LiveEvent] {
         OpenAIRealtimeWire.parseRealtimeEvent(message)

@@ -17,7 +17,6 @@ final class LiveConversation {
     }
 
     private(set) var phase: Phase = .idle
-    private(set) var isMicrophoneOn = false
     private(set) var isAssistantSpeaking = false
     /// What the companion is saying in the current turn, for captions.
     private(set) var assistantCaption = ""
@@ -34,10 +33,8 @@ final class LiveConversation {
     @ObservationIgnored var isCameraOn: () -> Bool = { false }
     @ObservationIgnored var onEnded: (() -> Void)?
 
-    /// A voice session ends after this long with no speech either way.
-    static let microphoneIdleTimeout: TimeInterval = 90
-    /// A typed-only session ends sooner.
-    static let typedIdleTimeout: TimeInterval = 30
+    /// A conversation ends after this long with no speech either way.
+    static let idleTimeout: TimeInterval = 90
     static let connectTimeout: TimeInterval = 20
     static let cameraFrameInterval: TimeInterval = 2
     static let errorDisplayDuration: TimeInterval = 8
@@ -76,17 +73,9 @@ final class LiveConversation {
 
     // MARK: - Control
 
-    /// Starts a conversation: with the microphone, or typed only. Text, if any, is
-    /// sent as soon as the provider is ready.
-    func start(microphone: Bool, text: String? = nil) {
-        if isActive {
-            guard microphone, !isMicrophoneOn else {
-                if let text { send(text) }
-                return
-            }
-            // A typed-only conversation becomes a voice one.
-            end()
-        }
+    /// Starts a voice conversation with the selected provider.
+    func start() {
+        guard !isActive else { return }
 
         HostedServiceConfig.applyBYOKDefaults()
         let provider = HostedServiceConfig.selectedProvider()
@@ -121,10 +110,8 @@ final class LiveConversation {
             }
         }
         let audio = makeAudio()
-        if microphone {
-            audio.onMicrophoneAudio = { @Sendable [weak session] pcm in
-                session?.send(audio: pcm)
-            }
+        audio.onMicrophoneAudio = { @Sendable [weak session] pcm in
+            session?.send(audio: pcm)
         }
         audio.onPlaybackFinished = { [weak self] in self?.playbackFinished(session: number) }
         audio.onInterrupted = { [weak self] in
@@ -132,24 +119,17 @@ final class LiveConversation {
             self?.end()
         }
         do {
-            try audio.start(
-                inputSampleRate: wire.inputSampleRate,
-                outputSampleRate: wire.outputSampleRate,
-                microphone: microphone
-            )
+            try audio.start(inputSampleRate: wire.inputSampleRate, outputSampleRate: wire.outputSampleRate, microphone: true)
         } catch {
             logger.error("[Live] Audio failed to start: \(error.localizedDescription, privacy: .public)")
             audio.stop()
-            showError(microphone
-                ? NSLocalizedString("The microphone isn't available. Check microphone access in Settings.", comment: "Microphone unavailable")
-                : error.localizedDescription)
+            showError(NSLocalizedString("The microphone isn't available. Check microphone access in Settings.", comment: "Microphone unavailable"))
             return
         }
 
         self.session = session
         self.audio = audio
         phase = .connecting
-        isMicrophoneOn = microphone
         isAssistantSpeaking = false
         assistantCaption = ""
         pendingUserText = ""
@@ -159,38 +139,7 @@ final class LiveConversation {
         startedAt = now()
         lastActivity = startedAt
         session.connect()
-        if let text {
-            send(text)
-        }
         startWatchdog(session: number)
-    }
-
-    /// Sends typed text. Without a conversation, a typed-only one starts.
-    func send(_ text: String) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        guard isActive, let session else {
-            start(microphone: false, text: trimmed)
-            return
-        }
-
-        noteActivity()
-        if isAssistantSpeaking {
-            interruptReply(tellProvider: true)
-            session.cancelReply()
-        }
-        savePendingUserText()
-        memoryStore.saveMessage(role: .user, content: trimmed)
-
-        if provider.cameraSupport == .perTurn, isCameraOn(), let captureCameraFrame {
-            Task { [weak self] in
-                let frame = await captureCameraFrame()
-                guard self?.session === session else { return }
-                session.send(text: trimmed, image: frame)
-            }
-        } else {
-            session.send(text: trimmed)
-        }
     }
 
     /// Ends the conversation, keeping what was said in the active chat.
@@ -212,7 +161,6 @@ final class LiveConversation {
         saveTurn()
 
         phase = .idle
-        isMicrophoneOn = false
         isAssistantSpeaking = false
         assistantCaption = ""
         if let error {
@@ -233,8 +181,7 @@ final class LiveConversation {
             ))
             return
         }
-        let limit = isMicrophoneOn ? Self.microphoneIdleTimeout : Self.typedIdleTimeout
-        if !isAssistantSpeaking, current.timeIntervalSince(lastActivity) > limit {
+        if !isAssistantSpeaking, current.timeIntervalSince(lastActivity) > Self.idleTimeout {
             logger.info("[Live] Ending an idle conversation")
             end()
         }
@@ -292,7 +239,7 @@ final class LiveConversation {
         }
     }
 
-    /// Stops her reply because the user spoke or typed over it. OpenAI is told how
+    /// Stops her reply because the user spoke over it. OpenAI is told how
     /// much was heard, so the conversation history matches what the user heard.
     private func interruptReply(tellProvider: Bool) {
         guard let audio, audio.isPlaying || isAssistantSpeaking else { return }
@@ -307,7 +254,7 @@ final class LiveConversation {
 
     // MARK: - Saved chat
 
-    /// Saves the user's words, then her reply, to the active chat.
+    /// Saves what the user said, then her reply, to the active chat.
     private func saveTurn() {
         savePendingUserText()
         let reply = replyText.trimmingCharacters(in: .whitespacesAndNewlines)

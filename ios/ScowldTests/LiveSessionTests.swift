@@ -132,15 +132,13 @@ final class LiveSessionTests: XCTestCase {
         XCTAssertEqual(log.events, [.ready], "No events after close")
     }
 
-    func testTruncateAndCancelUseTheWire() async throws {
+    func testTruncateUsesTheWire() async throws {
         let (session, factory, _) = makeSession(.openai)
         session.connect()
         session.truncate(itemID: "item_2", audioEndMs: 1500)
-        session.cancelReply()
         let socket = try XCTUnwrap(factory.last)
-        await waitUntil { socket.sent.count == 4 }
+        await waitUntil { socket.sent.count == 3 }
         XCTAssertEqual(socket.sentJSON[2]["type"] as? String, "conversation.item.truncate")
         XCTAssertEqual(socket.sentJSON[2]["audio_end_ms"] as? Int, 1500)
-        XCTAssertEqual(socket.sentJSON[3]["type"] as? String, "response.cancel")
     }
 }

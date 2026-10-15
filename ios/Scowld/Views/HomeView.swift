@@ -52,9 +52,9 @@ class DebugLog {
 struct HomeView: View {
     var memoryStore: MemoryStore
     var isActive = true
-    @State private var messageText = ""
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
     @State private var live: LiveConversation
+    @State private var camera = LiveCamera()
     @State private var handsFreeWakeListener = HandsFreeWakeListener()
     @State private var microphoneGranted = false
     @State private var speechRecognitionGranted = false
@@ -63,7 +63,6 @@ struct HomeView: View {
     @AppStorage("show_ai_caption") private var showAICaption = false
     @AppStorage("hands_free_mode_enabled") private var handsFreeModeEnabled = true
     @Environment(\.scenePhase) private var scenePhase
-    @FocusState private var messageFieldFocused: Bool
 
     init(memoryStore: MemoryStore, isActive: Bool = true) {
         self.memoryStore = memoryStore
@@ -164,6 +163,7 @@ struct HomeView: View {
         }
         .onChange(of: live.isActive) {
             updateHandsFreeWakeListener()
+            updateCamera()
         }
         .onReceive(NotificationCenter.default.publisher(for: .amicaSettingsChanged)) { _ in
             updateHandsFreeWakeListener()
@@ -190,54 +190,25 @@ struct HomeView: View {
 
     // MARK: - Composer
 
-    private var messageField: some View {
-        TextField("Message...", text: $messageText)
-            .textFieldStyle(.plain)
-            .submitLabel(.send)
-            .onSubmit { sendMessage() }
-            .focused($messageFieldFocused)
-            .accessibilityIdentifier("chat.messageField")
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.black.opacity(0.34))
-            }
-    }
-
-    private var textSendButton: some View {
-        Button {
-            sendMessage()
-        } label: {
-            Image(systemName: "arrow.up.circle.fill")
-                .font(.system(size: 32, weight: .semibold))
-                .foregroundColor(canSendText ? .amicaBlue : .secondary)
-                .frame(width: 48, height: 48)
-        }
-        .buttonStyle(.plain)
-        .disabled(!canSendText)
-        .accessibilityIdentifier("chat.send")
-    }
-
     /// Starts and ends a live voice conversation.
     private var liveButton: some View {
         Button {
             toggleLiveConversation()
         } label: {
             ZStack {
-                if live.phase == .connecting && live.isMicrophoneOn {
+                if live.phase == .connecting {
                     ProgressView()
                         .tint(.amicaBlue)
                 } else {
-                    Image(systemName: live.isMicrophoneOn ? "stop.circle.fill" : "mic.circle.fill")
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(live.isMicrophoneOn ? Color.red.opacity(0.9) : Color.amicaBlue)
+                    Image(systemName: live.isActive ? "stop.circle.fill" : "mic.circle.fill")
+                        .font(.system(size: 50, weight: .semibold))
+                        .foregroundStyle(live.isActive ? Color.red.opacity(0.9) : Color.amicaBlue)
                 }
             }
-            .frame(width: 48, height: 48)
+            .frame(width: 60, height: 60)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(live.isMicrophoneOn ? "End live conversation" : "Start live conversation")
+        .accessibilityLabel(live.isActive ? "End live conversation" : "Start live conversation")
         .accessibilityIdentifier("chat.live")
         .accessibilityHint("Talk with her out loud. Speak anytime to interrupt her.")
     }
@@ -256,17 +227,16 @@ struct HomeView: View {
             .accessibilityLabel(cameraOn ? "Turn off camera vision" : "Turn on camera vision")
             .accessibilityIdentifier("chat.camera")
 
-            handsFreeButton
-
-            messageField
+            Spacer(minLength: 12)
 
             liveButton
 
-            textSendButton
+            Spacer(minLength: 12)
+
+            handsFreeButton
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 8)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 4)
         .frame(maxWidth: .infinity)
         .scowldComposerGlass()
     }
@@ -316,19 +286,10 @@ struct HomeView: View {
                 isBusy: true
             )
         case .live where live.isAssistantSpeaking:
-            let format = live.isMicrophoneOn
-                ? NSLocalizedString("%@ is talking. Speak to interrupt.", comment: "Live status")
-                : NSLocalizedString("%@ is talking.", comment: "Live status")
+            let format = NSLocalizedString("%@ is talking. Speak to interrupt.", comment: "Live status")
             return LiveStatus(icon: "waveform", text: String.localizedStringWithFormat(format, name), isError: false, isBusy: false)
-        case .live where live.isMicrophoneOn:
-            return LiveStatus(icon: "mic.fill", text: NSLocalizedString("Listening...", comment: "Live status"), isError: false, isBusy: false)
         case .live:
-            return LiveStatus(
-                icon: "keyboard",
-                text: NSLocalizedString("Type to her, or tap the mic to talk.", comment: "Live status"),
-                isError: false,
-                isBusy: false
-            )
+            return LiveStatus(icon: "mic.fill", text: NSLocalizedString("Listening...", comment: "Live status"), isError: false, isBusy: false)
         }
     }
 
@@ -362,10 +323,6 @@ struct HomeView: View {
 
     // MARK: - Actions
 
-    private var canSendText: Bool {
-        !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
     private var canListenForHandsFreeWake: Bool {
         isActive &&
             scenePhase == .active &&
@@ -382,8 +339,8 @@ struct HomeView: View {
         live.onLipSyncStop = {
             amicaCoordinator?.stopLipSync()
         }
-        live.captureCameraFrame = {
-            await amicaCoordinator?.captureCameraFrame()
+        live.captureCameraFrame = { [camera] in
+            camera.latestJPEG()
         }
         live.isCameraOn = {
             UserDefaults.standard.bool(forKey: "camera_enabled")
@@ -394,7 +351,7 @@ struct HomeView: View {
     }
 
     private func toggleLiveConversation() {
-        if live.isMicrophoneOn {
+        if live.isActive {
             live.end()
             InteractionFeedback.liveEnd()
             return
@@ -404,18 +361,17 @@ struct HomeView: View {
             live.end(error: NSLocalizedString("Allow microphone access in iPhone Settings to talk with her.", comment: "Microphone denied"))
             return
         }
-        messageFieldFocused = false
         handsFreeWakeListener.stop()
         InteractionFeedback.liveStart()
         if VoicePermissions.microphoneGranted {
-            live.start(microphone: true)
+            live.start()
         } else {
             Task {
                 let granted = await VoicePermissions.request()
                 microphoneGranted = granted.microphone
                 speechRecognitionGranted = granted.speechRecognition
                 if granted.microphone {
-                    live.start(microphone: true)
+                    live.start()
                 } else {
                     live.end(error: NSLocalizedString("Allow microphone access in iPhone Settings to talk with her.", comment: "Microphone denied"))
                 }
@@ -423,21 +379,33 @@ struct HomeView: View {
         }
     }
 
-    private func sendMessage() {
-        let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        messageText = ""
-        messageFieldFocused = false
-        InteractionFeedback.send()
-        logger.info("[HomeView] Sending a typed message")
-        handsFreeWakeListener.stop()
-        live.send(text)
-    }
-
     private func toggleCamera() {
+        if !cameraOn, LiveCamera.isDenied {
+            live.end(error: NSLocalizedString("Allow camera access in iPhone Settings so she can see.", comment: "Camera denied"))
+            return
+        }
         cameraOn.toggle()
         InteractionFeedback.camera(isOn: cameraOn)
-        amicaCoordinator?.setCameraEnabled(cameraOn)
+        if cameraOn, !LiveCamera.isAuthorized, !ScowldTestEnvironment.isRunningTests {
+            Task {
+                if await LiveCamera.requestAccess() {
+                    updateCamera()
+                } else {
+                    cameraOn = false
+                }
+            }
+        }
+        updateCamera()
+    }
+
+    /// The camera runs only while the eye is on during a conversation.
+    private func updateCamera() {
+        guard !ScowldTestEnvironment.isRunningTests else { return }
+        if cameraOn && live.isActive && isActive {
+            camera.start()
+        } else {
+            camera.stop()
+        }
     }
 
     private func toggleHandsFreeMode() {
@@ -464,15 +432,14 @@ struct HomeView: View {
             return
         }
 
-        messageFieldFocused = false
         InteractionFeedback.liveStart()
-        live.start(microphone: true)
+        live.start()
     }
 
     private func stopActiveConversation() {
-        messageFieldFocused = false
         handsFreeWakeListener.stop()
         live.end()
+        camera.stop()
         amicaCoordinator?.cancelRuntimeWork()
     }
 }
@@ -501,7 +468,6 @@ private struct HomeTipsSheet: View {
                     tipRow(icon: "dot.radiowaves.left.and.right", title: "Hands-free wake", text: wakeText)
                     tipRow(icon: "mic.circle.fill", title: "Live voice", text: "Starts a live conversation. Talk naturally and speak anytime to interrupt her. Tap stop to end it.")
                     tipRow(icon: "eye.fill", title: "Eye", text: "Lets her see your front camera during a conversation, with Gemini or OpenAI. It's off until you turn it on.")
-                    tipRow(icon: "arrow.up.circle.fill", title: "Send", text: "Sends typed text. She answers out loud.")
                 }
 
                 Section {
@@ -854,115 +820,6 @@ struct AmicaFullView: UIViewRepresentable {
         )
         contentController.addUserScript(consoleScript)
 
-        // Force front camera and hide Amica's webcam preview without stopping the stream.
-        let cameraScript = WKUserScript(
-            source: """
-            (function() {
-                function applyHiddenPreviewStyle(element) {
-                    if (!element || !element.style) return;
-                    element.setAttribute('data-native-webcam-hidden', 'true');
-                    element.style.setProperty('position', 'fixed', 'important');
-                    element.style.setProperty('top', '-10000px', 'important');
-                    element.style.setProperty('left', '-10000px', 'important');
-                    element.style.setProperty('right', 'auto', 'important');
-                    element.style.setProperty('bottom', 'auto', 'important');
-                    element.style.setProperty('width', '1px', 'important');
-                    element.style.setProperty('height', '1px', 'important');
-                    element.style.setProperty('opacity', '0', 'important');
-                    element.style.setProperty('visibility', 'hidden', 'important');
-                    element.style.setProperty('pointer-events', 'none', 'important');
-                    element.style.setProperty('z-index', '-1', 'important');
-                    element.style.setProperty('overflow', 'hidden', 'important');
-                }
-
-                function hideWebcamPreview() {
-                    var count = 0;
-                    document.querySelectorAll('video').forEach(function(video) {
-                        applyHiddenPreviewStyle(video);
-                        if (video.parentElement && !video.parentElement.querySelector('canvas')) {
-                            applyHiddenPreviewStyle(video.parentElement);
-                        }
-                        count += 1;
-                    });
-                    return count;
-                }
-
-                window.__hideWebcamPreview = hideWebcamPreview;
-                window.__scowldCameraEnabled = window.__scowldCameraEnabled === true;
-
-                function findCameraVideo() {
-                    var videos = Array.prototype.slice.call(document.querySelectorAll('video'));
-                    return videos.find(function(video) {
-                        return video &&
-                            video.srcObject &&
-                            video.readyState >= 2 &&
-                            video.videoWidth > 0 &&
-                            video.videoHeight > 0;
-                    }) || null;
-                }
-
-                window.__captureNativeVisionFrame = function() {
-                    try {
-                        if (window.__scowldCameraEnabled === false) return null;
-                        var video = findCameraVideo();
-                        if (!video) return window.__latestWebcamFrame || null;
-                        var canvas = window.__nativeVisionCanvas || document.createElement('canvas');
-                        window.__nativeVisionCanvas = canvas;
-                        var maxSide = 512;
-                        var scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
-                        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-                        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-                        var ctx = canvas.getContext('2d');
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        var frame = canvas.toDataURL('image/jpeg', 0.65).replace(/^data:image\\/jpeg;base64,/, '');
-                        window.__latestWebcamFrame = frame;
-                        window.__lastNativeVisionFrameAt = Date.now();
-                        return frame;
-                    } catch (e) {
-                        return window.__latestWebcamFrame || null;
-                    }
-                };
-
-                function startPreviewHider() {
-                    hideWebcamPreview();
-                    window.__captureNativeVisionFrame && window.__captureNativeVisionFrame();
-                    if (window.__webcamPreviewObserver) return;
-                    var root = document.documentElement || document.body;
-                    if (!root || !window.MutationObserver) return;
-                    window.__webcamPreviewObserver = new MutationObserver(function() {
-                        hideWebcamPreview();
-                    });
-                    window.__webcamPreviewObserver.observe(root, { childList: true, subtree: true });
-                }
-
-                startPreviewHider();
-                document.addEventListener('DOMContentLoaded', startPreviewHider);
-
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-                var origGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-                navigator.mediaDevices.getUserMedia = function(constraints) {
-                    if (constraints && constraints.video) {
-                        if (typeof constraints.video === 'boolean') {
-                            constraints.video = { facingMode: { exact: 'user' } };
-                        } else if (typeof constraints.video === 'object') {
-                            constraints.video.facingMode = { exact: 'user' };
-                        }
-                    }
-                    return origGetUserMedia(constraints).then(function(stream) {
-                        setTimeout(hideWebcamPreview, 0);
-                        setTimeout(function() { window.__captureNativeVisionFrame && window.__captureNativeVisionFrame(); }, 100);
-                        setTimeout(hideWebcamPreview, 100);
-                        setTimeout(hideWebcamPreview, 500);
-                        return stream;
-                    });
-                };
-            })();
-            """,
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: true
-        )
-        contentController.addUserScript(cameraScript)
-
         // Live replies play natively (with echo cancellation), so the avatar's own
         // lip-sync analyser hears nothing. This bridge feeds it the reply's levels:
         // native code sends each chunk's levels and when it starts, and the analyser
@@ -1154,42 +1011,6 @@ struct AmicaFullView: UIViewRepresentable {
             webView?.evaluateJavaScript("window.__scowldLip && window.__scowldLip.clear();")
         }
 
-        /// Turns the page's front camera on or off. Off also forgets the last frame.
-        func setCameraEnabled(_ enabled: Bool) {
-            let flag = enabled ? "true" : "false"
-            webView?.evaluateJavaScript(
-                """
-                (function() {
-                    window.__scowldCameraEnabled = \(flag);
-                    if (!\(flag)) {
-                        window.__latestWebcamFrame = null;
-                    }
-                    if (window.__toggleWebcam) {
-                        window.__toggleWebcam(\(flag));
-                    }
-                    if (\(flag) && window.__hideWebcamPreview) {
-                        setTimeout(window.__hideWebcamPreview, 0);
-                        setTimeout(window.__hideWebcamPreview, 250);
-                    }
-                })();
-                """
-            )
-        }
-
-        /// The current front-camera frame as JPEG, or nil when the camera is off.
-        func captureCameraFrame() async -> Data? {
-            guard let webView, UserDefaults.standard.bool(forKey: "camera_enabled") else { return nil }
-            let base64: String? = await withCheckedContinuation { continuation in
-                webView.evaluateJavaScript(
-                    "window.__captureNativeVisionFrame ? window.__captureNativeVisionFrame() : null"
-                ) { result, _ in
-                    continuation.resume(returning: result as? String)
-                }
-            }
-            guard let base64, !base64.isEmpty else { return nil }
-            return Data(base64Encoded: base64)
-        }
-
         // MARK: Navigation
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -1202,32 +1023,6 @@ struct AmicaFullView: UIViewRepresentable {
                 var vm = document.querySelector('meta[name=viewport]');
                 if (vm) vm.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
             """)
-            // The front camera starts only if the eye was left on.
-            guard UserDefaults.standard.bool(forKey: "camera_enabled") else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                webView.evaluateJavaScript("""
-                    (function enableCam() {
-                        if (window.__toggleWebcam) {
-                            window.__scowldCameraEnabled = true;
-                            window.__toggleWebcam(true);
-                            // Hide preview but keep the camera stream alive.
-                            (function hidePreview() {
-                                var hiddenCount = window.__hideWebcamPreview ? window.__hideWebcamPreview() : 0;
-                                if (hiddenCount > 0) {
-                                    setTimeout(function() {
-                                        try {
-                                            window.webkit.messageHandlers.nativeAI.postMessage(JSON.stringify({type: 'app_ready'}));
-                                        } catch(e) {}
-                                    }, 1000);
-                                }
-                                setTimeout(hidePreview, 2000);
-                            })();
-                        } else {
-                            setTimeout(enableCam, 1000);
-                        }
-                    })();
-                """)
-            }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -1261,8 +1056,10 @@ struct AmicaFullView: UIViewRepresentable {
                      initiatedByFrame frame: WKFrameInfo,
                      type: WKMediaCaptureType,
                      decisionHandler: @escaping (WKPermissionDecision) -> Void) {
-            logger.info("[Amica] Auto-granting camera permission")
-            decisionHandler(.grant)
+            // The companion page never needs the camera or microphone: Scowld
+            // captures both natively during a live conversation.
+            logger.info("[Amica] Refused the page's media capture request")
+            decisionHandler(.deny)
         }
 
         func webView(_ webView: WKWebView,

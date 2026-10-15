@@ -70,13 +70,6 @@ nonisolated final class LiveSession: @unchecked Sendable {
         enqueue(message, audioBytes: 0)
     }
 
-    /// Stops a reply in progress, so typed text can ask for a new one.
-    func cancelReply() {
-        for message in wire.cancelReplyMessages() {
-            enqueue(message, audioBytes: 0)
-        }
-    }
-
     func close() {
         let (socket, outbox): ((any LiveSocket)?, AsyncStream<String>.Continuation?) = lock.withLock {
             isClosed = true

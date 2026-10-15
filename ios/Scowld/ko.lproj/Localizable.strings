@@ -8,7 +8,6 @@
 "Character model: Arbius AI (MIT)" = "캐릭터 모델: Arbius AI (MIT)";
 "Credits" = "크레딧";
 "Message Scowld..." = "Scowld에게 메시지...";
-"Message..." = "메시지...";
 "Voice" = "음성";
 "Past Chats" = "지난 채팅";
 "Tap a chat to read it. The active chat is used as reference for future replies." = "채팅을 탭해서 읽으세요. 활성 채팅은 이후 답변의 참고 자료로 사용됩니다.";
@@ -81,11 +80,10 @@
 "The live connection ended." = "실시간 연결이 종료되었습니다.";
 "Connecting to %@..." = "%@에 연결하는 중...";
 "%@ is talking. Speak to interrupt." = "%@이(가) 말하는 중입니다. 말하면 끼어들 수 있어요.";
-"%@ is talking." = "%@이(가) 말하는 중입니다.";
 "Listening..." = "듣는 중...";
-"Type to her, or tap the mic to talk." = "그녀에게 입력하거나 마이크를 탭해 말하세요.";
 "Allow microphone access in iPhone Settings to talk with her." = "그녀와 대화하려면 iPhone 설정에서 마이크 접근을 허용하세요.";
 "Get your %@ API key" = "%@ API 키 받기";
 "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision." = "Grok Voice는 카메라를 볼 수 없습니다. 비전 기능은 Gemini 또는 OpenAI를 선택하세요.";
 "She answers in %@." = "%@로 답합니다.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "이 iPhone의 언어가 목록에 없어 사용자가 말하는 언어로 답합니다.";
+"Allow camera access in iPhone Settings so she can see." = "그녀가 볼 수 있도록 iPhone 설정에서 카메라 접근을 허용하세요.";

@@ -8,7 +8,6 @@
 "Character model: Arbius AI (MIT)" = "Modèle de personnage : Arbius AI (MIT)";
 "Credits" = "Crédits";
 "Message Scowld..." = "Envoyer un message à Scowld...";
-"Message..." = "Message...";
 "Voice" = "Voix";
 "Past Chats" = "Chats passés";
 "Tap a chat to read it. The active chat is used as reference for future replies." = "Touchez un chat pour le lire. Le chat actif sert de référence pour les prochaines réponses.";
@@ -81,11 +80,10 @@
 "The live connection ended." = "La connexion en direct s’est terminée.";
 "Connecting to %@..." = "Connexion à %@...";
 "%@ is talking. Speak to interrupt." = "%@ parle. Parlez pour l’interrompre.";
-"%@ is talking." = "%@ parle.";
 "Listening..." = "À l’écoute...";
-"Type to her, or tap the mic to talk." = "Écrivez-lui, ou touchez le micro pour parler.";
 "Allow microphone access in iPhone Settings to talk with her." = "Autorisez l’accès au micro dans les Réglages de l’iPhone pour lui parler.";
 "Get your %@ API key" = "Obtenir votre clé API %@";
 "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision." = "Grok Voice ne peut pas voir la caméra. Choisissez Gemini ou OpenAI pour la vision.";
 "She answers in %@." = "Elle répond en %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "La langue de cet iPhone n’est pas dans la liste, elle répond donc dans la langue que vous parlez.";
+"Allow camera access in iPhone Settings so she can see." = "Autorisez l’accès à la caméra dans les Réglages de l’iPhone pour qu’elle puisse voir.";

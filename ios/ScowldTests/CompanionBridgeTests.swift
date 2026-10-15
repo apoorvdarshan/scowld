@@ -81,11 +81,4 @@ final class CompanionBridgeTests: XCTestCase {
         let decoded = try? JSONSerialization.jsonObject(with: Data("[\(literal)]".utf8)) as? [String]
         XCTAssertEqual(decoded, [hostile])
     }
-
-    func testNoCameraFrameWhileTheCameraIsOff() async {
-        let (coordinator, _) = makeCoordinator()
-        UserDefaults.standard.set(false, forKey: "camera_enabled")
-        let frame = await coordinator.captureCameraFrame()
-        XCTAssertNil(frame)
-    }
 }

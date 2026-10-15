@@ -8,7 +8,6 @@
 "Character model: Arbius AI (MIT)" = "โมเดลตัวละคร: Arbius AI (MIT)";
 "Credits" = "เครดิต";
 "Message Scowld..." = "ส่งข้อความถึง Scowld...";
-"Message..." = "ข้อความ...";
 "Voice" = "เสียง";
 "Past Chats" = "แชทที่ผ่านมา";
 "Tap a chat to read it. The active chat is used as reference for future replies." = "แตะแชทเพื่ออ่าน แชทที่ใช้งานอยู่จะใช้เป็นข้อมูลอ้างอิงสำหรับการตอบกลับในอนาคต";
@@ -81,11 +80,10 @@
 "The live connection ended." = "การเชื่อมต่อแบบสดสิ้นสุดแล้ว";
 "Connecting to %@..." = "กำลังเชื่อมต่อกับ %@...";
 "%@ is talking. Speak to interrupt." = "%@ กำลังพูด พูดเพื่อขัดจังหวะ";
-"%@ is talking." = "%@ กำลังพูด";
 "Listening..." = "กำลังฟัง...";
-"Type to her, or tap the mic to talk." = "พิมพ์คุยกับเธอ หรือแตะไมค์เพื่อพูด";
 "Allow microphone access in iPhone Settings to talk with her." = "อนุญาตการเข้าถึงไมโครโฟนในการตั้งค่า iPhone เพื่อคุยกับเธอ";
 "Get your %@ API key" = "รับคีย์ API ของ %@";
 "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision." = "Grok Voice มองไม่เห็นกล้อง เลือก Gemini หรือ OpenAI เพื่อใช้การมองเห็น";
 "She answers in %@." = "เธอตอบเป็นภาษา%@";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "ภาษาของ iPhone นี้ไม่อยู่ในรายการ เธอจึงตอบในภาษาที่คุณพูด";
+"Allow camera access in iPhone Settings so she can see." = "อนุญาตการเข้าถึงกล้องในการตั้งค่า iPhone เพื่อให้เธอมองเห็นได้";

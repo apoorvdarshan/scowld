@@ -8,7 +8,6 @@
 "Character model: Arbius AI (MIT)" = "Karakter modeli: Arbius AI (MIT)";
 "Credits" = "Katkıda Bulunanlar";
 "Message Scowld..." = "Scowld'a mesaj gönder...";
-"Message..." = "Mesaj...";
 "Voice" = "Ses";
 "Past Chats" = "Geçmiş Sohbetler";
 "Tap a chat to read it. The active chat is used as reference for future replies." = "Okumak için bir sohbete dokunun. Aktif sohbet gelecekteki yanıtlar için referans olarak kullanılır.";
@@ -81,11 +80,10 @@
 "The live connection ended." = "Canlı bağlantı sona erdi.";
 "Connecting to %@..." = "%@ ile bağlanılıyor...";
 "%@ is talking. Speak to interrupt." = "%@ konuşuyor. Sözünü kesmek için konuşun.";
-"%@ is talking." = "%@ konuşuyor.";
 "Listening..." = "Dinliyor...";
-"Type to her, or tap the mic to talk." = "Ona yazın veya konuşmak için mikrofona dokunun.";
 "Allow microphone access in iPhone Settings to talk with her." = "Onunla konuşmak için iPhone Ayarları’nda mikrofon erişimine izin verin.";
 "Get your %@ API key" = "%@ API anahtarınızı alın";
 "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision." = "Grok Voice kamerayı göremez. Görme için Gemini veya OpenAI’ı seçin.";
 "She answers in %@." = "%@ dilinde yanıt verir.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Bu iPhone’un dili listede yok, bu yüzden konuştuğunuz dilde yanıt verir.";
+"Allow camera access in iPhone Settings so she can see." = "Görebilmesi için iPhone Ayarları’nda kamera erişimine izin verin.";

@@ -65,7 +65,6 @@ final class LiveWireTests: XCTestCase {
         XCTAssertEqual((try json(messages[1])["realtimeInput"] as? [String: Any])?["text"] as? String, "Look at this")
         XCTAssertEqual(wire.textMessages("Hi", image: nil).count, 1)
         XCTAssertNil(wire.truncateMessage(itemID: "x", audioEndMs: 10))
-        XCTAssertTrue(wire.cancelReplyMessages().isEmpty)
     }
 
     func testGeminiParsesServerMessages() {
@@ -152,7 +151,6 @@ final class LiveWireTests: XCTestCase {
         XCTAssertEqual(truncate["type"] as? String, "conversation.item.truncate")
         XCTAssertEqual(truncate["item_id"] as? String, "item_9")
         XCTAssertEqual(truncate["audio_end_ms"] as? Int, 0)
-        XCTAssertEqual(try json(try XCTUnwrap(wire.cancelReplyMessages().first))["type"] as? String, "response.cancel")
     }
 
     func testRealtimeEventsParse() {
@@ -170,7 +168,6 @@ final class LiveWireTests: XCTestCase {
         XCTAssertEqual(wire.parse(#"{"type":"input_audio_buffer.speech_started"}"#), [.userSpeechStarted])
         XCTAssertEqual(wire.parse(#"{"type":"response.done","response":{"status":"completed"}}"#), [.turnComplete])
         XCTAssertEqual(wire.parse(#"{"type":"error","error":{"message":"Invalid voice"}}"#), [.error("Invalid voice")])
-        XCTAssertEqual(wire.parse(#"{"type":"error","error":{"code":"response_cancel_not_active","message":"x"}}"#), [])
         XCTAssertEqual(wire.parse(#"{"type":"session.updated"}"#), [])
         XCTAssertEqual(wire.parse("[]"), [])
     }

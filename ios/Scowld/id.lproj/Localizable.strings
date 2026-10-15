@@ -8,7 +8,6 @@
 "Character model: Arbius AI (MIT)" = "Model karakter: Arbius AI (MIT)";
 "Credits" = "Kredit";
 "Message Scowld..." = "Kirim pesan ke Scowld...";
-"Message..." = "Pesan...";
 "Voice" = "Suara";
 "Past Chats" = "Chat Sebelumnya";
 "Tap a chat to read it. The active chat is used as reference for future replies." = "Ketuk chat untuk membacanya. Chat aktif digunakan sebagai referensi untuk balasan berikutnya.";
@@ -81,11 +80,10 @@
 "The live connection ended." = "Koneksi langsung berakhir.";
 "Connecting to %@..." = "Menghubungkan ke %@...";
 "%@ is talking. Speak to interrupt." = "%@ sedang berbicara. Bicaralah untuk menyela.";
-"%@ is talking." = "%@ sedang berbicara.";
 "Listening..." = "Mendengarkan...";
-"Type to her, or tap the mic to talk." = "Ketik untuknya, atau ketuk mikrofon untuk berbicara.";
 "Allow microphone access in iPhone Settings to talk with her." = "Izinkan akses mikrofon di Pengaturan iPhone untuk berbicara dengannya.";
 "Get your %@ API key" = "Dapatkan kunci API %@ Anda";
 "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision." = "Grok Voice tidak dapat melihat kamera. Pilih Gemini atau OpenAI untuk penglihatan.";
 "She answers in %@." = "Dia menjawab dalam bahasa %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Bahasa iPhone ini tidak ada dalam daftar, jadi dia menjawab dalam bahasa yang Anda gunakan.";
+"Allow camera access in iPhone Settings so she can see." = "Izinkan akses kamera di Pengaturan iPhone agar dia bisa melihat.";

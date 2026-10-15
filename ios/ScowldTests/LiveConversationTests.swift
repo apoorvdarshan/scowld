@@ -2,8 +2,8 @@ import XCTest
 @testable import Scowld
 
 /// A live conversation end to end, with a scripted provider and fake audio:
-/// connecting, playback and lip sync, interruptions, typing, saved turns,
-/// the camera and timeouts.
+/// connecting, playback and lip sync, interruptions, saved turns, the camera
+/// and timeouts.
 @MainActor
 final class LiveConversationTests: XCTestCase {
     private struct Harness {
@@ -61,7 +61,7 @@ final class LiveConversationTests: XCTestCase {
 
     func testWithoutAKeyNothingConnects() {
         let h = makeConversation(.gemini, key: "  ")
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         XCTAssertEqual(h.conversation.phase, .idle)
         XCTAssertTrue(h.sockets.sockets.isEmpty)
         XCTAssertNil(h.audio())
@@ -73,7 +73,7 @@ final class LiveConversationTests: XCTestCase {
         let audio = FakeLiveAudio()
         audio.failsToStart = true
         let conversation = LiveConversation(memoryStore: h.store, makeSocket: h.sockets.make, makeAudio: { audio }, loadKey: { _ in "k" })
-        conversation.start(microphone: true)
+        conversation.start()
         XCTAssertEqual(conversation.phase, .idle)
         XCTAssertTrue(audio.isStopped)
         XCTAssertTrue(h.sockets.sockets.isEmpty)
@@ -82,9 +82,8 @@ final class LiveConversationTests: XCTestCase {
 
     func testGeminiConnectsStreamsTheMicrophoneAndGoesLive() async throws {
         let h = makeConversation(.gemini)
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         XCTAssertEqual(h.conversation.phase, .connecting)
-        XCTAssertTrue(h.conversation.isMicrophoneOn)
         let audio = try XCTUnwrap(h.audio())
         XCTAssertEqual(audio.startedWith?.input, 16_000)
         XCTAssertEqual(audio.startedWith?.output, 24_000)
@@ -110,7 +109,7 @@ final class LiveConversationTests: XCTestCase {
         let h = makeConversation(.gemini)
         var lipChunks: [LipSyncChunk] = []
         h.conversation.onLipSync = { lipChunks.append($0) }
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         socket.deliver(["setupComplete": [String: Any]()])
 
@@ -141,7 +140,7 @@ final class LiveConversationTests: XCTestCase {
         let h = makeConversation(.openai)
         var lipStops = 0
         h.conversation.onLipSyncStop = { lipStops += 1 }
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         await waitUntil { h.conversation.phase == .live }
 
@@ -162,7 +161,7 @@ final class LiveConversationTests: XCTestCase {
 
     func testGeminiInterruptionStopsPlaybackWithoutATruncate() async throws {
         let h = makeConversation(.gemini)
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         socket.deliver(["setupComplete": [String: Any]()])
         socket.deliver(["serverContent": ["modelTurn": ["parts": [["inlineData": ["mimeType": "audio/pcm;rate=24000", "data": pcm(100).base64EncodedString()]]]]]])
@@ -173,56 +172,13 @@ final class LiveConversationTests: XCTestCase {
         XCTAssertEqual(socket.sent.count, 1, "Only the setup was sent")
     }
 
-    // MARK: Typing
-
-    func testTypingWithoutAConversationStartsATypedOne() async throws {
-        let h = makeConversation(.openai)
-        h.conversation.send("Hello from the keyboard")
-        XCTAssertEqual(h.conversation.phase, .connecting)
-        XCTAssertFalse(h.conversation.isMicrophoneOn)
-        XCTAssertEqual(h.audio()?.startedWith?.microphone, false)
-        XCTAssertNil(h.audio()?.onMicrophoneAudio)
-
-        let socket = try XCTUnwrap(h.sockets.last)
-        await waitUntil { socket.sentJSON.contains { $0["type"] as? String == "response.create" } }
-        let item = try XCTUnwrap(socket.sentJSON.first { $0["type"] as? String == "conversation.item.create" })
-        let content = (item["item"] as? [String: Any])?["content"] as? [[String: Any]]
-        XCTAssertEqual(content?.first?["text"] as? String, "Hello from the keyboard")
-        XCTAssertEqual(h.store.fetchMessages().map(\.content), ["Hello from the keyboard"])
-    }
-
-    func testTypingOverHerCancelsTheReply() async throws {
-        let h = makeConversation(.openai)
-        h.conversation.start(microphone: true)
-        let socket = try XCTUnwrap(h.sockets.last)
-        await waitUntil { h.conversation.phase == .live }
-        socket.deliver(audioDelta(pcm(2_400), item: "item_1"))
-        await waitUntil { h.conversation.isAssistantSpeaking }
-
-        h.conversation.send("Wait, stop")
-        XCTAssertFalse(h.conversation.isAssistantSpeaking)
-        await waitUntil { socket.sentJSON.contains { $0["type"] as? String == "response.create" } }
-        let types = socket.sentJSON.compactMap { $0["type"] as? String }.filter { $0 != "session.update" }
-        XCTAssertEqual(types, ["conversation.item.truncate", "response.cancel", "conversation.item.create", "response.create"])
-    }
-
-    func testStartingTheMicrophoneTurnsATypedConversationIntoAVoiceOne() async throws {
-        let h = makeConversation(.gemini)
-        h.conversation.send("Hi")
-        let typed = try XCTUnwrap(h.sockets.last)
-        h.conversation.start(microphone: true)
-        XCTAssertTrue(typed.isClosed)
-        XCTAssertEqual(h.sockets.sockets.count, 2)
-        XCTAssertTrue(h.conversation.isMicrophoneOn)
-    }
-
     // MARK: Camera
 
     func testOpenAIGetsTheLatestFrameWithWhatTheUserSays() async throws {
         let h = makeConversation(.openai)
         h.conversation.isCameraOn = { true }
         h.conversation.captureCameraFrame = { Data([0xFF, 0xD8]) }
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         await waitUntil { h.conversation.phase == .live }
 
@@ -238,7 +194,7 @@ final class LiveConversationTests: XCTestCase {
         let h = makeConversation(.gemini)
         h.conversation.isCameraOn = { true }
         h.conversation.captureCameraFrame = { Data([0xFF, 0xD8, 0x01]) }
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         socket.deliver(["setupComplete": [String: Any]()])
         await waitUntil {
@@ -251,13 +207,14 @@ final class LiveConversationTests: XCTestCase {
         var captures = 0
         h.conversation.isCameraOn = { true }
         h.conversation.captureCameraFrame = { captures += 1; return Data([1]) }
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         await waitUntil { h.conversation.phase == .live }
         socket.deliver(#"{"type":"input_audio_buffer.speech_started"}"#)
-        h.conversation.send("What do you see?")
-        await waitUntil { socket.sentJSON.contains { $0["type"] as? String == "response.create" } }
+        socket.deliver(#"{"type":"response.done"}"#)
+        try? await Task.sleep(for: .milliseconds(100))
         XCTAssertEqual(captures, 0, "xAI takes no images")
+        XCTAssertFalse(socket.sentJSON.contains { $0["type"] as? String == "conversation.item.create" })
     }
 
     // MARK: Ending
@@ -266,7 +223,7 @@ final class LiveConversationTests: XCTestCase {
         let h = makeConversation(.openai)
         var ended = 0
         h.conversation.onEnded = { ended += 1 }
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         await waitUntil { h.conversation.phase == .live }
         socket.deliver(#"{"type":"conversation.item.input_audio_transcription.completed","transcript":"Are you there?"}"#)
@@ -283,17 +240,17 @@ final class LiveConversationTests: XCTestCase {
 
     func testIdleAndConnectionTimeouts() async throws {
         let h = makeConversation(.gemini)
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         h.advance(LiveConversation.connectTimeout + 1)
         h.conversation.checkTimeouts()
         XCTAssertEqual(h.conversation.phase, .idle)
         XCTAssertEqual(h.conversation.errorMessage, "Couldn't connect to Gemini. Check your connection and try again.")
 
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         socket.deliver(["setupComplete": [String: Any]()])
         await waitUntil { h.conversation.phase == .live }
-        h.advance(LiveConversation.microphoneIdleTimeout - 5)
+        h.advance(LiveConversation.idleTimeout - 5)
         h.conversation.checkTimeouts()
         XCTAssertEqual(h.conversation.phase, .live)
         h.advance(10)
@@ -306,7 +263,7 @@ final class LiveConversationTests: XCTestCase {
         let h = makeConversation(.gemini)
         var ended = 0
         h.conversation.onEnded = { ended += 1 }
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         h.audio()?.interrupt()
         XCTAssertEqual(h.conversation.phase, .idle)
@@ -317,7 +274,7 @@ final class LiveConversationTests: XCTestCase {
 
     func testEventsFromAnEndedConversationAreIgnored() async throws {
         let h = makeConversation(.gemini)
-        h.conversation.start(microphone: true)
+        h.conversation.start()
         let socket = try XCTUnwrap(h.sockets.last)
         h.conversation.end()
         socket.deliver(["setupComplete": [String: Any]()])

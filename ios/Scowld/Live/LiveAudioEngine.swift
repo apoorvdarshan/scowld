@@ -22,6 +22,8 @@ protocol LiveAudioIO: AnyObject {
     var onInterrupted: (() -> Void)? { get set }
     var isPlaying: Bool { get }
 
+    /// Starts the microphone and playback. With `microphone` false (voice previews in
+    /// Settings) only playback runs.
     func start(inputSampleRate: Double, outputSampleRate: Double, microphone: Bool) throws
     /// Schedules reply audio after anything already queued and returns its mouth movement.
     func play(_ pcm16: Data) -> LipSyncChunk?

@@ -8,7 +8,6 @@
 "Character model: Arbius AI (MIT)" = "Mô hình nhân vật: Arbius AI (MIT)";
 "Credits" = "Ghi nhận";
 "Message Scowld..." = "Nhắn cho Scowld...";
-"Message..." = "Tin nhắn...";
 "Voice" = "Giọng nói";
 "Past Chats" = "Cuộc trò chuyện trước";
 "Tap a chat to read it. The active chat is used as reference for future replies." = "Nhấn vào một cuộc trò chuyện để đọc. Cuộc trò chuyện đang hoạt động được dùng làm tham chiếu cho các câu trả lời sau.";
@@ -81,11 +80,10 @@
 "The live connection ended." = "Kết nối trực tiếp đã kết thúc.";
 "Connecting to %@..." = "Đang kết nối với %@...";
 "%@ is talking. Speak to interrupt." = "%@ đang nói. Hãy nói để ngắt lời.";
-"%@ is talking." = "%@ đang nói.";
 "Listening..." = "Đang nghe...";
-"Type to her, or tap the mic to talk." = "Nhắn cho cô ấy, hoặc chạm vào micrô để nói.";
 "Allow microphone access in iPhone Settings to talk with her." = "Cho phép truy cập micrô trong Cài đặt iPhone để trò chuyện với cô ấy.";
 "Get your %@ API key" = "Lấy khóa API %@ của bạn";
 "Grok Voice can't see the camera. Choose Gemini or OpenAI for vision." = "Grok Voice không thể nhìn thấy camera. Hãy chọn Gemini hoặc OpenAI để dùng thị giác.";
 "She answers in %@." = "Cô ấy trả lời bằng %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Ngôn ngữ của iPhone này không có trong danh sách, nên cô ấy trả lời bằng ngôn ngữ bạn nói.";
+"Allow camera access in iPhone Settings so she can see." = "Cho phép truy cập camera trong Cài đặt iPhone để cô ấy có thể nhìn thấy.";

@@ -16,6 +16,8 @@ struct SettingsView: View {
     @State private var aiAPIKey = ""
     @State private var hasSavedAIAPIKey = false
     @State private var aiSettingsMessage: String?
+    @State private var fetchedModels: [String] = []
+    @State private var voicePreviewer = VoicePreviewer()
     // MARK: - Secret visibility
     @State private var revealAIKey = false
 
@@ -189,6 +191,7 @@ struct SettingsView: View {
             }
         }
         .onAppear { loadSettings() }
+        .onDisappear { voicePreviewer.stop() }
     }
 
     private var aiProviderSection: some View {
@@ -212,7 +215,7 @@ struct SettingsView: View {
             }
 
             modelSelectionRows(
-                models: selectedAIProvider.availableModels,
+                models: LiveModelCatalog.merged(builtIn: selectedAIProvider.availableModels, fetched: fetchedModels),
                 selection: $selectedAIModel,
                 isCustom: $aiModelIsCustom,
                 identifier: "settings.ai"
@@ -226,6 +229,15 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.menu)
                 .accessibilityIdentifier("settings.ai.voice")
+                .onChange(of: selectedVoice) {
+                    voicePreviewer.stop()
+                }
+
+                voicePreviewButton
+            }
+
+            if case .failed(let message) = voicePreviewer.state {
+                settingsInfoRow(title: message, systemImage: "exclamationmark.triangle.fill", color: .red)
             }
 
             settingRow {
@@ -253,6 +265,63 @@ struct SettingsView: View {
             glassSaveRow(status: aiSettingsMessage ?? aiSaveSubtitle, identifier: "settings.ai") {
                 saveAISettings()
             }
+        }
+    }
+
+    /// Plays the selected voice with the key in the field, so it can be heard before saving.
+    private var voicePreviewButton: some View {
+        let isBusy = voicePreviewer.voice == selectedVoice &&
+            (voicePreviewer.state == .loading || voicePreviewer.state == .playing)
+        let hasKey = !aiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return Button {
+            if isBusy {
+                voicePreviewer.stop()
+            } else {
+                previewSelectedVoice()
+            }
+        } label: {
+            ZStack {
+                if voicePreviewer.state == .loading && voicePreviewer.voice == selectedVoice {
+                    ProgressView()
+                } else {
+                    Image(systemName: isBusy ? "stop.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(hasKey ? Color.amicaBlue : Color.secondary)
+                }
+            }
+            .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .disabled(!hasKey)
+        .accessibilityLabel(isBusy ? "Stop voice preview" : "Play voice preview")
+        .accessibilityHint("Uses your API key to play a short line in this voice.")
+        .accessibilityIdentifier("settings.ai.voicePreview")
+    }
+
+    private func previewSelectedVoice() {
+        // Tests never reach a provider.
+        guard !ScowldTestEnvironment.isRunningTests else { return }
+        let model = selectedAIModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        voicePreviewer.play(
+            provider: selectedAIProvider,
+            model: model.isEmpty ? selectedAIProvider.defaultModel : model,
+            voice: selectedVoice,
+            apiKey: aiAPIKey,
+            name: CharacterPack.resolveCharacterName()
+        )
+    }
+
+    /// Adds the live models this key can use to the model list. Failures keep the
+    /// built-in list.
+    private func refreshModels() {
+        let provider = selectedAIProvider
+        let key = aiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        fetchedModels = []
+        guard !key.isEmpty, !ScowldTestEnvironment.isRunningTests else { return }
+        Task {
+            let models = (try? await LiveModelCatalog.fetch(for: provider, apiKey: key)) ?? []
+            guard provider == selectedAIProvider else { return }
+            fetchedModels = models
         }
     }
 
@@ -593,6 +662,8 @@ struct SettingsView: View {
         selectedVoice = HostedServiceConfig.selectedVoice(for: provider)
         aiAPIKey = KeychainManager.load(key: provider.keychainKey) ?? ""
         hasSavedAIAPIKey = !aiAPIKey.isEmpty
+        voicePreviewer.stop()
+        refreshModels()
         if resetMessage {
             aiSettingsMessage = nil
         }
@@ -610,6 +681,7 @@ struct SettingsView: View {
 
         hasSavedAIAPIKey = KeychainManager.exists(key: provider.keychainKey)
         aiSettingsMessage = "Saved"
+        refreshModels()
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
     }
 
