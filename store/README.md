@@ -24,6 +24,8 @@ vX.Y.Z tag ─► iOS unit + UI tests ─► offline release-script tests
               RELEASE_NOTES.md section (at most one)
   └─ IOS_RELEASE_AUTOMATION off ─► GitHub Release only
   └─ on:
+       IOS_CREATE_VERSION ─► create the tag's App Store version if it is missing (refused,
+            without writing, next to an unfinished version or when the tag is not newer)
        any listing/What's New/screenshot/review switch ─► read-only preflight: the version
             exists in a state that allows the enabled steps, with every repository locale;
             What's New differs from the live version; screenshots that can no longer change
@@ -74,6 +76,7 @@ Variables). Missing means off. Any value other than
 | Variable | When `true` |
 |----------|-------------|
 | `IOS_RELEASE_AUTOMATION` | Master switch. When off, every iOS store operation below is skipped; the tag still runs the tests and creates the GitHub Release |
+| `IOS_CREATE_VERSION` | Create the tag's App Store version (Prepare for Submission) when App Store Connect does not have it, before the preflight. An existing version is left alone. Refuses, before anything is built and without writing, when another version is still on its way to the store (anything but Ready for Distribution, replaced or removed), the tag is not newer than every existing version, or the bundle id resolves to another app. Tag runs only |
 | `IOS_UPLOAD_BUILD` | Build, sign and upload the binary to App Store Connect, then wait until this build is processed |
 | `IOS_UPLOAD_LISTING` | App name, subtitle and privacy policy URL (app info), and description, keywords, promotional text, marketing and support URLs (version) — only fields that differ from App Store Connect are sent |
 | `IOS_UPLOAD_WHATS_NEW` | What's New, as plain text: Markdown (`**bold**`, backticks, `[links](…)`, `#` headings) is refused because the App Store shows it literally. Refused if it is identical to the live version's text |
@@ -87,12 +90,15 @@ Copy names from [`gates.env.example`](gates.env.example). Scowld needs no shared
 `STORE_*` switch: it has no in-app purchases and no RevenueCat catalog.
 
 Listing, What's New, screenshots and review submission act on the App Store
-version named by the tag, which the pipeline never creates. **Create the X.Y.Z
+version named by the tag. With `IOS_CREATE_VERSION` on, the tag run creates a
+missing version itself, right before the preflight. Otherwise **create the X.Y.Z
 App Store version in App Store Connect first** (App Store tab → **+ Version**,
-left in Prepare for Submission) whenever any of those switches is on, with every
-language in `store/metadata/ios/`. The read-only preflight stops the run before
-anything is built or uploaded otherwise. A build-only release (`IOS_UPLOAD_BUILD`
-alone) needs no App Store version.
+left in Prepare for Submission) whenever any of those switches is on. Either way
+the version needs every language in `store/metadata/ios/`; the pipeline never
+adds one. The read-only preflight stops the run before anything is built or
+uploaded otherwise. A version created by a run whose later steps fail stays in
+Prepare for Submission, and the next run for the same tag reuses it. A
+build-only release (`IOS_UPLOAD_BUILD` alone) needs no App Store version.
 
 Prepare checks only the store files the enabled switches use: an invalid or
 missing screenshot, listing or What's New file never blocks a release that does
@@ -188,9 +194,9 @@ create a new one (`certificateType: DEVELOPMENT`), and replace both
 | Script | Role |
 |--------|------|
 | [`scripts/store/ios_release.py`](../scripts/store/ios_release.py) | Switches (`gates`), tag/version check, build number, wait for this run's build |
-| [`scripts/store/asc_release.py`](../scripts/store/asc_release.py) | Listing, What's New, screenshots, build selection, review submission (`--dry-run` = local checks only, `--preflight` = read-only App Store Connect checks) |
+| [`scripts/store/asc_release.py`](../scripts/store/asc_release.py) | Version creation (`--create-version`), listing, What's New, screenshots, build selection, review submission (`--dry-run` = local checks only, `--preflight` = read-only App Store Connect checks) |
 | [`scripts/store/asc_export_listing.py`](../scripts/store/asc_export_listing.py) | Read-only export of the live listing into `store/metadata/ios/` |
-| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests: disabled/invalid switches, tag mismatch, validation mode, build wait timeout/failure/ambiguity/mismatch/old build/missing upload time, selection read-back, token refresh, ES256 token signing (needs the store tooling), preflight, listing, plain-text What's New, screenshots, submission, reruns in review, printed switches, release notes, log redaction |
+| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests: disabled/invalid switches, tag mismatch, validation mode, version creation (missing, existing, unfinished or newer version, other app), build wait timeout/failure/ambiguity/mismatch/old build/missing upload time, selection read-back, token refresh, ES256 token signing (needs the store tooling), preflight, listing, plain-text What's New, screenshots, submission, reruns in review, printed switches, release notes, log redaction |
 | [`scripts/store/print_gates.py`](../scripts/store/print_gates.py) | Prints the switches in the run log; an invalid value shows as `INVALID` |
 | [`scripts/store/redact_logs.py`](../scripts/store/redact_logs.py) | Removes the App Store Connect key and issuer IDs from failed-build logs before they become an artifact |
 | [`scripts/release_notes.py`](../scripts/release_notes.py) | GitHub Release notes from the matching `RELEASE_NOTES.md` section (else GitHub's generated notes; two sections for one tag fail the release) |
@@ -217,7 +223,8 @@ store tooling is therefore proven before it can reach a release.
 
 Environment flags read by `asc_release.py` (set by `ios-release.yml` from the
 resolved switches): `UPLOAD_LISTING`, `UPLOAD_WHATS_NEW`, `UPLOAD_SCREENSHOTS`,
-`SUBMIT_IOS_REVIEW`, `PUBLIC_RELEASE`.
+`SUBMIT_IOS_REVIEW`, `PUBLIC_RELEASE`, and `CREATE_IOS_VERSION` (read only with
+`--create-version`).
 
 ## How to release
 
@@ -227,8 +234,9 @@ resolved switches): `UPLOAD_LISTING`, `UPLOAD_WHATS_NEW`, `UPLOAD_SCREENSHOTS`,
    `## vX.Y.Z` section to `RELEASE_NOTES.md` for the GitHub Release (optional).
 3. Run **iOS Release → Run workflow** with `marketing_version` = the new version
    to validate signing (nothing is uploaded).
-4. If any listing, What's New, screenshot or review switch will be on, create
-   the X.Y.Z App Store version in App Store Connect first (App Store tab →
+4. If any listing, What's New, screenshot or review switch will be on, the X.Y.Z
+   App Store version must exist. With `IOS_CREATE_VERSION` on, the tag run
+   creates it; otherwise create it in App Store Connect first (App Store tab →
    **+ Version**; leave it in Prepare for Submission).
 5. Turn on only the switches you want, then push the tag `vX.Y.Z`. Leave
    `IOS_SUBMIT_REVIEW` and `IOS_PUBLIC_RELEASE` off until you intend that release.
