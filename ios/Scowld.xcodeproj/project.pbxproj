@@ -491,6 +491,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Scowld;
 				INFOPLIST_KEY_CFBundleName = "Scowld - AI Voice Companion";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scowld uses your front camera to see you and your environment during conversations. Nothing is recorded or stored.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Scowld can connect to local AI providers you configure on your network.";
@@ -530,6 +531,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Scowld;
 				INFOPLIST_KEY_CFBundleName = "Scowld - AI Voice Companion";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scowld uses your front camera to see you and your environment during conversations. Nothing is recorded or stored.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Scowld can connect to local AI providers you configure on your network.";

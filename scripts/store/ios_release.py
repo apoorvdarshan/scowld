@@ -5,7 +5,12 @@ Subcommands (all print to stdout; `gates`/`build-number`/`wait-build` also write
 key=value lines to $GITHUB_OUTPUT when it is set):
 
   gates         Validate the IOS_* repository variables and resolve what this
-                run may do. Missing values mean off; invalid values fail.
+                run may do. Missing values mean off; invalid values fail. A
+                run that builds also needs the app's export compliance answer
+                (ITSAppUsesNonExemptEncryption) in the project.
+  export-compliance --info-plist PATH
+                The same answer in the archived app's Info.plist, checked right
+                after the archive (standard library only).
   build-number  Next CFBundleVersion: max(project value, highest ASC build + 1).
   wait-build    Poll App Store Connect until the build uploaded by THIS run is
                 processed (VALID, unexpired, matching app/version/build number,
@@ -22,6 +27,7 @@ import argparse
 import datetime as dt
 import http.client
 import os
+import plistlib
 import re
 import sys
 import time
@@ -97,6 +103,57 @@ def single_project_value(setting: str, pbxproj: Path = PBXPROJ) -> str:
             f"{setting} must be identical across all targets; found {sorted(values)}"
         )
     return values.pop().strip().strip('"')
+
+
+ENCRYPTION_KEY = "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption"
+COMPLIANCE_CODE_KEY = "INFOPLIST_KEY_ITSEncryptionExportComplianceCode"
+
+
+def check_export_compliance(pbxproj: Path = PBXPROJ) -> str:
+    """The app's export compliance answer, read from the project before anything is built.
+
+    Without ITSAppUsesNonExemptEncryption, App Store Connect asks about every
+    build by hand and review submission fails until someone answers. NO means
+    only exempt encryption (HTTPS, Keychain, Apple's system crypto); YES also
+    needs the export compliance code Apple issues for the app's documentation.
+    """
+    values = {value.strip().strip('"') for value in project_values(ENCRYPTION_KEY, pbxproj)}
+    if not values:
+        raise ReleaseError(
+            f"the app does not declare export compliance: set {ENCRYPTION_KEY} = NO (only HTTPS, "
+            "Keychain or Apple's system crypto) or YES with "
+            f"{COMPLIANCE_CODE_KEY} in the app target's build settings"
+        )
+    if len(values) != 1 or not values <= {"NO", "YES"}:
+        raise ReleaseError(f"{ENCRYPTION_KEY} must be NO or YES in every app configuration; found {sorted(values)}")
+    answer = values.pop()
+    if answer == "YES" and not project_values(COMPLIANCE_CODE_KEY, pbxproj):
+        raise ReleaseError(
+            f"{ENCRYPTION_KEY} = YES needs {COMPLIANCE_CODE_KEY} (the code App Store Connect issues "
+            "for the app's encryption documentation)"
+        )
+    return answer
+
+
+def check_archived_export_compliance(info_plist: Path) -> str:
+    """The export compliance answer the archived app's Info.plist carries ("NO" or "YES")."""
+    try:
+        with info_plist.open("rb") as handle:
+            values = plistlib.load(handle)
+    except (OSError, plistlib.InvalidFileException, ValueError) as exc:
+        raise ReleaseError(f"cannot read {info_plist}: {exc}") from None
+    answer = values.get("ITSAppUsesNonExemptEncryption") if isinstance(values, dict) else None
+    if answer is False:
+        return "NO"
+    if answer is True:
+        if not str(values.get("ITSEncryptionExportComplianceCode") or "").strip():
+            raise ReleaseError(
+                f"{info_plist} declares non-exempt encryption without ITSEncryptionExportComplianceCode"
+            )
+        return "YES"
+    if answer is None:
+        raise ReleaseError(f"{info_plist} does not declare ITSAppUsesNonExemptEncryption (export compliance)")
+    raise ReleaseError(f"{info_plist} has ITSAppUsesNonExemptEncryption = {answer!r}; expected true or false")
 
 
 VERSION_PATTERN = re.compile(r"[0-9]+(\.[0-9]+){0,2}")
@@ -384,10 +441,18 @@ def cmd_gates(_: argparse.Namespace) -> None:
         validation_version=os.environ.get("VALIDATION_MARKETING_VERSION", ""),
     )
     notes = resolved.pop("notes")
+    if resolved["build"]:
+        notes.append(f"export compliance: ITSAppUsesNonExemptEncryption = {check_export_compliance()}")
     print("iOS release switches:")
     for note in notes:
         print(f"  note: {note}")
     write_outputs(resolved)
+
+
+def cmd_export_compliance(args: argparse.Namespace) -> None:
+    answer = check_archived_export_compliance(args.info_plist)
+    detail = "no non-exempt encryption" if answer == "NO" else "non-exempt encryption with an export compliance code"
+    print(f"export compliance: {detail} (ITSAppUsesNonExemptEncryption = {answer})")
 
 
 def cmd_build_number(_: argparse.Namespace) -> None:
@@ -438,6 +503,9 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("gates").set_defaults(func=cmd_gates)
+    compliance = sub.add_parser("export-compliance")
+    compliance.add_argument("--info-plist", required=True, type=Path, help="the archived app's Info.plist")
+    compliance.set_defaults(func=cmd_export_compliance)
     sub.add_parser("build-number").set_defaults(func=cmd_build_number)
     wait = sub.add_parser("wait-build")
     wait.add_argument("--version", required=True)

@@ -25,6 +25,7 @@ import http.client
 import io
 import json
 import os
+import plistlib
 import re
 import struct
 import subprocess
@@ -252,6 +253,94 @@ class GateTests(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=False), self.assertRaises(SystemExit) as caught:
             quiet(ios_release.main, ["gates"])
         self.assertEqual(caught.exception.code, 1)
+
+
+class ExportComplianceTests(unittest.TestCase):
+    """ITSAppUsesNonExemptEncryption must be declared, or App Store Connect asks about every build."""
+
+    def check(self, settings: str) -> str:
+        with tempfile.NamedTemporaryFile("w", suffix=".pbxproj", delete=False) as handle:
+            handle.write("/* project */\n" + settings)
+        self.addCleanup(os.unlink, handle.name)
+        return ios_release.check_export_compliance(Path(handle.name))
+
+    def test_the_app_declares_no_non_exempt_encryption(self) -> None:
+        self.assertEqual(ios_release.check_export_compliance(), "NO")
+
+    def test_no_in_every_configuration_passes(self) -> None:
+        line = "\t\t\t\tINFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;\n"
+        self.assertEqual(self.check(line * 2), "NO")
+
+    def test_missing_declaration_fails_before_the_build(self) -> None:
+        with self.assertRaisesRegex(ReleaseError, "does not declare export compliance"):
+            self.check("\t\t\t\tINFOPLIST_KEY_CFBundleDisplayName = Scowld;\n")
+
+    def test_yes_needs_the_compliance_code(self) -> None:
+        yes = "\t\t\t\tINFOPLIST_KEY_ITSAppUsesNonExemptEncryption = YES;\n"
+        with self.assertRaisesRegex(ReleaseError, "needs INFOPLIST_KEY_ITSEncryptionExportComplianceCode"):
+            self.check(yes)
+        code = "\t\t\t\tINFOPLIST_KEY_ITSEncryptionExportComplianceCode = ABC123;\n"
+        self.assertEqual(self.check(yes + code), "YES")
+
+    def test_mixed_or_unknown_values_fail(self) -> None:
+        for settings in ("INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;\n"
+                         "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = YES;\n",
+                         "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = maybe;\n"):
+            with self.subTest(settings=settings), self.assertRaisesRegex(ReleaseError, "must be NO or YES"):
+                self.check(settings)
+
+    def archived(self, values: Any, *, raw: bytes | None = None) -> Path:
+        with tempfile.NamedTemporaryFile("wb", suffix=".plist", delete=False) as handle:
+            handle.write(raw if raw is not None else plistlib.dumps(values))
+        self.addCleanup(os.unlink, handle.name)
+        return Path(handle.name)
+
+    def test_the_archived_app_must_carry_the_answer(self) -> None:
+        base = {"CFBundleIdentifier": ios_release.BUNDLE_ID}
+        self.assertEqual(ios_release.check_archived_export_compliance(
+            self.archived({**base, "ITSAppUsesNonExemptEncryption": False})), "NO")
+        self.assertEqual(ios_release.check_archived_export_compliance(self.archived(
+            {**base, "ITSAppUsesNonExemptEncryption": True, "ITSEncryptionExportComplianceCode": "ABC123"})), "YES")
+        for values, message in (
+            (base, "does not declare ITSAppUsesNonExemptEncryption"),
+            ({**base, "ITSAppUsesNonExemptEncryption": True}, "without ITSEncryptionExportComplianceCode"),
+            ({**base, "ITSAppUsesNonExemptEncryption": True, "ITSEncryptionExportComplianceCode": " "},
+             "without ITSEncryptionExportComplianceCode"),
+            ({**base, "ITSAppUsesNonExemptEncryption": "NO"}, "expected true or false"),
+        ):
+            with self.subTest(values=values), self.assertRaisesRegex(ReleaseError, message):
+                ios_release.check_archived_export_compliance(self.archived(values))
+        with self.assertRaisesRegex(ReleaseError, "cannot read"):
+            ios_release.check_archived_export_compliance(self.archived(None, raw=b"not a plist"))
+
+    def test_archive_check_command_exits_non_zero_when_the_answer_is_missing(self) -> None:
+        ok = self.archived({"ITSAppUsesNonExemptEncryption": False})
+        out = io.StringIO()
+        with redirect_stdout(out):
+            ios_release.main(["export-compliance", "--info-plist", str(ok)])
+        self.assertIn("ITSAppUsesNonExemptEncryption = NO", out.getvalue())
+        missing = self.archived({"CFBundleIdentifier": ios_release.BUNDLE_ID})
+        with self.assertRaises(SystemExit) as caught, redirect_stderr(io.StringIO()) as err:
+            ios_release.main(["export-compliance", "--info-plist", str(missing)])
+        self.assertEqual(caught.exception.code, 1)
+        self.assertIn("export compliance", err.getvalue())
+
+    def test_gates_check_it_only_when_this_run_builds(self) -> None:
+        for env, fails in (({"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF_NAME": "main"}, True),
+                           ({"GITHUB_EVENT_NAME": "push", "GITHUB_REF_NAME": TAG}, False)):
+            missing = mock.patch.object(ios_release, "check_export_compliance",
+                                        side_effect=ReleaseError("the app does not declare export compliance"))
+            with self.subTest(env=env), missing as check, \
+                    mock.patch.object(ios_release, "single_project_value", return_value=VERSION), \
+                    mock.patch.dict(os.environ, env, clear=True), redirect_stdout(io.StringIO()), \
+                    redirect_stderr(io.StringIO()) as err:
+                if fails:
+                    with self.assertRaises(SystemExit):
+                        ios_release.main(["gates"])
+                    self.assertIn("export compliance", err.getvalue())
+                else:
+                    ios_release.main(["gates"])
+                    check.assert_not_called()
 
 
 class BuildNumberTests(unittest.TestCase):

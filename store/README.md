@@ -136,6 +136,38 @@ with a version (`READY_TO_SUBMIT`, `DEVELOPER_REJECTED`, `READY_FOR_REVIEW`),
 preflight, and again before the listing step); add a product catalog and the
 Fud AI product-submission step before selling anything.
 
+## Export compliance
+
+The app declares its export compliance answer in its build settings
+(`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` in Debug and Release, so
+every build's `Info.plist` carries `ITSAppUsesNonExemptEncryption = false`).
+Without it, App Store Connect asks about each build by hand, and review
+submission fails with `usesNonExemptEncryption` missing.
+
+`NO` is right because Scowld only uses exempt encryption: HTTPS and the OpenAI
+Realtime WebSocket through Apple's networking, the Keychain for provider keys,
+and Apple's system crypto (RevenueCat's hashing and signature checks, the
+companion page's WebCrypto SHA-256 digests). If the app ever adds its own
+encryption, set it to `YES` and add
+`INFOPLIST_KEY_ITSEncryptionExportComplianceCode` with the code App Store
+Connect issues for the app's encryption documentation.
+
+The prebuilt Amica page (`ios/Scowld/Resources/amica.bundle`) used to ship a
+JavaScript copy of Node's `crypto` module (AES, DES, Diffie-Hellman, ECDH, RSA,
+PBKDF2) in one chunk, `fec483df-29d484622c428254.js`. Only Amica's `/share` page
+loaded it, and only to hash a file before publishing an avatar to Amica's online
+store. So that the `NO` answer leaves no doubt, the chunk was removed and the
+app's web view cancels every navigation to `/share` (when the chunk fails to
+load, the page's router falls back to a full navigation, which the web view
+blocks). The only effect: you cannot publish avatars to Amica's online store from
+the app. `CompanionExportComplianceTests` fail if any encryption code returns to
+the bundle, the block is lost, or the app stops declaring `NO`.
+
+Release and validation runs check the answer twice: `ios_release.py gates` reads
+the project before anything is built, and `ios_release.py export-compliance`
+reads the archived app's `Info.plist` right after the archive. A missing key,
+an unknown value, or `YES` without the code fails the run.
+
 ## Listing source of truth
 
 `store/metadata/ios/<locale>/` holds the live App Store listing, exported from
@@ -193,10 +225,10 @@ create a new one (`certificateType: DEVELOPMENT`), and replace both
 
 | Script | Role |
 |--------|------|
-| [`scripts/store/ios_release.py`](../scripts/store/ios_release.py) | Switches (`gates`), tag/version check, build number, wait for this run's build |
+| [`scripts/store/ios_release.py`](../scripts/store/ios_release.py) | Switches (`gates`), tag/version check, export compliance (before the build and in the archived app), build number, wait for this run's build |
 | [`scripts/store/asc_release.py`](../scripts/store/asc_release.py) | Version creation (`--create-version`), listing, What's New, screenshots, build selection, review submission (`--dry-run` = local checks only, `--preflight` = read-only App Store Connect checks) |
 | [`scripts/store/asc_export_listing.py`](../scripts/store/asc_export_listing.py) | Read-only export of the live listing into `store/metadata/ios/` |
-| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests: disabled/invalid switches, tag mismatch, validation mode, version creation (missing, existing, unfinished or newer version, other app), build wait timeout/failure/ambiguity/mismatch/old build/missing upload time, selection read-back, token refresh, ES256 token signing (needs the store tooling), preflight, listing, plain-text What's New, screenshots, submission, reruns in review, printed switches, release notes, log redaction |
+| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests: disabled/invalid switches, tag mismatch, validation mode, export compliance (missing, unknown, `YES` without a code, archived `Info.plist`), version creation (missing, existing, unfinished or newer version, other app), build wait timeout/failure/ambiguity/mismatch/old build/missing upload time, selection read-back, token refresh, ES256 token signing (needs the store tooling), preflight, listing, plain-text What's New, screenshots, submission, reruns in review, printed switches, release notes, log redaction |
 | [`scripts/store/print_gates.py`](../scripts/store/print_gates.py) | Prints the switches in the run log; an invalid value shows as `INVALID` |
 | [`scripts/store/redact_logs.py`](../scripts/store/redact_logs.py) | Removes the App Store Connect key and issuer IDs from failed-build logs before they become an artifact |
 | [`scripts/release_notes.py`](../scripts/release_notes.py) | GitHub Release notes from the matching `RELEASE_NOTES.md` section (else GitHub's generated notes; two sections for one tag fail the release) |
@@ -209,8 +241,9 @@ hash-pinned, `--require-hashes`). The lock targets that Python only: regenerate
 it from `requirements-store.in` with the `uv` command in it. Dependabot proposes
 updates weekly and also writes the lock without `--universal` markers. The other
 Python steps need only the standard library and run on the runner's own
-`python3`: `redact_logs.py` (and the step that writes the `.p8` key) in the
-`build` job, and `print_gates.py` and `release_notes.py` in `github-release`.
+`python3`: `ios_release.py export-compliance`, `redact_logs.py` (and the step
+that writes the `.p8` key) in the `build` job, and `print_gates.py` and
+`release_notes.py` in `github-release`.
 Steps that talk to App Store Connect run unbuffered (`python3 -u`), so the build
 wait's progress shows in the live log.
 

@@ -2063,7 +2063,21 @@ struct AmicaFullView: UIViewRepresentable {
             logger.info("[Amica] Provisional navigation failed: \(error.localizedDescription)")
         }
 
+        /// Amica's `/share` page publishes avatars to Amica's online store. Scowld
+        /// does not ship its code, because it bundled a JavaScript encryption
+        /// library (see store/README.md, "Export compliance"), so the page is never
+        /// opened. Its menu link ends here: when the page's code fails to load, the
+        /// page's router falls back to a full navigation to `/share/`.
+        static func isRemovedCompanionPage(_ url: URL?) -> Bool {
+            guard let path = url?.path(percentEncoded: false) else { return false }
+            return path == "/share" || path.hasPrefix("/share/")
+        }
+
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            if Self.isRemovedCompanionPage(navigationAction.request.url) {
+                logger.info("[Amica] Blocked the removed share page")
+                return .cancel
+            }
             return .allow
         }
 
