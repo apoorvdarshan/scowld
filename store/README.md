@@ -164,9 +164,11 @@ the app. `CompanionExportComplianceTests` fail if any encryption code returns to
 the bundle, the block is lost, or the app stops declaring `NO`.
 
 Release and validation runs check the answer twice: `ios_release.py gates` reads
-the project before anything is built, and `ios_release.py export-compliance`
-reads the archived app's `Info.plist` right after the archive. A missing key,
-an unknown value, or `YES` without the code fails the run.
+each configuration (Debug and Release) of the app target before anything is
+built, and `ios_release.py export-compliance` reads the archived app's
+`Info.plist` right after the archive. A configuration without the key, an
+unknown value, different answers per configuration, or `YES` without the code
+fails the run; values on the test targets do not count.
 
 ## Listing source of truth
 

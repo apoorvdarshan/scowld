@@ -109,6 +109,28 @@ ENCRYPTION_KEY = "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption"
 COMPLIANCE_CODE_KEY = "INFOPLIST_KEY_ITSEncryptionExportComplianceCode"
 
 
+def app_build_configurations(pbxproj: Path = PBXPROJ) -> dict[str, dict[str, str]]:
+    """Build settings of each configuration of the app target (PRODUCT_BUNDLE_IDENTIFIER = BUNDLE_ID).
+
+    Read per configuration, so a value set only for Debug or only on another
+    target (the unit or UI tests) never counts for the app's Release build.
+    """
+    text = pbxproj.read_text(encoding="utf-8")
+    configurations: dict[str, dict[str, str]] = {}
+    pattern = re.compile(
+        r"isa = XCBuildConfiguration;\s*buildSettings = \{(?P<settings>.*?)\n\t\t\t\};\s*name = (?P<name>[^;]+);",
+        re.S,
+    )
+    for match in pattern.finditer(text):
+        settings = {
+            key: value.strip().strip('"')
+            for key, value in re.findall(r"^\s*([A-Za-z0-9_\[\]=*\"]+) = (.*?);\s*$", match["settings"], re.M)
+        }
+        if settings.get("PRODUCT_BUNDLE_IDENTIFIER") == BUNDLE_ID:
+            configurations[match["name"].strip().strip('"')] = settings
+    return configurations
+
+
 def check_export_compliance(pbxproj: Path = PBXPROJ) -> str:
     """The app's export compliance answer, read from the project before anything is built.
 
@@ -116,23 +138,35 @@ def check_export_compliance(pbxproj: Path = PBXPROJ) -> str:
     build by hand and review submission fails until someone answers. NO means
     only exempt encryption (HTTPS, Keychain, Apple's system crypto); YES also
     needs the export compliance code Apple issues for the app's documentation.
+    Every configuration of the app target (Debug and Release) must declare the
+    same answer.
     """
-    values = {value.strip().strip('"') for value in project_values(ENCRYPTION_KEY, pbxproj)}
-    if not values:
+    configurations = app_build_configurations(pbxproj)
+    if not {"Debug", "Release"} <= configurations.keys():
         raise ReleaseError(
-            f"the app does not declare export compliance: set {ENCRYPTION_KEY} = NO (only HTTPS, "
-            "Keychain or Apple's system crypto) or YES with "
-            f"{COMPLIANCE_CODE_KEY} in the app target's build settings"
+            f"could not find the Debug and Release configurations of the {BUNDLE_ID} target "
+            f"(found {sorted(configurations)})"
         )
-    if len(values) != 1 or not values <= {"NO", "YES"}:
-        raise ReleaseError(f"{ENCRYPTION_KEY} must be NO or YES in every app configuration; found {sorted(values)}")
-    answer = values.pop()
-    if answer == "YES" and not project_values(COMPLIANCE_CODE_KEY, pbxproj):
-        raise ReleaseError(
-            f"{ENCRYPTION_KEY} = YES needs {COMPLIANCE_CODE_KEY} (the code App Store Connect issues "
-            "for the app's encryption documentation)"
-        )
-    return answer
+    answers: dict[str, str] = {}
+    for name, settings in sorted(configurations.items()):
+        value = settings.get(ENCRYPTION_KEY)
+        if value is None:
+            raise ReleaseError(
+                f"the app's {name} configuration does not declare export compliance: set "
+                f"{ENCRYPTION_KEY} = NO (only HTTPS, Keychain or Apple's system crypto) or YES with "
+                f"{COMPLIANCE_CODE_KEY} in every configuration of the app target"
+            )
+        if value not in {"NO", "YES"}:
+            raise ReleaseError(f"{ENCRYPTION_KEY} must be NO or YES; the {name} configuration has {value!r}")
+        if value == "YES" and not settings.get(COMPLIANCE_CODE_KEY):
+            raise ReleaseError(
+                f"{ENCRYPTION_KEY} = YES in the {name} configuration needs {COMPLIANCE_CODE_KEY} (the code "
+                "App Store Connect issues for the app's encryption documentation)"
+            )
+        answers[name] = value
+    if len(set(answers.values())) != 1:
+        raise ReleaseError(f"{ENCRYPTION_KEY} must be NO or YES in every app configuration alike; found {answers}")
+    return next(iter(answers.values()))
 
 
 def check_archived_export_compliance(info_plist: Path) -> str:
