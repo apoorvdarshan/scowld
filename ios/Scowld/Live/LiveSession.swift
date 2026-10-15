@@ -175,15 +175,25 @@ nonisolated final class LiveSession: @unchecked Sendable {
             if isReady, let outbox { return outbox }
             queued.append((message, audioBytes))
             queuedAudioBytes += audioBytes
-            // Keep only the latest few seconds of speech while waiting.
-            while queuedAudioBytes > Self.maximumQueuedAudioBytes,
-                  let index = queued.firstIndex(where: { $0.audioBytes > 0 }) {
-                queuedAudioBytes -= queued[index].audioBytes
-                queued.remove(at: index)
-            }
+            dropOldestQueuedAudio()
             return nil
         }
         outbox?.yield(message)
+    }
+
+    /// Keeps only the latest few seconds of speech while waiting; other messages
+    /// stay. Called with the lock held. (A closure here, inside `withLock`,
+    /// crashed the Swift 6.3 compiler.)
+    private func dropOldestQueuedAudio() {
+        var index = 0
+        while queuedAudioBytes > Self.maximumQueuedAudioBytes, index < queued.count {
+            if queued[index].audioBytes > 0 {
+                queuedAudioBytes -= queued[index].audioBytes
+                queued.remove(at: index)
+            } else {
+                index += 1
+            }
+        }
     }
 
     /// Gemini asks clients to move to a new connection before it closes one; the
