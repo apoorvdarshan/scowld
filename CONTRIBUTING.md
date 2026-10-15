@@ -17,7 +17,7 @@ This guide covers how to report issues, propose changes, and get the project run
 ios/             - iOS app (open ios/Scowld.xcodeproj in Xcode)
 ios/ScowldTests/ - Unit tests
 ios/ScowldUITests/ - UI tests
-web/             - Next.js marketing website
+web/             - scowld.xyz: static HTML/CSS/JS pages and a Cloudflare Worker
 assets/          - README assets
 store/           - App Store listing and release switches (see store/README.md)
 scripts/         - Test and release scripts
@@ -52,19 +52,21 @@ This runs the unit and UI tests on a simulator the script creates and deletes (o
 
 ### Website
 
+The pages in `web/public/` are plain HTML, CSS and JavaScript, edited directly; there is no framework or build step. When you add a page, add it to `web/public/sitemap.xml`.
+
 ```bash
 cd web
 npm install
-npm run dev   # http://localhost:3000
+npm run dev   # serves the site in the local Workers runtime at http://localhost:8787
 ```
 
 Before opening a website pull request:
 
 ```bash
-npm run lint -- --max-warnings=0   # ESLint, no warnings
-npm test                           # Vitest, including fast-check fuzz properties
-npm run build                      # production Next.js + OpenNext build
-npm run smoke                      # serves the build in the local Workers runtime and requests every sitemap page
+npm run lint    # ESLint and html-validate, no warnings
+npm test        # Vitest, including fast-check fuzz properties
+npm run build   # checks page metadata, internal links, JSON-LD and the sitemap
+npm run smoke   # serves the site in the local Workers runtime and requests every sitemap page
 ```
 
 The **Website** workflow runs the same steps on pull requests that touch `web/`.
@@ -81,7 +83,7 @@ The **Website** workflow runs the same steps on pull requests that touch `web/`.
 
 - **New functionality must come with automated tests** that exercise it: XCTest unit or UI tests in `ios/ScowldTests` / `ios/ScowldUITests` for the app, and Vitest tests in `web/tests` for the website.
 - **Bug fixes need a regression test** that fails without the fix, unless that is impractical; say why in the pull request.
-- Code that parses data from outside the app or site (provider responses, GitHub API data, bridge messages) should get property-based (fuzz) tests where practical, as `web/tests/star-history-fuzz.test.ts` does.
+- Code that parses data from outside the app or site (provider responses, GitHub API data, bridge messages) should get property-based (fuzz) tests where practical, as `web/tests/star-history-fuzz.test.js` does.
 - Pull requests are merged only when their checks pass: CodeQL and dependency review on every pull request, the iOS tests for app changes, and the Website workflow for `web/` changes.
 
 ## Releases (maintainers)

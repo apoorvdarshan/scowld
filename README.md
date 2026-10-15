@@ -52,7 +52,7 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 ios/             - iOS app (open ios/Scowld.xcodeproj in Xcode)
 ios/ScowldTests/ - Unit tests
 ios/ScowldUITests/ - UI tests
-web/             - Next.js marketing website
+web/             - scowld.xyz: static HTML/CSS/JS pages and a Cloudflare Worker
 assets/          - README assets
 store/           - App Store listing (source of truth) and release switches
 scripts/         - Test and release scripts
@@ -77,15 +77,16 @@ WKWebView (bundled Amica/Arbius frontend)
 ├── AudioContext         - TTS audio playback
 └── Native bridge        - JavaScript to Swift message passing
 
-Cloudflare Workers / Next.js website
-└── Marketing, blog, privacy, and terms pages
+Website (web/, Cloudflare Workers)
+├── public/              - Plain HTML, CSS and JavaScript: landing, blog, privacy, terms
+└── src/worker.js        - Serves /api/star-history.svg; everything else is static
 ```
 
 ## Requirements
 
 - iOS 17.0+
 - Xcode 26+ (CI uses Xcode 27)
-- Node.js 20.9+ for the website
+- Node.js 22+ for the website tools (the site itself has no build step)
 - No Cloudflare environment variables are required for app AI, speech, or billing services.
 - Users bring their own provider API keys inside the iOS app.
 
@@ -109,18 +110,12 @@ Users are responsible for provider accounts, API keys, provider billing, rate li
 
 ### Website
 
+The pages in `web/public/` are plain HTML, CSS and JavaScript, edited directly. There is no framework and nothing to compile. Serve them in the local Workers runtime:
+
 ```bash
 cd web
 npm install
-npm run dev
-```
-
-Next.js runs at `http://localhost:3000`.
-
-Build and preview in the Cloudflare Workers runtime:
-
-```bash
-npm run preview
+npm run dev   # http://localhost:8787
 ```
 
 Deploy with the configured Wrangler account:
@@ -143,11 +138,11 @@ Runs the unit (`ScowldTests`) and UI (`ScowldUITests`) tests on a fresh iPhone s
 cd web && npm ci && npm run lint && npm test && npm run build && npm run smoke
 ```
 
-Checks the website: ESLint, the Vitest suite (including [fast-check](https://fast-check.dev) fuzz properties for the star-history SVG renderer), the production OpenNext build, and a smoke test that serves the build in the local Workers runtime and requests every sitemap page. The **Website** workflow runs the same steps on pull requests that touch `web/`.
+Checks the website: ESLint and html-validate, the Vitest suite (including [fast-check](https://fast-check.dev) fuzz properties for the star-history SVG renderer), a site check (`npm run build`) for page metadata, internal links, JSON-LD and the sitemap, and a smoke test that serves the site in the local Workers runtime and requests every sitemap page. The **Website** workflow runs the same steps on pull requests that touch `web/`.
 
 ### Security checks
 
-Every pull request also runs [CodeQL](.github/workflows/codeql.yml) (TypeScript, Python, GitHub Actions, and Swift when `ios/` changes) and [dependency review](.github/workflows/dependency-review.yml). [OpenSSF Scorecard](.github/workflows/scorecard.yml) runs on `main` and weekly, Dependabot keeps pinned dependencies current, and releases attach a Sigstore-signed source archive. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+Every pull request also runs [CodeQL](.github/workflows/codeql.yml) (JavaScript, Python, GitHub Actions, and Swift when `ios/` changes) and [dependency review](.github/workflows/dependency-review.yml). [OpenSSF Scorecard](.github/workflows/scorecard.yml) runs on `main` and weekly, Dependabot keeps pinned dependencies current, and releases attach a Sigstore-signed source archive. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
 ### Releases
 

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>An AI Companion That Can See What You Show It | Scowld</title>
+<meta name="description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key.">
+<meta name="keywords" content="AI companion that can see, AI vision app, AI that responds to what you show it, iOS AI vision, camera AI companion">
+<meta name="author" content="Apoorv Darshan">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://www.scowld.xyz/blog/ai-companion-that-can-see">
+<meta name="theme-color" content="#eef3fb">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/icon-48.png" type="image/png" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/zen-maru-gothic-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/zen-maru-gothic-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Scowld">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://www.scowld.xyz/blog/ai-companion-that-can-see">
+<meta property="og:title" content="An AI Companion That Can See What You Show It">
+<meta property="og:description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key.">
+<meta property="og:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Scowld AI voice companion">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:creator" content="@apoorvdarshan">
+<meta name="twitter:title" content="An AI Companion That Can See What You Show It">
+<meta name="twitter:description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key.">
+<meta name="twitter:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
+<meta name="twitter:image:alt" content="Scowld AI voice companion for iOS">
+<meta property="article:published_time" content="2026-07-09">
+<meta property="article:modified_time" content="2026-07-09">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"An AI Companion That Can See What You Show It","description":"How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key.","datePublished":"2026-07-09","dateModified":"2026-07-09","url":"https://www.scowld.xyz/blog/ai-companion-that-can-see","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.scowld.xyz/blog/ai-companion-that-can-see"},"image":"https://www.scowld.xyz/og-image-scowld.jpg","keywords":"AI companion that can see, AI vision app, AI that responds to what you show it, iOS AI vision, camera AI companion","author":{"@type":"Person","name":"Apoorv Darshan","url":"https://x.com/apoorvdarshan"},"publisher":{"@type":"Organization","name":"Scowld","logo":{"@type":"ImageObject","url":"https://www.scowld.xyz/logo.png"}}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.scowld.xyz"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.scowld.xyz/blog"},{"@type":"ListItem","position":3,"name":"An AI Companion That Can See What You Show It","item":"https://www.scowld.xyz/blog/ai-companion-that-can-see"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Does Scowld record video?","acceptedAnswer":{"@type":"Answer","text":"No. Vision captures a single still frame only when you send a message with the camera enabled. There is no continuous recording, and images are not saved to your photo library."}},{"@type":"Question","name":"Which providers support vision in Scowld?","acceptedAnswer":{"@type":"Answer","text":"Image input works with vision-capable providers such as Google Gemini, OpenAI, and Anthropic Claude. You choose the provider and add your own key in Settings."}}]}</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="brand" href="/"><img src="/icon-48.png" alt="" width="34" height="34">Scowld</a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="/blog" aria-current="page">Blog</a>
+    <a class="nav-hide-small" href="https://github.com/apoorvdarshan/scowld">GitHub</a>
+    <a class="nav-app" href="https://apps.apple.com/in/app/scowld-ai-voice-companion/id6760672848">Get the app</a>
+  </nav>
+</header>
+<main id="main">
+<div class="page-head">
+  <p class="crumb"><a href="/blog">All posts</a></p>
+  <h1>An AI Companion That Can See What You Show It</h1>
+  <p class="dateline">Published <time datetime="2026-07-09">July 9, 2026</time>. 4 minute read.</p>
+</div>
+<article class="prose">
+<p>Text is a narrow way to talk to an AI. You describe a thing in words, the model imagines it, and something is always lost in translation. Scowld takes a different route: with the camera enabled, the companion can respond to what you physically show it — hold up an object, point at something on your desk, or just let it see the room.</p>
+<p>This vision feature is optional and off by default. When you turn it on, it turns a one-way chat into something closer to showing a friend what you're looking at.</p>
+
+<h2>How the camera vision works</h2>
+<p>When vision is enabled and your message would benefit from it, Scowld captures a single frame from the front camera and sends it to the AI provider you configured alongside your text. The provider's vision model reads the image and the companion replies out loud.</p>
+<ul>
+  <li>Frames are captured on device and only sent when you send a message with vision enabled.</li>
+  <li>Vision uses whichever AI provider you picked that supports images — for example Gemini, OpenAI, or Claude.</li>
+  <li>Images are never saved to your photo library by Scowld.</li>
+</ul>
+
+<h2>Privacy by design</h2>
+<p>Vision is opt-in and scoped to the moment you use it. There is no always-on recording, and Scowld does not run a server that sees your images — the frame goes straight from your device to the provider whose key you added.</p>
+<p>Scowld also does not use Apple's TrueDepth API or ARKit face tracking, and it does not collect, store, or share face geometry, depth maps, facial expressions, or any other face data. The camera is there to see the world you point it at, not to profile you.</p>
+
+<h2>When showing beats telling</h2>
+<ul>
+  <li>Ask what something is when you don't have the words for it.</li>
+  <li>Get a second opinion on an outfit, a label, or a screen.</li>
+  <li>Talk through something on your desk without typing a description.</li>
+</ul>
+
+<h2>How to try it</h2>
+<p>Download Scowld from the App Store, add an AI provider key that supports vision in Settings, then enable the camera from the composer and send a message. Because Scowld is bring-your-own-key, you only pay your provider for what you use — there's no subscription.</p>
+
+<h2>Frequently asked questions</h2>
+<div class="faq-entry">
+<p><strong>Does Scowld record video?</strong></p>
+<p>No. Vision captures a single still frame only when you send a message with the camera enabled. There is no continuous recording, and images are not saved to your photo library.</p>
+</div>
+<div class="faq-entry">
+<p><strong>Which providers support vision in Scowld?</strong></p>
+<p>Image input works with vision-capable providers such as Google Gemini, OpenAI, and Anthropic Claude. You choose the provider and add your own key in Settings.</p>
+</div>
+
+<h2>Try Scowld</h2>
+<p>Scowld is a free, open-source iOS AI voice companion. Download it on the <a href="https://apps.apple.com/app/id6760672848">App Store</a> or read more <a href="/">about Scowld</a>.</p>
+</article>
+</main>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-about">
+      <a class="brand" href="/"><img src="/icon-48.png" alt="" width="34" height="34">Scowld</a>
+      <p>A free, open-source AI voice companion for iPhone and iPad.</p>
+    </div>
+    <nav aria-labelledby="footer-site">
+      <h2 id="footer-site">Scowld</h2>
+      <ul>
+        <li><a href="https://apps.apple.com/in/app/scowld-ai-voice-companion/id6760672848">App Store</a></li>
+        <li><a href="/blog">Blog</a></li>
+        <li><a href="https://github.com/apoorvdarshan/scowld">Source code</a></li>
+        <li><a href="https://www.producthunt.com/products/scowld">Product Hunt</a></li>
+        <li><a href="/privacy">Privacy Policy</a></li>
+        <li><a href="/terms">Terms of Service</a></li>
+      </ul>
+    </nav>
+    <nav aria-labelledby="footer-contact">
+      <h2 id="footer-contact">Contact</h2>
+      <ul>
+        <li><a href="https://x.com/apoorvdarshan">X @apoorvdarshan</a></li>
+        <li><a href="https://www.instagram.com/apoorvcodes/">Instagram @apoorvcodes</a></li>
+        <li><a href="mailto:ad13dtu@gmail.com">Email</a></li>
+        <li><a href="https://ko-fi.com/apoorvdarshan">Support on Ko-fi</a></li>
+      </ul>
+    </nav>
+  </div>
+  <p class="footer-copy">© 2026 Apoorv Darshan. Scowld is open source under the MIT License.</p>
+</footer>
+</body>
+</html>

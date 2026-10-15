@@ -1,6 +1,6 @@
 name: Website
 
-# Lint, fuzz/unit tests, production build and a runtime smoke test for
+# Lint, fuzz/unit tests, the static site check and a runtime smoke test for
 # scowld.xyz (web/). Never deploys: Cloudflare Workers Builds deploys main.
 
 on:
@@ -60,23 +60,23 @@ jobs:
       run:
         working-directory: web
     env:
-      NEXT_TELEMETRY_DISABLED: 1
       WRANGLER_SEND_METRICS: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: web
           persist-credentials: false
-      # Caches the npm download cache only, never node_modules, build output or
-      # test results.
+      # Caches the npm download cache only, never node_modules or test results.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npm run lint -- --max-warnings=0
+      # ESLint and html-validate, both with no warnings allowed.
+      - run: npm run lint
       # Includes the fast-check fuzz properties in tests/.
       - run: npm test
+      # Checks page metadata, internal links, JSON-LD and the sitemap.
       - run: npm run build
       - run: npm run smoke

@@ -13,11 +13,13 @@
 #   pip             store-automation.yml installs requirements-store.txt with
 #                   --require-hashes on the release jobs' Python 3.13 and signs a
 #                   throwaway App Store Connect token with that PyJWT.
-#   npm (/web)      web.yml runs lint, the Vitest suite, the production build
-#                   and a smoke test that serves the build in the local Workers
-#                   runtime. Cloudflare Workers Builds builds scowld-web for
-#                   production from main commits that touch web/, so treat
-#                   merging as deploying to scowld.xyz.
+#   npm (/web)      web.yml runs lint, the Vitest suite, the site check and a
+#                   smoke test that serves the site in the local Workers
+#                   runtime. These are development tools only: the site is
+#                   plain HTML, CSS and JavaScript with no runtime npm
+#                   dependencies. Cloudflare Workers Builds deploys scowld-web
+#                   from main commits that touch web/, so treat merging as
+#                   deploying to scowld.xyz.
 #
 # Dependabot security updates are on in the repository settings, so the /web
 # fixes for open alerts arrive as one grouped PR (web-security below).
@@ -53,9 +55,10 @@ updates:
     commit-message:
       prefix: "Store"
 
-  # web/: the scowld.xyz website (Next.js on Cloudflare Workers via OpenNext).
-  # Minor and patch updates share one weekly PR; a major update gets a PR of its
-  # own, so a breaking major can never hold back a minor or patch fix.
+  # web/: the scowld.xyz website's development tools (Wrangler, ESLint,
+  # html-validate, Vitest). Minor and patch updates share one weekly PR; a major
+  # update gets a PR of its own, so a breaking major can never hold back a minor
+  # or patch fix.
   - package-ecosystem: npm
     directory: /web
     schedule:
@@ -63,16 +66,6 @@ updates:
       day: monday
       time: "06:00"
       timezone: Asia/Kolkata
-    # next 16.4 builds but every route returns 500 on @opennextjs/cloudflare
-    # 1.20.11 ("Unexpected loadManifest(/.next/server/preview-props.json)"), so
-    # next and eslint-config-next stay on 16.3.x patches. Drop this once an
-    # OpenNext release supports 16.4 and a local `npx opennextjs-cloudflare
-    # preview` serves the pages again.
-    ignore:
-      - dependency-name: next
-        update-types: ["version-update:semver-minor", "version-update:semver-major"]
-      - dependency-name: eslint-config-next
-        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     groups:
       web:
         patterns: ["*"]
