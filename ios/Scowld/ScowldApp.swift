@@ -8,6 +8,7 @@ struct ScowldApp: App {
     init() {
         // Debug simulator test switches only; a no-op in Release and on devices.
         ScowldTestEnvironment.prepare()
+        RevenueCatSetup.configure()
         let memoryStore = MemoryStore(inMemory: ScowldTestEnvironment.isHostingUnitTests)
         ScowldTestEnvironment.seedIfRequested(memoryStore)
         _memoryStore = State(initialValue: memoryStore)
@@ -99,6 +100,7 @@ struct AboutView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.requestReview) private var requestReview
     @Binding var updateState: AppUpdateState
+    @State private var tipJar = TipJarModel()
 
     private let websiteURL = URL(string: "https://scowld.xyz")!
     private let privacyURL = URL(string: "https://scowld.xyz/privacy")!
@@ -180,6 +182,18 @@ struct AboutView: View {
                         )
                     }
 
+                    aboutSection("Support Scowld", icon: "heart.circle.fill") {
+                        aboutInfoRow(
+                            title: "Leave a tip",
+                            subtitle: "One-time tips fund development. They don't unlock anything: Scowld stays free and open source.",
+                            systemImage: "hands.sparkles.fill"
+                        )
+                        ForEach(TipTier.all) { tier in
+                            tipRow(tier)
+                        }
+                    }
+                    .task { await tipJar.load() }
+
                     aboutSection("Contact", icon: "envelope") {
                         linkRow(
                             title: "Contact",
@@ -235,7 +249,50 @@ struct AboutView: View {
             .background(Color.black.ignoresSafeArea())
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
+            .alert(tipAlert?.title ?? "", isPresented: tipAlertShown) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(tipAlert?.message ?? "")
+            }
         }
+    }
+
+    // MARK: - Tips
+
+    private func tipRow(_ tier: TipTier) -> some View {
+        let product = tipJar.products[tier.productID]
+        let trailing: AboutRowTrailing
+        if tipJar.status == .purchasing(tier.productID) || (product == nil && tipJar.isLoading) {
+            trailing = .progress
+        } else if let product {
+            trailing = .text(product.localizedPrice)
+        } else {
+            // Offline, or the store hasn't propagated the products yet.
+            trailing = .text("Unavailable")
+        }
+        return Button {
+            Task { await tipJar.purchase(tier) }
+        } label: {
+            aboutRowContent(title: tier.name, systemImage: tier.systemImage, trailing: trailing)
+        }
+        .buttonStyle(.plain)
+        .disabled(product == nil || tipJar.isPurchasing)
+    }
+
+    private var tipAlert: (title: String, message: String)? {
+        switch tipJar.status {
+        case .thanks: ("Thank you!", "Your tip keeps Scowld free and open source.")
+        case .pending: ("Tip pending", "Your tip is waiting for approval. It goes through once it's approved.")
+        case .failed(let message): ("Tip didn't go through", message)
+        case .idle, .purchasing: nil
+        }
+    }
+
+    private var tipAlertShown: Binding<Bool> {
+        Binding(
+            get: { tipAlert != nil },
+            set: { if !$0 { tipJar.status = .idle } }
+        )
     }
 
     private var versionDisplay: String {
@@ -445,6 +502,10 @@ struct AboutView: View {
                     .foregroundStyle(.tertiary)
             case .progress:
                 ProgressView()
+            case .text(let value):
+                Text(value)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.secondary)
             case .none:
                 EmptyView()
             }
@@ -465,6 +526,7 @@ struct AboutView: View {
 private enum AboutRowTrailing {
     case chevron
     case progress
+    case text(String)
     case none
 }
 

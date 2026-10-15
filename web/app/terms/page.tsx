@@ -20,7 +20,7 @@ export default function Terms() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Terms of Service</h1>
-        <p className="legal__date">Last updated: July 10, 2026</p>
+        <p className="legal__date">Last updated: October 15, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -76,37 +76,47 @@ export default function Terms() {
           </div>
 
           <div>
-            <h2>6. AI Output Disclaimer</h2>
+            <h2>6. Optional Tips</h2>
+            <p>Scowld offers optional one-time tips as in-app purchases. Tips are voluntary contributions to the app&apos;s development:</p>
+            <ul>
+              <li>Tips do not unlock features, content, or services, and do not create any obligation for continued development, support, or availability.</li>
+              <li>Purchases are processed by Apple under the App Store&apos;s terms. Refund requests are handled by Apple at <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener noreferrer">reportaproblem.apple.com</a>.</li>
+              <li>Prices are shown in your local currency by the App Store before you confirm a tip.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h2>7. AI Output Disclaimer</h2>
             <p>AI-generated responses may be inaccurate, incomplete, biased, offensive, or inappropriate. Scowld is an entertainment and companion experience, not a professional advisor. You are responsible for evaluating any output before relying on it.</p>
           </div>
 
           <div>
-            <h2>7. Third-Party Services</h2>
+            <h2>8. Third-Party Services</h2>
             <p>The App integrates with third-party services not owned or controlled by the developer, including AI providers, speech-to-text providers, ElevenLabs, Apple services, and Cloudflare hosting. The developer is not responsible for third-party service content, policies, pricing, billing, availability, or data practices.</p>
           </div>
 
           <div>
-            <h2>8. Intellectual Property</h2>
+            <h2>9. Intellectual Property</h2>
             <p>The Scowld name, logo, branding, app design, and website are owned by Apoorv Darshan unless otherwise stated. The Scowld app source code is open source and released under the MIT License at <a href="https://github.com/apoorvdarshan/scowld">github.com/apoorvdarshan/scowld</a>. The bundled character/avatar frontend is based on Amica / Arbius AI components credited in the app.</p>
           </div>
 
           <div>
-            <h2>9. Termination</h2>
+            <h2>10. Termination</h2>
             <p>You may stop using Scowld at any time by deleting the app. We may restrict or disable access if we believe the service is being abused, used unlawfully, or used in violation of these terms.</p>
           </div>
 
           <div>
-            <h2>10. Limitation of Liability</h2>
+            <h2>11. Limitation of Liability</h2>
             <p>To the maximum extent permitted by law, the developer is not liable for indirect, incidental, special, consequential, or punitive damages, including loss of data, profits, use, or access, arising from your use of Scowld.</p>
           </div>
 
           <div>
-            <h2>11. Changes to Terms</h2>
+            <h2>12. Changes to Terms</h2>
             <p>We may update these terms from time to time. Updated terms will be posted on this page with a revised date. Continued use of Scowld after changes are posted means you accept the updated terms.</p>
           </div>
 
           <div>
-            <h2>12. Contact</h2>
+            <h2>13. Contact</h2>
             <p>For questions about these terms, contact:<br />
             <strong className="legal__strong-dim">Apoorv Darshan</strong> - <a href="mailto:ad13dtu@gmail.com">ad13dtu@gmail.com</a></p>
           </div>

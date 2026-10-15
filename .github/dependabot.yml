@@ -21,8 +21,8 @@
 #
 # Dependabot security updates are on in the repository settings, so the /web
 # fixes for open alerts arrive as one grouped PR (web-security below).
-# Scowld has no Swift packages yet (no Package.resolved); add a "swift" entry
-# for /ios once it does.
+#   swift (/ios)    ios-tests.yml builds and tests the app with the bumped
+#                   Package.resolved (RevenueCat, for the tip jar).
 
 version: 2
 updates:
@@ -82,3 +82,17 @@ updates:
         patterns: ["*"]
     commit-message:
       prefix: "Web"
+
+  # ios/: Swift packages resolved in the Xcode project (RevenueCat).
+  - package-ecosystem: swift
+    directory: /ios
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    groups:
+      swift:
+        patterns: ["*"]
+    commit-message:
+      prefix: "iOS"

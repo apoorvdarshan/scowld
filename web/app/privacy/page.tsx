@@ -20,7 +20,7 @@ export default function Privacy() {
       <div className="legal__container">
         <Link href="/" className="legal__back">&larr; Back to home</Link>
         <h1 className="legal__title">Privacy Policy</h1>
-        <p className="legal__date">Last updated: July 10, 2026</p>
+        <p className="legal__date">Last updated: October 15, 2026</p>
 
         <div className="legal__body">
           <div>
@@ -31,7 +31,7 @@ export default function Privacy() {
 
           <div>
             <h2>2. Account and App Analytics</h2>
-            <p>The iOS app does not require a Scowld account. The app does not include advertising SDKs or third-party app analytics SDKs.</p>
+            <p>The iOS app does not require a Scowld account. The app does not include advertising SDKs or third-party app analytics SDKs. It includes the RevenueCat SDK only to process optional tips (see Optional Tips below).</p>
             <ul>
               <li>We do not ask for your name, email, location, or account password in the iOS app.</li>
               <li>We do not sell personal data.</li>
@@ -99,13 +99,25 @@ export default function Privacy() {
               <li><strong className="legal__strong-dim">Speech-to-text providers</strong>, including native iOS speech, OpenAI, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
               <li><strong className="legal__strong-dim">ElevenLabs</strong> and <strong className="legal__strong-dim">OpenAI</strong> for text-to-speech.</li>
               <li><strong className="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, speech recognition, camera, microphone, and app distribution.</li>
+              <li><strong className="legal__strong-dim">RevenueCat</strong> to validate and record optional tips (in-app purchases).</li>
               <li><strong className="legal__strong-dim">Cloudflare</strong> for website deployment and delivery.</li>
             </ul>
             <p>These third-party services have their own privacy policies and terms. You are responsible for the provider accounts and API keys you configure.</p>
           </div>
 
           <div>
-            <h2>8. Provider API Keys</h2>
+            <h2>8. Optional Tips</h2>
+            <p>Scowld offers optional one-time tips in About &gt; Support Scowld. Tips do not unlock any features, and Scowld works the same without them.</p>
+            <ul>
+              <li>Payments are processed by Apple through the App Store. Scowld never receives your payment card details, name, or Apple Account email.</li>
+              <li>The app uses RevenueCat, a purchase management service, to validate and record tips. RevenueCat receives an anonymous identifier generated on your device, purchase details (the tip, price, currency, storefront, and date), basic device and app information (such as iOS version, app version, device model, and locale), and the IP address of its network requests.</li>
+              <li>This information is used to complete and verify purchases and to report tip revenue. Scowld does not link it to your identity or use it for advertising.</li>
+              <li>RevenueCat processes this data under its own <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a>.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h2>9. Provider API Keys</h2>
             <p>Scowld lets you enter your own provider API keys. Provider keys are stored in the iOS Keychain on your device and are not included in the App Store binary.</p>
             <ul>
               <li>Provider keys are not stored in UserDefaults or bundled files.</li>
@@ -115,7 +127,7 @@ export default function Privacy() {
           </div>
 
           <div>
-            <h2>9. Local Device Storage</h2>
+            <h2>10. Local Device Storage</h2>
             <p>Scowld stores app data locally on your device using Apple&apos;s local storage frameworks. This may include:</p>
             <ul>
               <li>Past chat messages and assistant replies.</li>
@@ -128,22 +140,22 @@ export default function Privacy() {
           </div>
 
           <div>
-            <h2>10. Voice Samples</h2>
+            <h2>11. Voice Samples</h2>
             <p>Voice sample playback in Settings uses bundled local preview audio files included with the app. Playing a bundled sample does not call ElevenLabs.</p>
           </div>
 
           <div>
-            <h2>11. Children&apos;s Privacy</h2>
+            <h2>12. Children&apos;s Privacy</h2>
             <p>Scowld is not directed at children under 13. We do not knowingly collect personal information from children under 13.</p>
           </div>
 
           <div>
-            <h2>12. Changes to This Policy</h2>
+            <h2>13. Changes to This Policy</h2>
             <p>We may update this privacy policy from time to time. Changes will be reflected on this page with an updated date.</p>
           </div>
 
           <div>
-            <h2>13. Contact</h2>
+            <h2>14. Contact</h2>
             <p>For privacy questions, contact:<br />
             <strong className="legal__strong-dim">Apoorv Darshan</strong> - <a href="mailto:ad13dtu@gmail.com">ad13dtu@gmail.com</a></p>
           </div>

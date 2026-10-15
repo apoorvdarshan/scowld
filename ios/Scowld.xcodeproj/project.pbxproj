@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5C0D1D000000000000000001 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 5C0D1D000000000000000003 /* RevenueCat */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		502BE054971DDA9C78B8F005 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -66,6 +70,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C0D1D000000000000000001 /* RevenueCat in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +140,7 @@
 			);
 			name = Scowld;
 			packageProductDependencies = (
+				5C0D1D000000000000000003 /* RevenueCat */,
 			);
 			productName = Scowld;
 			productReference = BA82249B2F6521F9002E853D /* Scowld.app */;
@@ -217,6 +223,7 @@
 			mainGroup = BA8224922F6521F9002E853D;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				5C0D1D000000000000000002 /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BA82249C2F6521F9002E853D /* Products */;
@@ -609,6 +616,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5C0D1D000000000000000002 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5C0D1D000000000000000003 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5C0D1D000000000000000002 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BA8224932F6521F9002E853D /* Project object */;
 }
