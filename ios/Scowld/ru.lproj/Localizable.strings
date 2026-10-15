@@ -37,7 +37,6 @@
 "System" = "Система";
 "Language" = "Язык";
 "Auto" = "Авто";
-"iPhone Language (%@)" = "Язык iPhone (%@)";
 "Conversation" = "Беседа";
 "Show AI captions" = "Показывать субтитры ИИ";
 "Uses this iPhone's current language when supported: %@." = "Использует текущий язык этого iPhone, если он поддерживается: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "Она отвечает на языке: %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Языка этого iPhone нет в списке, поэтому она отвечает на языке, на котором вы говорите.";
 "Allow camera access in iPhone Settings so she can see." = "Разрешите доступ к камере в настройках iPhone, чтобы она могла видеть.";
+"iPhone Language" = "Язык iPhone";
+"Provider" = "Провайдер";
+"Model" = "Модель";
+"Opens Settings." = "Открывает Настройки.";

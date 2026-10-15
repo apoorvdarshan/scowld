@@ -57,6 +57,18 @@ enum ScowldTestEnvironment {
         !isUITesting
     }
 
+    /// Debug simulator only: the tab to open at launch, for screenshots
+    /// (`--preview-tab chat|chats|settings|about`).
+    static var previewTab: String? {
+        #if DEBUG && targetEnvironment(simulator)
+        let arguments = CommandLine.arguments
+        guard let index = arguments.firstIndex(of: "--preview-tab"), index + 1 < arguments.count else { return nil }
+        return arguments[index + 1]
+        #else
+        return nil
+        #endif
+    }
+
     /// Applies the launch switches once, before any stored state is read.
     static func prepare() {
         _ = preparation

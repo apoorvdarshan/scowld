@@ -37,7 +37,6 @@
 "System" = "System";
 "Language" = "Språk";
 "Auto" = "Automatiskt";
-"iPhone Language (%@)" = "iPhone-språk (%@)";
 "Conversation" = "Konversation";
 "Show AI captions" = "Visa AI-undertexter";
 "Uses this iPhone's current language when supported: %@." = "Använder den här iPhones aktuella språk när det stöds: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "Hon svarar på %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Den här iPhonens språk finns inte i listan, så hon svarar på det språk du talar.";
 "Allow camera access in iPhone Settings so she can see." = "Tillåt kameraåtkomst i iPhone-inställningarna så att hon kan se.";
+"iPhone Language" = "iPhone-språk";
+"Provider" = "Leverantör";
+"Model" = "Modell";
+"Opens Settings." = "Öppnar Inställningar.";

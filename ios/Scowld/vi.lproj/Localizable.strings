@@ -37,7 +37,6 @@
 "System" = "Hệ thống";
 "Language" = "Ngôn ngữ";
 "Auto" = "Tự động";
-"iPhone Language (%@)" = "Ngôn ngữ iPhone (%@)";
 "Conversation" = "Cuộc hội thoại";
 "Show AI captions" = "Hiển thị phụ đề AI";
 "Uses this iPhone's current language when supported: %@." = "Sử dụng ngôn ngữ hiện tại của iPhone này khi được hỗ trợ: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "Cô ấy trả lời bằng %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Ngôn ngữ của iPhone này không có trong danh sách, nên cô ấy trả lời bằng ngôn ngữ bạn nói.";
 "Allow camera access in iPhone Settings so she can see." = "Cho phép truy cập camera trong Cài đặt iPhone để cô ấy có thể nhìn thấy.";
+"iPhone Language" = "Ngôn ngữ iPhone";
+"Provider" = "Nhà cung cấp";
+"Model" = "Mô hình";
+"Opens Settings." = "Mở Cài đặt.";

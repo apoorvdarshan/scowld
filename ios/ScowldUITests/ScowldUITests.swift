@@ -175,6 +175,28 @@ final class ScowldUITests: XCTestCase {
     }
 
     @MainActor
+    func testWithoutAKeyTheChatPointsToSettings() throws {
+        let app = launchApp()
+        let hint = app.buttons["chat.status"]
+        XCTAssertTrue(hint.waitForExistence(timeout: 20), "A missing key is pointed out before she is tapped")
+        XCTAssertEqual(hint.label, "Add your Gemini API key in Settings to talk to Bella.")
+        hint.tap()
+
+        let key = app.secureTextFields["settings.ai.apiKey"]
+        reveal(key, in: app)
+        key.tap()
+        key.typeText("ui-test-key\n")
+        let save = app.buttons["settings.ai.save"]
+        reveal(save, in: app)
+        save.tap()
+        waitUntil(app.staticTexts["settings.ai.status"], "label == %@", "Saved")
+
+        openTab("Chat", in: app)
+        XCTAssertTrue(app.buttons["chat.live"].waitForExistence(timeout: 5))
+        waitUntil(hint, "exists == false")
+    }
+
+    @MainActor
     func testHomeTipsExplainTheWakePhrase() throws {
         let app = launchApp()
         let tips = app.buttons["chat.tips"]
@@ -227,21 +249,22 @@ final class ScowldUITests: XCTestCase {
 
         let provider = app.buttons["settings.ai.provider"]
         reveal(provider, in: app)
-        // Menu pickers expose "<title>, <selection>" as their label.
-        XCTAssertEqual(provider.label, "Provider, Google Gemini Live", "Gemini is the default")
+        // Each choice menu is labeled with its title and reports the choice as its value.
+        XCTAssertEqual(provider.label, "Provider")
+        XCTAssertEqual(provider.value as? String, "Google Gemini Live", "Gemini is the default")
         XCTAssertFalse(app.staticTexts["Speech-to-Text"].exists, "There is no separate speech-to-text step")
         XCTAssertFalse(app.staticTexts["Text-to-Speech"].exists, "There is no separate text-to-speech step")
 
         choose("OpenAI Realtime", from: provider, in: app)
-        waitUntil(provider, "label == %@", "Provider, OpenAI Realtime")
+        waitUntil(provider, "value == %@", "OpenAI Realtime")
         let model = app.buttons["settings.ai.model"]
-        waitUntil(model, "label == %@", "Model, gpt-realtime-2.1-mini")
+        waitUntil(model, "value == %@", "gpt-realtime-2.1-mini")
         choose("gpt-realtime-2.1", from: model, in: app)
-        waitUntil(model, "label == %@", "Model, gpt-realtime-2.1")
+        waitUntil(model, "value == %@", "gpt-realtime-2.1")
         let voice = app.buttons["settings.ai.voice"]
-        waitUntil(voice, "label == %@", "Voice, Marin - Natural, warm")
+        waitUntil(voice, "value == %@", "Marin - Natural, warm")
         choose("Cedar - Natural, lower", from: voice, in: app)
-        waitUntil(voice, "label == %@", "Voice, Cedar - Natural, lower")
+        waitUntil(voice, "value == %@", "Cedar - Natural, lower")
         XCTAssertTrue(button(startingWith: "Get your OpenAI API key", in: app).exists)
         let preview = app.buttons["settings.ai.voicePreview"]
         XCTAssertFalse(preview.isEnabled, "A preview needs a key")
@@ -262,9 +285,9 @@ final class ScowldUITests: XCTestCase {
         openTab("Settings", in: app)
         let restoredProvider = app.buttons["settings.ai.provider"]
         reveal(restoredProvider, in: app)
-        XCTAssertEqual(restoredProvider.label, "Provider, OpenAI Realtime")
-        XCTAssertEqual(app.buttons["settings.ai.model"].label, "Model, gpt-realtime-2.1")
-        XCTAssertEqual(app.buttons["settings.ai.voice"].label, "Voice, Cedar - Natural, lower")
+        XCTAssertEqual(restoredProvider.value as? String, "OpenAI Realtime")
+        XCTAssertEqual(app.buttons["settings.ai.model"].value as? String, "gpt-realtime-2.1")
+        XCTAssertEqual(app.buttons["settings.ai.voice"].value as? String, "Cedar - Natural, lower")
         XCTAssertEqual(app.staticTexts["settings.ai.status"].label, "Key saved in Keychain")
     }
 
@@ -275,9 +298,9 @@ final class ScowldUITests: XCTestCase {
         let provider = app.buttons["settings.ai.provider"]
         reveal(provider, in: app)
         choose("xAI Grok Voice", from: provider, in: app)
-        waitUntil(provider, "label == %@", "Provider, xAI Grok Voice")
-        XCTAssertEqual(app.buttons["settings.ai.model"].label, "Model, grok-voice-latest")
-        XCTAssertEqual(app.buttons["settings.ai.voice"].label, "Voice, Ara - Warm, friendly")
+        waitUntil(provider, "value == %@", "xAI Grok Voice")
+        XCTAssertEqual(app.buttons["settings.ai.model"].value as? String, "grok-voice-latest")
+        XCTAssertEqual(app.buttons["settings.ai.voice"].value as? String, "Ara - Warm, friendly")
         XCTAssertTrue(app.staticTexts["Grok Voice can't see the camera. Choose Gemini or OpenAI for vision."].exists)
     }
 

@@ -37,7 +37,6 @@
 "System" = "Sistema";
 "Language" = "Wika";
 "Auto" = "Auto";
-"iPhone Language (%@)" = "Wika ng iPhone (%@)";
 "Conversation" = "Pag-uusap";
 "Show AI captions" = "Ipakita ang mga AI caption";
 "Uses this iPhone's current language when supported: %@." = "Ginagamit ang kasalukuyang wika ng iPhone na ito kapag suportado: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "Sumasagot siya sa %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Wala sa listahan ang wika ng iPhone na ito, kaya sumasagot siya sa wikang ginagamit mo.";
 "Allow camera access in iPhone Settings so she can see." = "Payagan ang access sa camera sa Settings ng iPhone para makakita siya.";
+"iPhone Language" = "Wika ng iPhone";
+"Provider" = "Provider";
+"Model" = "Model";
+"Opens Settings." = "Binubuksan ang Settings.";

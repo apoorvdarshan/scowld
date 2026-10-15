@@ -37,7 +37,6 @@
 "System" = "システム";
 "Language" = "言語";
 "Auto" = "自動";
-"iPhone Language (%@)" = "iPhoneの言語（%@）";
 "Conversation" = "会話";
 "Show AI captions" = "AIキャプションを表示";
 "Uses this iPhone's current language when supported: %@." = "対応している場合、このiPhoneの現在の言語を使用します: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "%@で答えます。";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "このiPhoneの言語はリストにないため、あなたが話す言語で答えます。";
 "Allow camera access in iPhone Settings so she can see." = "彼女が見えるように、iPhoneの設定でカメラへのアクセスを許可してください。";
+"iPhone Language" = "iPhoneの言語";
+"Provider" = "プロバイダ";
+"Model" = "モデル";
+"Opens Settings." = "設定を開きます。";

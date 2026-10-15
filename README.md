@@ -34,14 +34,13 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 - **Animated companion** - VRM character rendering through the bundled Amica/Arbius frontend, with idle animations and lip sync driven by the live audio.
 - **Live speech-to-speech** - Each conversation runs over one live connection to the provider you pick. The provider hears the microphone directly and answers in its own voice; there is no separate speech-to-text or text-to-speech step.
 - **Interrupt anytime** - Start speaking while she talks and she stops to listen (barge-in).
-- **Typing** - Typed messages go into the live session, and she answers out loud.
 - **Hands-free wake mode** - When enabled, the app uses Apple's on-device speech recognition only to listen for Bella or the saved custom companion name, then starts a live session. Nothing is sent to a provider before the session starts.
-- **Home tips** - A top-right info button explains the wake phrases and composer controls.
+- **Home tips** - A top-right info button explains the wake phrases and composer controls. Until a key is saved, the Chat tab says so and links to Settings.
 - **BYOK live voice providers** - Google Gemini Live, OpenAI Realtime, and xAI Grok Voice, each with its own models and built-in voices (see below).
 - **Vision** - Optional front-camera context with Gemini or OpenAI. Off by default; frames are sent only while the eye is on.
 - **Captions** - Optional captions show what she says while she talks.
 - **Past chats** - Each turn's transcript is saved on the device, and the active chat is used as context for the next conversation.
-- **Ends by itself** - A live conversation ends after 90 seconds of silence (30 seconds for a typed-only one), and when you leave the Chat tab or the app goes to the background.
+- **Ends by itself** - A live conversation ends after 90 seconds of silence and when you leave the Chat tab or the app goes to the background.
 - **Character settings** - Avatar, custom name, and system prompt controls.
 - **Reply language** - Defaults to the iPhone language, with supported language overrides.
 - **Local key storage** - Provider API keys are stored in iOS Keychain and sent only to their provider; provider, model, and voice choices are stored in local preferences.
@@ -53,7 +52,7 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 | Provider | Models (default first) | Voices | Camera |
 |----------|------------------------|--------|--------|
 | Google Gemini Live | `gemini-3.8-live`, `gemini-3.8-live-extended-thinking`, `gemini-3.1-flash-live-preview` | 30 built-in voices, Leda by default | A frame about every 2 seconds while the eye is on |
-| OpenAI Realtime | `gpt-realtime-2.1-mini`, `gpt-realtime-2.1` | 10 voices, including Marin (default) and Cedar | The latest frame with each thing you say or type |
+| OpenAI Realtime | `gpt-realtime-2.1-mini`, `gpt-realtime-2.1` | 10 voices, including Marin (default) and Cedar | The latest frame with each thing you say |
 | xAI Grok Voice | `grok-voice-latest`, `grok-voice-3.0` | Ara (default), Eve, Sal, Rex, Leo | Not supported |
 
 With OpenAI Realtime, what you say is transcribed inside the session (`whisper-1`) so it can be saved to the chat. Users bring their own key for the provider they pick; Scowld runs no server.
@@ -77,7 +76,7 @@ APPSTORE.md      - App Store Connect reference copy
 Native iOS (Swift/SwiftUI)
 ├── HomeView              - Main chat UI, composer, and WKWebView bridge
 ├── HomeTipsSheet         - In-app guide for wake phrases and composer controls
-├── LiveConversation      - Turns, barge-in, typing, camera frames, and idle timeouts
+├── LiveConversation      - Turns, barge-in, camera frames, and idle timeouts
 ├── LiveSession           - The live WebSocket: message order, queued input, Gemini session resumption
 ├── LiveWire              - Gemini Live, OpenAI Realtime, and xAI Grok Voice protocols
 ├── LiveAudioEngine       - Microphone with voice processing, playback, lip-sync levels
@@ -174,7 +173,7 @@ See [web/.env.example](web/.env.example) for defaults.
 - Provider API keys are entered by the user, stored in iOS Keychain, and sent only to that provider.
 - Provider, model, and voice choices are stored locally in app preferences.
 - Chat history (each turn's transcript) and selected chat context are stored locally on device.
-- While a live conversation is active, microphone audio is streamed continuously to the selected provider, together with typed messages and the selected chat context. The provider answers in its own voice and produces the transcripts. Scowld runs no server in between.
+- While a live conversation is active, microphone audio is streamed continuously to the selected provider, together with the selected chat context. The provider answers in its own voice and produces the transcripts. Scowld runs no server in between.
 - Hands-free wake detection uses Apple's on-device speech recognition only to listen for the companion's name while the app is open and idle; nothing is sent to a provider before the live session starts.
 - Camera access is optional and off by default. Frames go to the selected provider only while the eye is on (not supported with xAI), and Scowld doesn't record or store camera data.
 - Providers process what they receive under their own terms and privacy policies.

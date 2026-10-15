@@ -163,7 +163,7 @@ nonisolated struct LiveVoice: Identifiable, Hashable, Sendable {
 nonisolated enum LiveCameraSupport: Sendable {
     /// A frame every couple of seconds while the camera is on (Gemini video input).
     case continuous
-    /// The latest frame with each thing the user says or types.
+    /// The latest frame with each thing the user says.
     case perTurn
     /// The provider takes no images.
     case unsupported

@@ -37,7 +37,6 @@
 "System" = "Sistem";
 "Language" = "Dil";
 "Auto" = "Otomatik";
-"iPhone Language (%@)" = "iPhone Dili (%@)";
 "Conversation" = "Konuşma";
 "Show AI captions" = "Yapay zeka altyazılarını göster";
 "Uses this iPhone's current language when supported: %@." = "Desteklendiğinde bu iPhone'un geçerli dilini kullanır: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "%@ dilinde yanıt verir.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Bu iPhone’un dili listede yok, bu yüzden konuştuğunuz dilde yanıt verir.";
 "Allow camera access in iPhone Settings so she can see." = "Görebilmesi için iPhone Ayarları’nda kamera erişimine izin verin.";
+"iPhone Language" = "iPhone Dili";
+"Provider" = "Sağlayıcı";
+"Model" = "Model";
+"Opens Settings." = "Ayarlar’ı açar.";

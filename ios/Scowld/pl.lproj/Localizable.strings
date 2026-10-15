@@ -37,7 +37,6 @@
 "System" = "System";
 "Language" = "Język";
 "Auto" = "Automatycznie";
-"iPhone Language (%@)" = "Język iPhone'a (%@)";
 "Conversation" = "Konwersacja";
 "Show AI captions" = "Pokaż napisy AI";
 "Uses this iPhone's current language when supported: %@." = "Używa bieżącego języka tego iPhone'a, gdy jest obsługiwany: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "Odpowiada w języku: %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Języka tego iPhone’a nie ma na liście, więc odpowiada w języku, którym mówisz.";
 "Allow camera access in iPhone Settings so she can see." = "Zezwól na dostęp do aparatu w Ustawieniach iPhone’a, aby mogła widzieć.";
+"iPhone Language" = "Język iPhone’a";
+"Provider" = "Dostawca";
+"Model" = "Model";
+"Opens Settings." = "Otwiera Ustawienia.";

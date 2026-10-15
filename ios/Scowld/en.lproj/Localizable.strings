@@ -37,7 +37,6 @@
 "System" = "System";
 "Language" = "Language";
 "Auto" = "Auto";
-"iPhone Language (%@)" = "iPhone Language (%@)";
 "Conversation" = "Conversation";
 "Show AI captions" = "Show AI captions";
 "Uses this iPhone's current language when supported: %@." = "Uses this iPhone's current language when supported: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "She answers in %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "This iPhone language isn't in the list, so she answers in the language you speak.";
 "Allow camera access in iPhone Settings so she can see." = "Allow camera access in iPhone Settings so she can see.";
+"iPhone Language" = "iPhone Language";
+"Provider" = "Provider";
+"Model" = "Model";
+"Opens Settings." = "Opens Settings.";

@@ -41,10 +41,10 @@ cancelled; `main` and release runs never are.
   Voice: connection request, session setup, audio, text and image input, server
   events), the live session (setup before input, message order, only the latest
   seconds of speech wait for the connection, Gemini's resumption handle, a
-  dropped connection reported once, closing, truncate and cancel), live
+  dropped connection reported once, closing, truncate), live
   conversations over a scripted socket and fake audio (nothing connects without
   a key, microphone problems, replies with lip sync and captions saved after
-  the user's words, barge-in on OpenAI and Gemini, typed conversations, camera
+  the user's words, barge-in on OpenAI and Gemini, camera
   frames per provider and none while the camera is off or with xAI, provider
   failures, idle and connection timeouts, audio interruptions), the Keychain
   wrapper, the App Store update check, the loopback server that serves the
@@ -56,8 +56,9 @@ cancelled; `main` and release runs never are.
   opened).
 - **UI tests** (`ios/ScowldUITests`): first-launch onboarding (policy acceptance
   gates the app; shown once), the four tabs, the companion screen's composer
-  (live button, camera off until turned on, send enabled only for text,
-  hands-free toggle remembered), home tips, the character name changing the
+  (live button only, with no text field; camera off until turned on;
+  hands-free toggle remembered), the missing-key hint that opens Settings and
+  goes away once a key is saved, home tips, the character name changing the
   wake phrase, saving a live provider, model, voice and key (with no separate
   speech-to-text or text-to-speech settings), the note that Grok Voice can't
   see the camera, the captions preference, creating/renaming/switching/deleting
@@ -85,6 +86,10 @@ a black placeholder behind the same native composer. CI simulators have no GPU,
 so they render it in software: with it loaded, every UI query took 10–60 seconds
 and an app relaunch timed out. Its native bridge is covered by unit tests
 instead.
+
+For screenshots, a Debug simulator build also accepts `--preview-tab
+chat|chats|settings|about`, which opens that tab at launch with the companion
+loaded and without prompting for microphone or speech-recognition permission.
 
 Not covered: the companion page's own rendering and JavaScript, real provider
 accounts, live connections and replies, microphone, speaker and camera

@@ -37,7 +37,6 @@
 "System" = "系统";
 "Language" = "语言";
 "Auto" = "自动";
-"iPhone Language (%@)" = "iPhone 语言（%@）";
 "Conversation" = "对话";
 "Show AI captions" = "显示 AI 字幕";
 "Uses this iPhone's current language when supported: %@." = "支持时使用此 iPhone 的当前语言：%@。";
@@ -87,3 +86,7 @@
 "She answers in %@." = "她用%@回答。";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "这台 iPhone 的语言不在列表中，因此她会用你说的语言回答。";
 "Allow camera access in iPhone Settings so she can see." = "请在 iPhone“设置”中允许访问相机，这样她才能看见。";
+"iPhone Language" = "iPhone 语言";
+"Provider" = "提供商";
+"Model" = "模型";
+"Opens Settings." = "打开设置。";

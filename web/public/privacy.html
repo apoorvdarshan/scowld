@@ -71,12 +71,11 @@
 <p>When you start a live conversation, Scowld opens one live connection from your device to the provider you selected. While the conversation is active, Scowld sends the following directly to that provider:</p>
 <ul>
 <li>Your microphone audio, streamed continuously for as long as the conversation is active, not only while you speak.</li>
-<li>Messages you type during the conversation.</li>
 <li>The companion&apos;s instructions (her name, the system prompt, and the reply language) and recent messages from the active chat as context.</li>
 <li>Camera frames while the camera is on, with Google Gemini Live or OpenAI Realtime (see Camera Access).</li>
 </ul>
 <p>The provider answers with speech in the voice you picked and with transcripts of what you said and what it said. Scowld plays her voice, shows captions if you turn them on, and saves each turn&apos;s transcript in the active chat on your device. With OpenAI Realtime, what you say is transcribed inside the same session (with OpenAI&apos;s whisper-1 model) so it can be saved to the chat. Providers process this data under their own terms and privacy policies.</p>
-<p>A live conversation ends by itself after 90 seconds of silence (30 seconds for a conversation where you only type), and when you leave the Chat tab or the app goes to the background. Ending a conversation closes the connection and stops sending microphone audio to the provider.</p>
+<p>A live conversation ends by itself after 90 seconds of silence, and when you leave the Chat tab or the app goes to the background. Ending a conversation closes the connection and stops sending microphone audio to the provider.</p>
 <p>Scowld does not operate a hosted AI or speech proxy for app conversations. Hands-free wake detection runs on device, and nothing is sent to a provider before a live conversation starts.</p>
 <p>Scowld 2.0.1 and earlier work differently: voice input is transcribed by native iOS speech recognition or the cloud speech-to-text provider you choose, the text and selected conversation context are sent to the AI chat provider you choose, and replies are spoken by ElevenLabs or OpenAI text-to-speech. In those versions, a camera frame is sent only with a message you send while the camera is on, and voice samples in Settings play from files bundled with the app without calling ElevenLabs. The next Scowld update replaces this with the live conversations described above.</p>
 </section>
@@ -86,7 +85,7 @@
 <p>Scowld requests camera access for the optional vision feature. The camera is off until you turn it on. While it is on during a live conversation:</p>
 <ul>
 <li>With Google Gemini Live, Scowld sends a camera frame about every 2 seconds.</li>
-<li>With OpenAI Realtime, Scowld sends the latest frame with each thing you say or type.</li>
+<li>With OpenAI Realtime, Scowld sends the latest frame with each thing you say.</li>
 <li>xAI Grok Voice does not support the camera, so no frames are sent.</li>
 <li>Frames are captured on device and sent only to the selected provider. Scowld does not record or store camera data, and does not save images to your photo library.</li>
 <li>Camera access can be disabled from the app or iOS settings.</li>
@@ -114,7 +113,6 @@
 <li>While a live conversation is active, microphone audio is streamed continuously to the selected provider, which hears it directly and produces the transcripts.</li>
 <li>When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device, with Apple&apos;s on-device speech recognition, only for Bella or your saved custom companion name. This audio is not sent to any provider.</li>
 <li>After the wake name is detected, Scowld starts a live conversation, and from then on microphone audio is streamed to the selected provider.</li>
-<li>The microphone is not needed for typed messages: typing without an active conversation starts one that does not use the microphone.</li>
 <li>A live conversation can be ended with the stop button, hands-free mode can be turned off in the composer, and microphone permission can be revoked from iOS settings.</li>
 <li>In Scowld 2.0.1 and earlier, recorded voice input is transcribed with native iOS speech recognition or the cloud speech-to-text provider you configure, and the recognized text is sent to the selected AI provider.</li>
 </ul>
@@ -124,7 +122,7 @@
 <h2>7. Third-Party Providers</h2>
 <p>Scowld can integrate with third-party providers you configure. These providers may process data needed to provide app features:</p>
 <ul>
-<li><strong class="legal__strong-dim">Live voice providers</strong>: Google (Gemini Live), OpenAI (Realtime), and xAI (Grok Voice). The provider you select receives your microphone audio, typed messages, conversation context, and camera frames as described above.</li>
+<li><strong class="legal__strong-dim">Live voice providers</strong>: Google (Gemini Live), OpenAI (Realtime), and xAI (Grok Voice). The provider you select receives your microphone audio, conversation context, and camera frames as described above.</li>
 <li><strong class="legal__strong-dim">Earlier versions</strong>: Scowld 2.0.1 and earlier send data to the separate AI chat, speech-to-text, and text-to-speech providers you configure in those versions.</li>
 <li><strong class="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, on-device speech recognition, camera, microphone, and app distribution.</li>
 <li><strong class="legal__strong-dim">RevenueCat</strong> to validate and record optional tips (in-app purchases).</li>
@@ -159,7 +157,7 @@
 <h2>10. Local Device Storage</h2>
 <p>Scowld stores app data locally on your device using Apple&apos;s local storage frameworks. This may include:</p>
 <ul>
-<li>Past chats: the text transcript of each turn, what you said or typed and what she said.</li>
+<li>Past chats: the text transcript of each turn, what you said (or typed, in Scowld 2.0.1 and earlier) and what she said.</li>
 <li>The selected active chat.</li>
 <li>Character settings such as avatar, custom name, and system prompt.</li>
 <li>Voice, language, caption, and hands-free wake preferences.</li>

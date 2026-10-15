@@ -42,24 +42,18 @@ struct SettingsView: View {
                         icon: "bubble.left.and.bubble.right",
                         footer: "Language sets the language she answers in. Captions show what she says while she talks."
                     ) {
-                        settingRow {
+                        menuRow("Language", value: selectedLanguageName, identifier: "settings.language") {
                             Picker("Language", selection: $selectedLanguageID) {
-                                Text(
-                                    String.localizedStringWithFormat(
-                                        NSLocalizedString("iPhone Language (%@)", comment: "Device language picker option"),
-                                        HostedServiceConfig.currentDeviceLanguageName()
-                                    )
-                                )
+                                Text("iPhone Language")
                                     .tag(HostedServiceConfig.deviceLanguageID)
                                 ForEach(ScowldLanguageLibrary.options) { language in
                                     Text(LocalizedStringKey(language.name)).tag(language.code)
                                 }
                             }
-                            .pickerStyle(.menu)
-                            .onChange(of: selectedLanguageID) {
-                                guard !isLoadingSettings else { return }
-                                saveLanguageSettings()
-                            }
+                        }
+                        .onChange(of: selectedLanguageID) {
+                            guard !isLoadingSettings else { return }
+                            saveLanguageSettings()
                         }
 
                         if let selectedLanguageDescription {
@@ -87,22 +81,24 @@ struct SettingsView: View {
                         icon: "person.fill",
                         footer: "Avatar saves immediately. Use Save Character after changing the custom name or system prompt."
                     ) {
-                        settingRow {
+                        menuRow("Avatar", value: selectedAvatarName, identifier: "settings.avatar") {
                             Picker("Avatar", selection: $selectedAvatar) {
                                 ForEach(CharacterPack.defaultPacks) { pack in
                                     Text(pack.displayName).tag(pack.fileName)
                                 }
                             }
-                            .pickerStyle(.menu)
-                            .onChange(of: selectedAvatar) {
-                                guard !isLoadingSettings else { return }
-                                saveAvatarSettings()
-                            }
+                        }
+                        .onChange(of: selectedAvatar) {
+                            guard !isLoadingSettings else { return }
+                            saveAvatarSettings()
                         }
 
                         settingRow {
+                            Text("Name")
+                                .layoutPriority(1)
                             HStack(spacing: 8) {
                                 TextField("Bella", text: $characterName)
+                                    .multilineTextAlignment(.trailing)
                                     .autocorrectionDisabled()
                                     .accessibilityIdentifier("settings.character.name")
                                     .onChange(of: characterName) { markCharacterChanged() }
@@ -200,18 +196,16 @@ struct SettingsView: View {
             icon: "waveform.and.mic",
             footer: "Scowld streams your voice to the provider you choose and plays her voice back. Your API key stays in the iOS Keychain and is sent only to that provider."
         ) {
-            settingRow {
+            menuRow("Provider", value: selectedAIProvider.displayName, identifier: "settings.ai.provider") {
                 Picker("Provider", selection: $selectedAIProviderID) {
                     ForEach(AIProvider.allCases, id: \.rawValue) { provider in
                         Text(provider.displayName).tag(provider.rawValue)
                     }
                 }
-                .pickerStyle(.menu)
-                .accessibilityIdentifier("settings.ai.provider")
-                .onChange(of: selectedAIProviderID) {
-                    guard !isLoadingSettings else { return }
-                    loadAIProviderSettings()
-                }
+            }
+            .onChange(of: selectedAIProviderID) {
+                guard !isLoadingSettings else { return }
+                loadAIProviderSettings()
             }
 
             modelSelectionRows(
@@ -222,18 +216,20 @@ struct SettingsView: View {
             )
 
             settingRow {
-                Picker("Voice", selection: $selectedVoice) {
-                    ForEach(selectedAIProvider.voices) { voice in
-                        Text("\(voice.name) - \(voice.style)").tag(voice.id)
+                Text("Voice")
+                    .layoutPriority(1)
+                Spacer(minLength: 8)
+                choiceMenu("Voice", value: selectedVoiceTitle, identifier: "settings.ai.voice") {
+                    Picker("Voice", selection: $selectedVoice) {
+                        ForEach(selectedAIProvider.voices) { voice in
+                            Text(Self.voiceTitle(voice)).tag(voice.id)
+                        }
                     }
                 }
-                .pickerStyle(.menu)
-                .accessibilityIdentifier("settings.ai.voice")
-                .onChange(of: selectedVoice) {
-                    voicePreviewer.stop()
-                }
-
                 voicePreviewButton
+            }
+            .onChange(of: selectedVoice) {
+                voicePreviewer.stop()
             }
 
             if case .failed(let message) = voicePreviewer.state {
@@ -434,7 +430,11 @@ struct SettingsView: View {
         isCustom: Binding<Bool>,
         identifier: String
     ) -> some View {
-        settingRow {
+        menuRow(
+            "Model",
+            value: isCustom.wrappedValue ? NSLocalizedString("Custom model", comment: "Model picker option") : selection.wrappedValue,
+            identifier: "\(identifier).model"
+        ) {
             Picker("Model", selection: Binding(
                 get: { isCustom.wrappedValue ? Self.customModelTag : selection.wrappedValue },
                 set: { newValue in
@@ -451,8 +451,6 @@ struct SettingsView: View {
                 }
                 Text("Custom model").tag(Self.customModelTag)
             }
-            .pickerStyle(.menu)
-            .accessibilityIdentifier("\(identifier).model")
         }
 
         if isCustom.wrappedValue {
@@ -502,6 +500,67 @@ struct SettingsView: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
         )
+    }
+
+    /// A titled row whose value opens a menu of choices.
+    private func menuRow<Choices: View>(
+        _ title: LocalizedStringKey,
+        value: String,
+        identifier: String,
+        @ViewBuilder choices: () -> Choices
+    ) -> some View {
+        settingRow {
+            Text(title)
+                .layoutPriority(1)
+            Spacer(minLength: 8)
+            choiceMenu(title, value: value, identifier: identifier, choices: choices)
+        }
+    }
+
+    /// The current value with a menu of choices. Unlike a menu-style picker, the
+    /// value stays on one line: a long model name truncates in the middle instead
+    /// of wrapping. VoiceOver reads the title and the value.
+    private func choiceMenu<Choices: View>(
+        _ title: LocalizedStringKey,
+        value: String,
+        identifier: String,
+        @ViewBuilder choices: () -> Choices
+    ) -> some View {
+        Menu {
+            choices()
+        } label: {
+            HStack(spacing: 5) {
+                Text(value)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.footnote.weight(.semibold))
+            }
+            .foregroundStyle(Color.amicaBlue)
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel(Text(title))
+        .accessibilityValue(Text(value))
+        .accessibilityIdentifier(identifier)
+    }
+
+    private var selectedLanguageName: String {
+        guard let language = ScowldLanguageLibrary.options.first(where: { $0.code == selectedLanguageID }) else {
+            return NSLocalizedString("iPhone Language", comment: "Device language picker option")
+        }
+        return NSLocalizedString(language.name, comment: "Language name")
+    }
+
+    private var selectedAvatarName: String {
+        CharacterPack.defaultPacks.first { $0.fileName == selectedAvatar }?.displayName ?? selectedAvatar
+    }
+
+    private static func voiceTitle(_ voice: LiveVoice) -> String {
+        "\(voice.name) - \(voice.style)"
+    }
+
+    private var selectedVoiceTitle: String {
+        selectedAIProvider.voices.first { $0.id == selectedVoice }.map(Self.voiceTitle) ?? selectedVoice
     }
 
     private func settingRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {

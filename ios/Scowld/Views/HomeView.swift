@@ -18,11 +18,6 @@ private enum InteractionFeedback {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.75)
     }
 
-    static func send() {
-        AudioServicesPlaySystemSound(SystemSoundID(1105))
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-    }
-
     static func liveEnd() {
         AudioServicesPlaySystemSound(SystemSoundID(1114))
         UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.6)
@@ -52,6 +47,8 @@ class DebugLog {
 struct HomeView: View {
     var memoryStore: MemoryStore
     var isActive = true
+    /// Shows the Settings tab, where the provider key is added.
+    var openSettings: () -> Void = {}
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
     @State private var live: LiveConversation
     @State private var camera = LiveCamera()
@@ -59,14 +56,17 @@ struct HomeView: View {
     @State private var microphoneGranted = false
     @State private var speechRecognitionGranted = false
     @State private var showHomeTips = false
+    @State private var hasProviderKey = true
     @AppStorage("camera_enabled") private var cameraOn = false
     @AppStorage("show_ai_caption") private var showAICaption = false
     @AppStorage("hands_free_mode_enabled") private var handsFreeModeEnabled = true
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(memoryStore: MemoryStore, isActive: Bool = true) {
+    init(memoryStore: MemoryStore, isActive: Bool = true, openSettings: @escaping () -> Void = {}) {
         self.memoryStore = memoryStore
         self.isActive = isActive
+        self.openSettings = openSettings
         _live = State(initialValue: LiveConversation(memoryStore: memoryStore))
     }
 
@@ -134,11 +134,13 @@ struct HomeView: View {
         }
         .onAppear {
             HostedServiceConfig.applyBYOKDefaults()
+            refreshProviderKey()
             ScowldAudioSession.configureAmicaWebAudioPlayback()
             connectLiveConversation()
 
-            // Tests never prompt for, or use, the microphone and speech recognition.
-            if !ScowldTestEnvironment.isRunningTests {
+            // Tests and screenshot previews never prompt for, or use, the microphone
+            // and speech recognition.
+            if !ScowldTestEnvironment.isRunningTests, ScowldTestEnvironment.previewTab == nil {
                 Task {
                     let granted = await VoicePermissions.request()
                     microphoneGranted = granted.microphone
@@ -155,6 +157,7 @@ struct HomeView: View {
         }
         .onChange(of: isActive) {
             if isActive {
+                refreshProviderKey()
                 amicaCoordinator?.setRuntimeActive(true)
                 updateHandsFreeWakeListener()
             } else {
@@ -166,6 +169,7 @@ struct HomeView: View {
             updateCamera()
         }
         .onReceive(NotificationCenter.default.publisher(for: .amicaSettingsChanged)) { _ in
+            refreshProviderKey()
             updateHandsFreeWakeListener()
         }
         .onChange(of: handsFreeModeEnabled) {
@@ -196,6 +200,20 @@ struct HomeView: View {
             toggleLiveConversation()
         } label: {
             ZStack {
+                if live.phase == .live && !reduceMotion {
+                    // A slow pulse while the conversation is open: red while she
+                    // listens, blue while she talks.
+                    Circle()
+                        .fill((live.isAssistantSpeaking ? Color.amicaBlue : Color.red).opacity(0.3))
+                        .phaseAnimator([false, true]) { halo, expanded in
+                            halo
+                                .scaleEffect(expanded ? 1.22 : 0.9)
+                                .opacity(expanded ? 0.25 : 0.9)
+                        } animation: { _ in
+                            .easeInOut(duration: 1.1)
+                        }
+                        .allowsHitTesting(false)
+                }
                 if live.phase == .connecting {
                     ProgressView()
                         .tint(.amicaBlue)
@@ -268,16 +286,24 @@ struct HomeView: View {
         let text: String
         let isError: Bool
         let isBusy: Bool
+        var opensSettings = false
     }
 
     private var liveStatus: LiveStatus? {
         let name = CharacterPack.resolveCharacterName()
+        let missingKey = String.localizedStringWithFormat(
+            NSLocalizedString("Add your %@ API key in Settings to talk to %@.", comment: "Missing provider key"),
+            HostedServiceConfig.selectedProvider().shortName,
+            name
+        )
         if let error = live.errorMessage {
-            return LiveStatus(icon: "exclamationmark.triangle.fill", text: error, isError: true, isBusy: false)
+            return LiveStatus(icon: "exclamationmark.triangle.fill", text: error, isError: true, isBusy: false, opensSettings: error == missingKey)
         }
         switch live.phase {
         case .idle:
-            return nil
+            // Until a key is saved, say so up front and link to Settings.
+            guard !hasProviderKey else { return nil }
+            return LiveStatus(icon: "key.fill", text: missingKey, isError: false, isBusy: false, opensSettings: true)
         case .connecting:
             return LiveStatus(
                 icon: "antenna.radiowaves.left.and.right",
@@ -296,29 +322,53 @@ struct HomeView: View {
     @ViewBuilder
     private var statusPill: some View {
         if let status = liveStatus {
-            HStack(spacing: 8) {
-                if status.isBusy {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(.white)
-                } else {
-                    Image(systemName: status.icon)
-                        .font(.system(size: 14, weight: .semibold))
-                        .symbolEffect(.variableColor.iterative, isActive: status.icon == "waveform" || status.icon == "mic.fill")
+            if status.opensSettings {
+                Button {
+                    InteractionFeedback.tap()
+                    openSettings()
+                } label: {
+                    statusPillContent(status)
                 }
-                Text(status.text)
-                    .font(.footnote.weight(.semibold))
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens Settings.")
+                .accessibilityIdentifier("chat.status")
+            } else {
+                statusPillContent(status)
+                    .accessibilityIdentifier("chat.status")
             }
-            .foregroundStyle(status.isError ? Color.red.opacity(0.95) : Color.white.opacity(0.92))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(.black.opacity(0.55), in: Capsule())
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("chat.status")
-            .transition(.opacity)
         }
+    }
+
+    private func statusPillContent(_ status: LiveStatus) -> some View {
+        HStack(spacing: 8) {
+            if status.isBusy {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+            } else {
+                Image(systemName: status.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .symbolEffect(.variableColor.iterative, isActive: status.icon == "waveform" || status.icon == "mic.fill")
+                    .accessibilityHidden(true)
+            }
+            Text(status.text)
+                .font(.footnote.weight(.semibold))
+                .lineLimit(3)
+                .multilineTextAlignment(.leading)
+            if status.opensSettings {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .opacity(0.7)
+                    .accessibilityHidden(true)
+            }
+        }
+        .foregroundStyle(status.isError ? Color.red.opacity(0.95) : Color.white.opacity(0.92))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.black.opacity(0.55), in: Capsule())
+        .contentShape(Capsule())
+        .accessibilityElement(children: .combine)
+        .transition(.opacity)
     }
 
     // MARK: - Actions
@@ -330,6 +380,11 @@ struct HomeView: View {
             microphoneGranted &&
             speechRecognitionGranted &&
             !live.isActive
+    }
+
+    private func refreshProviderKey() {
+        let provider = HostedServiceConfig.selectedProvider()
+        hasProviderKey = KeychainManager.exists(key: provider.keychainKey)
     }
 
     private func connectLiveConversation() {

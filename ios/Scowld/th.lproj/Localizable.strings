@@ -37,7 +37,6 @@
 "System" = "ระบบ";
 "Language" = "ภาษา";
 "Auto" = "อัตโนมัติ";
-"iPhone Language (%@)" = "ภาษา iPhone (%@)";
 "Conversation" = "การสนทนา";
 "Show AI captions" = "แสดงคำบรรยาย AI";
 "Uses this iPhone's current language when supported: %@." = "ใช้ภาษาปัจจุบันของ iPhone เครื่องนี้เมื่อรองรับ: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "เธอตอบเป็นภาษา%@";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "ภาษาของ iPhone นี้ไม่อยู่ในรายการ เธอจึงตอบในภาษาที่คุณพูด";
 "Allow camera access in iPhone Settings so she can see." = "อนุญาตการเข้าถึงกล้องในการตั้งค่า iPhone เพื่อให้เธอมองเห็นได้";
+"iPhone Language" = "ภาษาของ iPhone";
+"Provider" = "ผู้ให้บริการ";
+"Model" = "โมเดล";
+"Opens Settings." = "เปิดการตั้งค่า";

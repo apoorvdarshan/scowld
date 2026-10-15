@@ -37,7 +37,6 @@
 "System" = "Systeem";
 "Language" = "Taal";
 "Auto" = "Automatisch";
-"iPhone Language (%@)" = "iPhone-taal (%@)";
 "Conversation" = "Gesprek";
 "Show AI captions" = "AI-ondertitels tonen";
 "Uses this iPhone's current language when supported: %@." = "Gebruikt de huidige taal van deze iPhone wanneer die wordt ondersteund: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "Ze antwoordt in het %@.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "Deze iPhone-taal staat niet in de lijst, dus ze antwoordt in de taal die je spreekt.";
 "Allow camera access in iPhone Settings so she can see." = "Sta cameratoegang toe in de iPhone-instellingen zodat ze kan zien.";
+"iPhone Language" = "iPhone-taal";
+"Provider" = "Aanbieder";
+"Model" = "Model";
+"Opens Settings." = "Opent Instellingen.";

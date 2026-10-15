@@ -37,7 +37,6 @@
 "System" = "시스템";
 "Language" = "언어";
 "Auto" = "자동";
-"iPhone Language (%@)" = "iPhone 언어 (%@)";
 "Conversation" = "대화";
 "Show AI captions" = "AI 캡션 표시";
 "Uses this iPhone's current language when supported: %@." = "지원되는 경우 이 iPhone의 현재 언어를 사용합니다: %@.";
@@ -87,3 +86,7 @@
 "She answers in %@." = "%@로 답합니다.";
 "This iPhone language isn't in the list, so she answers in the language you speak." = "이 iPhone의 언어가 목록에 없어 사용자가 말하는 언어로 답합니다.";
 "Allow camera access in iPhone Settings so she can see." = "그녀가 볼 수 있도록 iPhone 설정에서 카메라 접근을 허용하세요.";
+"iPhone Language" = "iPhone 언어";
+"Provider" = "제공업체";
+"Model" = "모델";
+"Opens Settings." = "설정을 엽니다.";

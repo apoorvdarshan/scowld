@@ -16,7 +16,7 @@ body:
       multiple: true
       options:
         - Live conversation (connecting, hearing you, her voice)
-        - Interrupting her or typed messages
+        - Interrupting her
         - Hands-free wake mode
         - Avatar, animation or lip sync
         - Vision (camera)

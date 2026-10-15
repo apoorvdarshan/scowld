@@ -26,10 +26,10 @@ App Store Connect submission details for Scowld. Each field is in a code block f
 
 ## Description
 
-    Scowld is an AI voice companion built for natural, expressive conversations with an animated character. Talk with her live or type, and she answers out loud in the voice you pick. Save conversations and personalize the companion experience from a polished iOS interface.
+    Scowld is an AI voice companion built for natural, expressive conversations with an animated character. Talk with her live, and she answers out loud in the voice you pick. Save conversations and personalize the companion experience from a polished iOS interface.
 
     WHAT YOU GET
-    - Animated anime-style AI companion you talk with live, by voice or by typing
+    - Animated anime-style AI companion you talk with live, out loud
     - Live speech-to-speech: the provider you choose hears you directly and answers in its own voice, with no separate speech-to-text or text-to-speech step
     - Interrupt her anytime by speaking
     - Optional hands-free wake mode using Bella or your custom companion name
@@ -51,7 +51,7 @@ App Store Connect submission details for Scowld. Each field is in a code block f
     - Hands-free wake mode listens on device, with Apple's on-device speech recognition, only for her name; nothing is sent before a live conversation starts
     - During a live conversation, microphone audio streams continuously to the provider you chose
     - Camera frames go to the provider only while the camera is on, and Scowld doesn't record or store them
-    - A live conversation ends after 90 seconds of silence (30 for a typed-only one), or when you leave the Chat tab or the app
+    - A live conversation ends after 90 seconds of silence, or when you leave the Chat tab or the app
     - Saved chats stay on your device
     - Scowld does not use Apple's TrueDepth API or ARKit face tracking
     - Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data
@@ -59,7 +59,7 @@ App Store Connect submission details for Scowld. Each field is in a code block f
     HOW IT WORKS
     1. Open Settings and choose Google Gemini Live, OpenAI Realtime, or xAI Grok Voice
     2. Add your API key for that provider and pick a voice
-    3. Tap the mic, or say her name with hands-free on, and talk naturally; typing works too
+    3. Tap the mic, or say her name with hands-free on, and talk naturally
     4. The provider hears you over one live connection and answers in its own voice while the companion lip syncs
     5. Each turn is saved on your device; switch between past chats when you want separate conversation contexts
 
@@ -123,15 +123,14 @@ App Store Connect submission details for Scowld. Each field is in a code block f
        voice, paste your API key, and tap Save.
     3. On the Chat tab, tap the mic button and speak. The companion answers out loud.
        Speak while she talks to interrupt her, and tap stop to end the conversation.
-    4. Type a message and send it. She answers out loud.
-    5. (Optional) Tap the eye icon to let her see the front camera (Gemini or OpenAI
+    4. (Optional) Tap the eye icon to let her see the front camera (Gemini or OpenAI
        only; the camera is off until you turn it on).
-    6. (Optional) With the hands-free toggle beside the eye icon turned on, say "Bella"
+    5. (Optional) With the hands-free toggle beside the eye icon turned on, say "Bella"
        or "hey Bella" while the app is idle to start a live conversation.
 
     Scowld has no subscription, paywall, Billing tab, voice credits, or extra credit
     packs. About > Support Scowld offers optional one-time tips that unlock nothing.
     Provider API keys are entered by the user and stored in the iOS Keychain. Network
     access is required for live conversations. A live conversation ends by itself after
-    90 seconds of silence (30 seconds for a typed-only one), and when you leave the Chat
-    tab or the app goes to the background. The app is designed for iPhone and iPad.
+    90 seconds of silence, and when you leave the Chat tab or the app goes to the
+    background. The app is designed for iPhone and iPad.

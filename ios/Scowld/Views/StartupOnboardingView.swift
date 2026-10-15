@@ -79,7 +79,7 @@ struct StartupOnboardingView: View {
                 }
 
                 VStack(spacing: 12) {
-                    OnboardingFeatureRow(icon: "waveform", title: "Live voice", subtitle: "Talk naturally, or type. She answers out loud.")
+                    OnboardingFeatureRow(icon: "waveform", title: "Live voice", subtitle: "She answers out loud. Speak anytime to interrupt.")
                     OnboardingFeatureRow(icon: "eye.fill", title: "Optional vision", subtitle: "Use camera context when you want it.")
                     OnboardingFeatureRow(icon: "text.bubble.fill", title: "Past chats", subtitle: "Keep conversations as reference.")
                 }
