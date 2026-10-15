@@ -183,9 +183,10 @@ nonisolated final class OpenAIRealtimeSpeaker: @unchecked Sendable {
     private func connectedSocket(model: String, voice: String, apiKey: String) async throws -> RealtimeSocket {
         let key = "\(model)|\(voice)|\(apiKey.hashValue)"
         let reusable: RealtimeSocket? = lock.withLock {
-            guard let socket, sessionKey == key, let connectedAt,
+            // Explicit self: the local `socket` below must not shadow the property here.
+            guard let current = self.socket, sessionKey == key, let connectedAt = self.connectedAt,
                   now().timeIntervalSince(connectedAt) < Self.sessionLifetime else { return nil }
-            return socket
+            return current
         }
         if let reusable { return reusable }
         disconnect()
@@ -194,15 +195,15 @@ nonisolated final class OpenAIRealtimeSpeaker: @unchecked Sendable {
         components.queryItems = [URLQueryItem(name: "model", value: model)]
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        let socket = makeSocket(request)
-        try await socket.send(Self.json(Self.sessionUpdate(model: model, voice: voice)))
+        let opened = makeSocket(request)
+        try await opened.send(Self.json(Self.sessionUpdate(model: model, voice: voice)))
 
         lock.withLock {
-            self.socket = socket
+            socket = opened
             sessionKey = key
             connectedAt = now()
         }
-        return socket
+        return opened
     }
 
     private func speakOnce(text: String, model: String, voice: String, apiKey: String) async throws -> RealtimeSpeech {
