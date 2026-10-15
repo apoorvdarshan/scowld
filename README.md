@@ -44,7 +44,7 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 - **Multilingual speech settings** - Defaults to the iPhone language, with supported language overrides.
 - **Local key storage** - Provider API keys are stored in iOS Keychain; provider/model choices are stored in local preferences.
 - **Startup onboarding** - Local companion videos and Privacy/Terms acceptance with links to the web policies.
-- **About actions** - Update check, rating, Star on GitHub, share, Product Hunt, report an issue or request a feature via GitHub Issues, contact, Instagram, X, privacy, and terms.
+- **About actions** - Update check, rating, share, Product Hunt, an Open Source section (source code, Star on GitHub, and the GitHub bug report and feature request forms), contact, Instagram, X, privacy, and terms.
 
 ## Repo Structure
 

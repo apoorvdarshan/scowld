@@ -349,8 +349,8 @@ final class ScowldUITests: XCTestCase {
         XCTAssertNotNil(version.label.range(of: #"^v[0-9]+(\.[0-9]+)+$"#, options: .regularExpression), version.label)
 
         // The About screen is one non-lazy scroll view, so every row is present without scrolling.
-        for title in ["Check for Updates", "Rate Scowld", "Star on GitHub", "Share Scowld", "Report an Issue",
-                      "Request a Feature", "Contact", "Instagram", "Meet the Developer on X",
+        for title in ["Check for Updates", "Rate Scowld", "Share Scowld", "Open Source on GitHub", "Star on GitHub",
+                      "Report an Issue", "Request a Feature", "Contact", "Instagram", "Meet the Developer on X",
                       "Privacy Policy", "Terms of Service"] {
             XCTAssertTrue(button(startingWith: title, in: app).exists, "Missing About row \(title)")
         }
