@@ -14,8 +14,8 @@ body:
       label: Area
       multiple: true
       options:
-        - Chat and AI providers
-        - Voice (speech-to-text, text-to-speech, wake mode)
+        - Live conversation and providers (Gemini Live, OpenAI Realtime, xAI Grok Voice)
+        - Voices and hands-free wake mode
         - Avatar and character
         - Vision (camera)
         - Past chats

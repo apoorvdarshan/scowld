@@ -1,40 +1,41 @@
-Scowld is an AI voice companion built for natural, expressive conversations with an animated character. Talk by voice or text, get spoken replies, save conversations, and personalize the companion experience from a polished iOS interface.
+Scowld is an AI voice companion built for natural, expressive conversations with an animated character. Talk with her live or type, and she answers out loud in the voice you pick. Save conversations and personalize the companion experience from a polished iOS interface.
 
 WHAT YOU GET
-- Animated AI companion with voice and text conversation
+- Animated anime-style AI companion you talk with live, by voice or by typing
+- Live speech-to-speech: the provider you choose hears you directly and answers in its own voice, with no separate speech-to-text or text-to-speech step
+- Interrupt her anytime by speaking
 - Optional hands-free wake mode using Bella or your custom companion name
-- Bring-your-own-key AI provider settings
-- Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI support
-- Native iOS speech recognition plus optional cloud STT providers
-- Deepgram, OpenAI, Groq Whisper, AssemblyAI, and Google Cloud STT options
-- ElevenLabs text-to-speech with your own API key
-- Celine, Claire, bundled voice presets, and custom ElevenLabs voice ID support
+- Bring-your-own-key providers: Google Gemini Live, OpenAI Realtime, and xAI Grok Voice
+- Each provider's built-in voices: 30 with Gemini, 10 with OpenAI including Marin and Cedar, and 5 with xAI
+- Lip sync that follows her voice
 - Saved past chats that can be reused as conversation context
 - Custom character name and system prompt controls
-- Optional AI response captions
-- Camera vision support when you choose to send visual context
-- Multilingual speech settings with iPhone language inheritance
+- Optional captions of what she says
+- Optional camera vision with Gemini or OpenAI, off until you turn it on
+- Reply language that follows your iPhone language, or one you choose
 - App Store update checks, rating, sharing, contact, and social links in About
 
 PRIVACY AND SECURITY
 - No user account is required
-- Provider API keys are entered by you and stored in iOS Keychain
+- Provider API keys are entered by you, stored in iOS Keychain, and sent only to that provider
 - Provider API keys are not bundled in the app and are not stored in plain app preferences
-- No subscriptions, paywall, Billing tab, StoreKit purchases, voice credits, or extra credit packs
-- Hands-free wake detection is processed on device while enabled and is not sent to external providers before command recording starts
-- Microphone audio is transcribed only when voice input is used
-- Camera frames are used only when you enable camera and send visual context
+- No subscriptions, paywall, Billing tab, voice credits, or extra credit packs; optional one-time tips unlock nothing
+- Hands-free wake mode listens on device, with Apple's on-device speech recognition, only for her name; nothing is sent before a live conversation starts
+- During a live conversation, microphone audio streams continuously to the provider you chose
+- Camera frames go to the provider only while the camera is on, and Scowld doesn't record or store them
+- A live conversation ends after 90 seconds of silence (30 for a typed-only one), or when you leave the Chat tab or the app
+- Saved chats stay on your device
 - Scowld does not use Apple's TrueDepth API or ARKit face tracking
 - Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data
 
 HOW IT WORKS
-1. Open Settings and add your provider API keys
-2. Choose AI, speech-to-text, and ElevenLabs text-to-speech options
-3. Talk with the animated companion hands-free, by voice, or by typing a message
-4. Scowld transcribes speech, sends the message to your selected AI provider, and speaks the response with ElevenLabs
-5. Save and switch between past chats when you want separate conversation contexts
+1. Open Settings and choose Google Gemini Live, OpenAI Realtime, or xAI Grok Voice
+2. Add your API key for that provider and pick a voice
+3. Tap the mic, or say her name with hands-free on, and talk naturally; typing works too
+4. The provider hears you over one live connection and answers in its own voice while the companion lip syncs
+5. Each turn is saved on your device; switch between past chats when you want separate conversation contexts
 
-Built with SwiftUI, iOS Keychain, Gemini, OpenAI, Claude, Ollama, OpenAI-compatible providers, cloud STT providers, ElevenLabs, and a Vercel website.
+Built with SwiftUI, iOS Keychain, Google Gemini Live, OpenAI Realtime, xAI Grok Voice, and a Cloudflare-hosted website.
 Website: https://scowld.xyz
 Blog: https://scowld.xyz/blog
 Instagram: https://www.instagram.com/apoorvcodes/
@@ -43,4 +44,4 @@ Privacy Policy: https://scowld.xyz/privacy
 Terms of Service: https://scowld.xyz/terms
 Contact: ad13dtu@gmail.com
 
-Not affiliated with Google, OpenAI, Anthropic, Deepgram, ElevenLabs, Apple, Vercel, or other supported providers.
+Not affiliated with Google, OpenAI, xAI, Apple, or Cloudflare.

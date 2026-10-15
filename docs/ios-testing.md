@@ -31,42 +31,54 @@ cancelled; `main` and release runs never are.
 
 - **Unit tests** (`ios/ScowldTests`): emotion-tag parsing and character state,
   lip-sync smoothing, saved chats (Core Data, in memory: create, rename, switch,
-  delete, de-duplication, per-chat memory log, context for the next reply), the
-  system prompt (persona, custom prompt, reply language, context, vision),
-  provider/model/voice/language preferences and their defaults, the provider
-  catalogs, every chat provider's request and response handling (Gemini, OpenAI,
-  Claude, OpenAI-compatible, Ollama — including vision and error mapping),
-  cloud speech-to-text requests and parsing (OpenAI, Groq, Deepgram, AssemblyAI,
-  Google), WAV encoding and resampling, the Keychain wrapper, the App Store
-  update check, the ElevenLabs request builder, the loopback server that
-  serves the bundled companion and proxies text-to-speech, and the native side
-  of the companion bridge (a chat message from the page is answered by the
-  selected provider and saved; no key or an inactive tab never reaches the
-  network; speech without an ElevenLabs key fails without a request), and
+  delete, de-duplication, per-chat memory log, context for the next
+  conversation), the system prompt (spoken persona without emotion tags, custom
+  prompt, reply language, saved chat, camera note), provider/model/voice/language
+  preferences and their defaults (a removed provider falls back to Gemini), the
+  one-time cleanup of removed providers' keys and settings, the provider catalog
+  (models, voices, camera support, Keychain keys that match earlier versions),
+  each provider's live protocol (Gemini Live, OpenAI Realtime and xAI Grok
+  Voice: connection request, session setup, audio, text and image input, server
+  events), the live session (setup before input, message order, only the latest
+  seconds of speech wait for the connection, Gemini's resumption handle, a
+  dropped connection reported once, closing, truncate and cancel), live
+  conversations over a scripted socket and fake audio (nothing connects without
+  a key, microphone problems, replies with lip sync and captions saved after
+  the user's words, barge-in on OpenAI and Gemini, typed conversations, camera
+  frames per provider and none while the camera is off or with xAI, provider
+  failures, idle and connection timeouts, audio interruptions), the Keychain
+  wrapper, the App Store update check, the loopback server that serves the
+  bundled companion (no speech proxy remains), the native side of the
+  companion bridge (the page's old chat and speech requests are ignored and
+  never reach the network; no camera frame while the camera is off), and
   export compliance (the app declares no non-exempt encryption, the bundled
   companion ships no encryption code, and its removed `/share` page is never
   opened).
 - **UI tests** (`ios/ScowldUITests`): first-launch onboarding (policy acceptance
   gates the app; shown once), the four tabs, the companion screen's composer
-  (send enabled only for text, hands-free toggle remembered), home tips, the
-  character name changing the wake phrase, saving a provider, model and key,
-  the captions preference, creating/renaming/switching/deleting chats and
-  reading a saved transcript, and the About screen.
+  (live button, camera off until turned on, send enabled only for text,
+  hands-free toggle remembered), home tips, the character name changing the
+  wake phrase, saving a live provider, model, voice and key (with no separate
+  speech-to-text or text-to-speech settings), the note that Grok Voice can't
+  see the camera, the captions preference, creating/renaming/switching/deleting
+  chats and reading a saved transcript, and the About screen.
 - There is no paywall or purchase flow to test: Scowld 2.0 removed them.
 
 ## Test mode (Debug simulator builds only)
 
-All HTTP in unit tests is answered in-process by a `URLProtocol` stub, so no
-provider key or network is used. The unit-test host app stays idle on a black
-screen.
+Live conversations in unit tests run over a scripted socket (`FakeLiveSocket`)
+with audio that needs no hardware (`FakeLiveAudio`), and any HTTP is answered
+in-process by a `URLProtocol` stub, so no provider key, network, microphone or
+speaker is used. The unit-test host app stays idle on a black screen.
 
 UI tests launch the app with `--ui-testing` (plus `--ui-testing-reset`,
 `--ui-testing-onboarded`, `--ui-testing-seed-chat`), handled by
 `ScowldTestEnvironment`, which compiles to `false` in Release builds and is inert
-on devices. Under test the app skips the App Store update check and never
-requests microphone or speech-recognition permission (so hands-free listening
-never starts). `--ui-testing-reset` removes only Scowld's simulator preferences,
-saved chats and provider keys before launch.
+on devices. Under test the app skips the App Store update check, never starts
+a live conversation, and never requests microphone or speech-recognition
+permission (so hands-free listening never starts). `--ui-testing-reset` removes
+only Scowld's simulator preferences, saved chats and provider keys before
+launch.
 
 UI tests leave out the bundled 3D companion (a WebGL page in a web view) and show
 a black placeholder behind the same native composer. CI simulators have no GPU,
@@ -75,8 +87,8 @@ and an app relaunch timed out. Its native bridge is covered by unit tests
 instead.
 
 Not covered: the companion page's own rendering and JavaScript, real provider
-accounts and replies, microphone and camera hardware, and on-device speech
-recognition; check those on a device.
+accounts, live connections and replies, microphone, speaker and camera
+hardware, and on-device speech recognition; check those on a device.
 
 Signed Release builds come from the iOS Release workflow (see
 [`store/README.md`](../store/README.md)); these Debug simulator tests do not

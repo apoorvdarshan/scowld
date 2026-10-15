@@ -1,6 +1,6 @@
 # Contributing to Scowld
 
-Thanks for your interest in contributing! Scowld is an open-source iOS AI companion with an animated VRM character, hands-free wake mode, and bring-your-own-key (BYOK) AI / speech providers.
+Thanks for your interest in contributing! Scowld is an open-source iOS AI companion with an animated VRM character, hands-free wake mode, and bring-your-own-key (BYOK) live voice providers (Google Gemini Live, OpenAI Realtime, xAI Grok Voice).
 
 This guide covers how to report issues, propose changes, and get the project running locally.
 
@@ -40,7 +40,7 @@ open ios/Scowld.xcodeproj
 
 1. Select the **Scowld** scheme and your device or simulator.
 2. Build and run.
-3. Add your provider API keys in **Settings** after launch (they are stored in the iOS Keychain).
+3. After launch, choose a provider in **Settings > Live Voice** and add its API key (stored in the iOS Keychain).
 
 ### Tests
 
@@ -48,7 +48,7 @@ open ios/Scowld.xcodeproj
 bash scripts/test-ios.sh
 ```
 
-This runs the unit and UI tests on a simulator the script creates and deletes (or use **Product → Test** on the **Scowld** scheme in Xcode). The same tests run in GitHub Actions on every pull request that touches the app. They never use the network, microphone, camera, or real provider keys: HTTP is stubbed in unit tests, and UI tests launch a Debug-only test mode (`ScowldTestEnvironment`). Details: [docs/ios-testing.md](docs/ios-testing.md).
+This runs the unit and UI tests on a simulator the script creates and deletes (or use **Product → Test** on the **Scowld** scheme in Xcode). The same tests run in GitHub Actions on every pull request that touches the app. They never use the network, microphone, camera, or real provider keys: unit tests stub HTTP and run live conversations over a scripted socket with fake audio, and UI tests launch a Debug-only test mode (`ScowldTestEnvironment`). Details: [docs/ios-testing.md](docs/ios-testing.md).
 
 ### Website
 
