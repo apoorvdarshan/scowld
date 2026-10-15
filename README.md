@@ -91,7 +91,7 @@ Cloudflare Workers / Next.js website
 
 ## Monetization
 
-Scowld 2.0 removes subscriptions, Billing, StoreKit purchases, paywalls, voice credits, and extra credit packs.
+Scowld is free: there are no subscriptions, paywalls, or credits. About > Support Scowld offers optional one-time tips (consumable in-app purchases from $0.99 to $19.99, managed with RevenueCat) that unlock nothing.
 
 Users are responsible for provider accounts, API keys, provider billing, rate limits, and acceptable use policies for the AI, speech-to-text, and text-to-speech providers they configure.
 
