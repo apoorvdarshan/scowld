@@ -42,7 +42,10 @@ cancelled; `main` and release runs never are.
   serves the bundled companion and proxies text-to-speech, and the native side
   of the companion bridge (a chat message from the page is answered by the
   selected provider and saved; no key or an inactive tab never reaches the
-  network; speech without an ElevenLabs key fails without a request).
+  network; speech without an ElevenLabs key fails without a request), and
+  export compliance (the app declares no non-exempt encryption, the bundled
+  companion ships no encryption code, and its removed `/share` page is never
+  opened).
 - **UI tests** (`ios/ScowldUITests`): first-launch onboarding (policy acceptance
   gates the app; shown once), the four tabs, the companion screen's composer
   (send enabled only for text, hands-free toggle remembered), home tips, the

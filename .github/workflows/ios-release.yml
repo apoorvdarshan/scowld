@@ -34,7 +34,9 @@
 #   IOS_BUILD_WAIT_MINUTES   default 120  (10–300), counted from upload start,
 #                            covering upload + App Store Connect processing
 #
-# Before anything is built, prepare runs the release-script tests and checks only
+# Before anything is built, prepare runs the release-script tests, checks that a
+# run that builds declares export compliance (ITSAppUsesNonExemptEncryption; the
+# archived app's Info.plist is checked again after the archive), and checks only
 # the store files the enabled switches use (an unused file never blocks a
 # release; pull requests and main check all of them in store-automation.yml).
 # With IOS_CREATE_VERSION on, it then creates the tag's App Store version when
@@ -255,6 +257,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /ios/
+            /scripts/store/ios_release.py
             /scripts/store/redact_logs.py
 
       # Scowld has no Swift packages today; once a Package.resolved is committed
@@ -359,6 +362,10 @@ jobs:
             checked=$((checked + 1))
           done < <(printf '%s\0' "$main"; find "$main" -mindepth 1 -type d \( -name '*.app' -o -name '*.appex' \) -not -path '*/Frameworks/*' -print0)
           echo "verified $BUNDLE_ID $MARKETING_VERSION ($BUILD_NUMBER) in $checked app/extension bundle(s)"
+          # Export compliance, as built: without ITSAppUsesNonExemptEncryption,
+          # App Store Connect asks about every build by hand and review submission
+          # fails until someone answers. YES also needs ITSEncryptionExportComplianceCode.
+          python3 scripts/store/ios_release.py export-compliance --info-plist "$main/Info.plist"
 
       - name: Write export options
         run: |
