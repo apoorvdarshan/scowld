@@ -156,7 +156,7 @@ Checks the website: ESLint and html-validate, the Vitest suite (including [fast-
 
 ### Security checks
 
-Every pull request also runs [CodeQL](.github/workflows/codeql.yml) (JavaScript, Python, GitHub Actions, and Swift when `ios/` changes) and [dependency review](.github/workflows/dependency-review.yml). [OpenSSF Scorecard](.github/workflows/scorecard.yml) runs on `main` and weekly, Dependabot keeps pinned dependencies current, and releases attach a Sigstore-signed source archive. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+Every pull request also runs [CodeQL](.github/workflows/codeql.yml) (JavaScript, Python and GitHub Actions; [the Swift app](.github/workflows/codeql-swift.yml) weekly and for each release tag) and [dependency review](.github/workflows/dependency-review.yml). [OpenSSF Scorecard](.github/workflows/scorecard.yml) runs on `main` and weekly, Dependabot keeps pinned dependencies current, and releases attach a Sigstore-signed source archive. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
 ### Releases
 
