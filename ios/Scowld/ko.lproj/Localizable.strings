@@ -90,3 +90,4 @@
 "Provider" = "제공업체";
 "Model" = "모델";
 "Opens Settings." = "설정을 엽니다.";
+"Couldn't play the voice preview. Try again." = "음성 미리듣기를 재생할 수 없습니다. 다시 시도하세요.";

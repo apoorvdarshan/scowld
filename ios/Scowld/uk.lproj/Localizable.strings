@@ -90,3 +90,4 @@
 "Provider" = "Постачальник";
 "Model" = "Модель";
 "Opens Settings." = "Відкриває Параметри.";
+"Couldn't play the voice preview. Try again." = "Не вдалося відтворити зразок голосу. Спробуйте ще раз.";

@@ -416,7 +416,8 @@ struct HomeView: View {
             live.end(error: NSLocalizedString("Allow microphone access in iPhone Settings to talk with her.", comment: "Microphone denied"))
             return
         }
-        handsFreeWakeListener.stop()
+        // The live conversation needs the microphone the wake listener holds.
+        handsFreeWakeListener.stop(waitUntilStopped: true)
         InteractionFeedback.liveStart()
         if VoicePermissions.microphoneGranted {
             live.start()

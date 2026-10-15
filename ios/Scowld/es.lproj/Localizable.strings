@@ -90,3 +90,4 @@
 "Provider" = "Proveedor";
 "Model" = "Modelo";
 "Opens Settings." = "Abre Ajustes.";
+"Couldn't play the voice preview. Try again." = "No se pudo reproducir la vista previa de la voz. Inténtalo de nuevo.";

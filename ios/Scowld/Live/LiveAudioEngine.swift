@@ -74,13 +74,13 @@ final class LiveAudioEngine: LiveAudioIO {
 
     func start(inputSampleRate: Double, outputSampleRate: Double, microphone: Bool) throws {
         self.outputSampleRate = outputSampleRate
-        let session = AVAudioSession.sharedInstance()
         if microphone {
+            let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
         } else {
-            try session.setCategory(.playback, mode: .default, options: [.allowBluetoothA2DP])
+            try ScowldAudioSession.activatePlayback()
         }
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
 
         if microphone {
             // Voice processing must be on before the engine is configured and started.

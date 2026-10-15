@@ -268,7 +268,7 @@ struct SettingsView: View {
     private var voicePreviewButton: some View {
         let isBusy = voicePreviewer.voice == selectedVoice &&
             (voicePreviewer.state == .loading || voicePreviewer.state == .playing)
-        let hasKey = !aiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasKey = hasSavedAIAPIKey || !aiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return Button {
             if isBusy {
                 voicePreviewer.stop()
@@ -302,7 +302,7 @@ struct SettingsView: View {
             provider: selectedAIProvider,
             model: model.isEmpty ? selectedAIProvider.defaultModel : model,
             voice: selectedVoice,
-            apiKey: aiAPIKey,
+            apiKey: aiAPIKeyInUse,
             name: CharacterPack.resolveCharacterName()
         )
     }
@@ -311,7 +311,7 @@ struct SettingsView: View {
     /// built-in list.
     private func refreshModels() {
         let provider = selectedAIProvider
-        let key = aiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = aiAPIKeyInUse
         fetchedModels = []
         guard !key.isEmpty, !ScowldTestEnvironment.isRunningTests else { return }
         Task {
@@ -680,6 +680,14 @@ struct SettingsView: View {
         AIProvider(rawValue: selectedAIProviderID) ?? .gemini
     }
 
+    /// The key typed in the field, or else the saved one. A saved key is never
+    /// shown in the field; typing replaces it on Save.
+    private var aiAPIKeyInUse: String {
+        let typed = aiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard typed.isEmpty else { return typed }
+        return KeychainManager.load(key: selectedAIProvider.keychainKey) ?? ""
+    }
+
     private var aiAPIKeyPlaceholder: String {
         hasSavedAIAPIKey ? "Saved API key - type to replace" : "\(selectedAIProvider.shortName) API key"
     }
@@ -719,8 +727,8 @@ struct SettingsView: View {
         selectedAIModel = HostedServiceConfig.selectedModel(for: provider)
         aiModelIsCustom = !provider.availableModels.contains(selectedAIModel)
         selectedVoice = HostedServiceConfig.selectedVoice(for: provider)
-        aiAPIKey = KeychainManager.load(key: provider.keychainKey) ?? ""
-        hasSavedAIAPIKey = !aiAPIKey.isEmpty
+        aiAPIKey = ""
+        hasSavedAIAPIKey = KeychainManager.exists(key: provider.keychainKey)
         voicePreviewer.stop()
         refreshModels()
         if resetMessage {
@@ -739,6 +747,9 @@ struct SettingsView: View {
         saveKeyIfNeeded(aiAPIKey, key: provider.keychainKey)
 
         hasSavedAIAPIKey = KeychainManager.exists(key: provider.keychainKey)
+        if hasSavedAIAPIKey {
+            aiAPIKey = ""
+        }
         aiSettingsMessage = "Saved"
         refreshModels()
         NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)

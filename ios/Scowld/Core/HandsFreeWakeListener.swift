@@ -1,8 +1,76 @@
 @preconcurrency import AVFoundation
-import Speech
+@preconcurrency import Speech
 import os
 
-private let handsFreeLogger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "HandsFree")
+nonisolated private let handsFreeLogger = Logger(subsystem: "com.apoorvdarshan.Scowld", category: "HandsFree")
+
+/// The microphone side of wake listening. Activating the audio session and
+/// starting the engine can take a few hundred milliseconds, so it runs on its own
+/// serial queue: on the main thread it froze the Chat tab each time listening
+/// started (switching to the tab, and every automatic restart).
+nonisolated private final class WakeMicrophone: @unchecked Sendable {
+    private enum Failure: Error {
+        case invalidInputFormat
+    }
+
+    private let queue = DispatchQueue(label: "com.apoorvdarshan.Scowld.wake-microphone", qos: .userInitiated)
+    // Touched only on `queue`.
+    private let engine = AVAudioEngine()
+    private var hasInputTap = false
+
+    /// Starts feeding microphone buffers to `append` (on an audio thread), then
+    /// reports on the main queue whether it started.
+    func start(append: @escaping @Sendable (AVAudioPCMBuffer) -> Void, completion: @escaping @Sendable (Bool) -> Void) {
+        queue.async { [self] in
+            let started: Bool
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers])
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+
+                let input = engine.inputNode
+                let format = input.outputFormat(forBus: 0)
+                guard format.sampleRate > 0, format.channelCount > 0 else { throw Failure.invalidInputFormat }
+                stopEngine()
+                input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+                    append(buffer)
+                }
+                hasInputTap = true
+                engine.prepare()
+                try engine.start()
+                started = true
+            } catch {
+                handsFreeLogger.error("[HandsFree] Failed to start the microphone: \(String(describing: error), privacy: .public)")
+                stopEngine()
+                started = false
+            }
+            DispatchQueue.main.async {
+                completion(started)
+            }
+        }
+    }
+
+    /// Stops the microphone. With `waitUntilStopped`, returns only once it has
+    /// stopped, so a live conversation can take the microphone over right away.
+    func stop(waitUntilStopped: Bool) {
+        if waitUntilStopped {
+            queue.sync { stopEngine() }
+        } else {
+            queue.async { [self] in stopEngine() }
+        }
+    }
+
+    private func stopEngine() {
+        if engine.isRunning {
+            engine.stop()
+        }
+        if hasInputTap {
+            engine.inputNode.removeTap(onBus: 0)
+            hasInputTap = false
+        }
+        engine.reset()
+    }
+}
 
 @Observable
 @MainActor
@@ -11,7 +79,7 @@ final class HandsFreeWakeListener: NSObject {
     var heardText = ""
 
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-    private let audioEngine = AVAudioEngine()
+    private let microphone = WakeMicrophone()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var restartTimer: Timer?
@@ -19,7 +87,10 @@ final class HandsFreeWakeListener: NSObject {
     private var normalizedWakeName = ""
     private var onWake: (() -> Void)?
     private var isStoppingForWake = false
-    private var hasInstalledInputTap = false
+    /// The microphone is starting in the background.
+    private var isStarting = false
+    /// Bumped by `stop()`, so a start that finishes afterwards is ignored.
+    private var generation = 0
     private var lastWakeAt = Date.distantPast
 
     private static let recognitionRestartInterval: TimeInterval = 55
@@ -35,7 +106,7 @@ final class HandsFreeWakeListener: NSObject {
         let normalizedName = Self.normalized(trimmedName)
         self.onWake = onWake
 
-        if isRunning, normalizedName == normalizedWakeName {
+        if isRunning || isStarting, normalizedName == normalizedWakeName {
             return
         }
 
@@ -45,32 +116,24 @@ final class HandsFreeWakeListener: NSObject {
         startRecognition()
     }
 
-    func stop() {
+    /// Stops listening. With `waitUntilStopped`, the microphone is free when this
+    /// returns (before a live conversation starts); otherwise it stops in the
+    /// background so the screen never waits.
+    func stop(waitUntilStopped: Bool = false) {
+        generation += 1
         restartTimer?.invalidate()
         restartTimer = nil
 
-        stopAudioEngine()
+        microphone.stop(waitUntilStopped: waitUntilStopped)
 
         recognitionRequest?.endAudio()
         recognitionRequest = nil
         recognitionTask?.cancel()
         recognitionTask = nil
         isRunning = false
+        isStarting = false
         heardText = ""
         isStoppingForWake = false
-    }
-
-    private func stopAudioEngine() {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-        }
-
-        if hasInstalledInputTap {
-            audioEngine.inputNode.removeTap(onBus: 0)
-            hasInstalledInputTap = false
-        }
-
-        audioEngine.reset()
     }
 
     private func startRecognition() {
@@ -79,60 +142,53 @@ final class HandsFreeWakeListener: NSObject {
             return
         }
 
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers])
-            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = true
+        recognitionRequest = request
 
-            let request = SFSpeechAudioBufferRecognitionRequest()
-            request.shouldReportPartialResults = true
-            request.requiresOnDeviceRecognition = true
-            recognitionRequest = request
+        recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
 
-            recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
+                if let result {
+                    let transcript = result.bestTranscription.formattedString
+                    self.heardText = transcript
+                    self.handleTranscript(transcript)
+                }
 
-                    if let result {
-                        let transcript = result.bestTranscription.formattedString
-                        self.heardText = transcript
-                        self.handleTranscript(transcript)
-                    }
-
-                    if error != nil || result?.isFinal == true {
-                        self.restartIfNeeded()
-                    }
+                if error != nil || result?.isFinal == true {
+                    self.restartIfNeeded()
                 }
             }
+        }
 
-            let inputNode = audioEngine.inputNode
-            let format = inputNode.outputFormat(forBus: 0)
-            guard format.sampleRate > 0, format.channelCount > 0 else {
-                handsFreeLogger.error("[HandsFree] Invalid input format")
-                stop()
-                return
+        isStarting = true
+        let current = generation
+        microphone.start(append: { buffer in
+            request.append(buffer)
+        }, completion: { [weak self] started in
+            MainActor.assumeIsolated {
+                self?.microphoneStarted(started, generation: current)
             }
+        })
+    }
 
-            stopAudioEngine()
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-                self?.recognitionRequest?.append(buffer)
-            }
-            hasInstalledInputTap = true
-
-            audioEngine.prepare()
-            try audioEngine.start()
-            isRunning = true
-            handsFreeLogger.info("[HandsFree] Listening for hey \(self.wakeName, privacy: .public)")
-
-            restartTimer?.invalidate()
-            restartTimer = Timer.scheduledTimer(withTimeInterval: Self.recognitionRestartInterval, repeats: false) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.restartIfNeeded()
-                }
-            }
-        } catch {
-            handsFreeLogger.error("[HandsFree] Failed to start wake listener: \(error.localizedDescription)")
+    private func microphoneStarted(_ started: Bool, generation startedGeneration: Int) {
+        guard startedGeneration == generation else { return }
+        isStarting = false
+        guard started else {
             stop()
+            return
+        }
+        isRunning = true
+        handsFreeLogger.info("[HandsFree] Listening for hey \(self.wakeName, privacy: .public)")
+
+        restartTimer?.invalidate()
+        restartTimer = Timer.scheduledTimer(withTimeInterval: Self.recognitionRestartInterval, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.restartIfNeeded()
+            }
         }
     }
 
@@ -156,7 +212,8 @@ final class HandsFreeWakeListener: NSObject {
         isStoppingForWake = true
         handsFreeLogger.info("[HandsFree] Wake phrase detected")
         let wakeAction = onWake
-        stop()
+        // The live conversation needs the microphone next.
+        stop(waitUntilStopped: true)
         wakeAction?()
     }
 

@@ -68,8 +68,9 @@ final class VoicePreviewer {
         do {
             try audio.start(inputSampleRate: wire.inputSampleRate, outputSampleRate: wire.outputSampleRate, microphone: false)
         } catch {
+            logger.error("[Preview] Audio failed to start: \(error.localizedDescription, privacy: .public)")
             audio.stop()
-            state = .failed(error.localizedDescription)
+            state = .failed(NSLocalizedString("Couldn't play the voice preview. Try again.", comment: "Voice preview audio failed"))
             self.voice = voice
             return
         }

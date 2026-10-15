@@ -1,5 +1,20 @@
+import AVFoundation
 import XCTest
 @testable import Scowld
+
+/// The playback audio session used by the companion page and voice previews.
+@MainActor
+final class AudioSessionTests: XCTestCase {
+    func testPlaybackSessionIsAccepted() throws {
+        // `.allowBluetoothA2DP` is only valid with `.playAndRecord`; with
+        // `.playback` iOS rejected the category (OSStatus -50) and every voice
+        // preview failed before it reached the provider.
+        XCTAssertNoThrow(try ScowldAudioSession.activatePlayback())
+        let session = AVAudioSession.sharedInstance()
+        XCTAssertEqual(session.category, .playback)
+        XCTAssertFalse(session.categoryOptions.contains(.allowBluetoothA2DP))
+    }
+}
 
 /// Provider keys live only in the Keychain.
 @MainActor
