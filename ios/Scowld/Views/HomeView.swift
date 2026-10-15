@@ -1298,6 +1298,28 @@ class AmicaLocalServer {
             return
         }
 
+        // Realtime models (the speech endpoint's successor) speak over a WebSocket; the
+        // web engine still gets back an audio file it can play and lip-sync.
+        if method == "POST", let speech = Self.openAISpeechRequest(from: body),
+           TTSBackend.usesOpenAIRealtime(speech.model) {
+            let result = OpenAIRealtimeSpeaker.shared.speakSynchronously(
+                text: speech.input,
+                model: speech.model,
+                voice: speech.voice,
+                apiKey: apiKey
+            )
+            switch result {
+            case .success(let audio):
+                logger.info("[Proxy] OpenAI Realtime TTS \(speech.model) -> \(audio.wav.count) bytes")
+                sendResponse(client: client, data: audio.wav, mimeType: "audio/wav", statusCode: 200)
+            case .failure(let error):
+                logger.error("[Proxy] OpenAI Realtime TTS failed: \(error.localizedDescription)")
+                let body = (try? JSONSerialization.data(withJSONObject: ["error": error.localizedDescription])) ?? Data()
+                sendResponse(client: client, data: body, mimeType: "application/json", statusCode: 502)
+            }
+            return
+        }
+
         // The web engine calls `<openai_tts_url>/v1/audio/speech`, and we inject
         // `openai_tts_url = /api/openai-tts`, so oaiPath already includes `/v1/...`.
         let fullPath = oaiPath.hasPrefix("/") ? oaiPath : "/\(oaiPath)"
@@ -1334,6 +1356,20 @@ class AmicaLocalServer {
 
         logger.info("[Proxy] OpenAI TTS \(method) \(fullPath) -> \(responseCode) (\(responseData.count) bytes)")
         sendResponse(client: client, data: responseData, mimeType: responseMime, statusCode: responseCode)
+    }
+
+    /// The web engine's `/v1/audio/speech` body (`model`, `input`, `voice`), with the
+    /// saved model and voice filling anything it leaves out.
+    static func openAISpeechRequest(from body: Data?) -> (model: String, input: String, voice: String)? {
+        guard let body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let input = (json["input"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !input.isEmpty else { return nil }
+        let model = (json["model"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            ?? TTSBackend.selectedModel(for: .openAI)
+        let voice = (json["voice"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            ?? HostedServiceConfig.selectedOpenAITTSVoice()
+        return (model, input, voice)
     }
 
     static func mimeType(for ext: String) -> String {

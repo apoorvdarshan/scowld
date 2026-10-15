@@ -346,17 +346,41 @@ enum TTSBackend: String, CaseIterable, Codable, Sendable {
                 "eleven_flash_v2",
             ]
         case .openAI:
-            [
-                "gpt-4o-mini-tts",
-            ]
+            // Realtime models (see OpenAIRealtimeSpeaker). gpt-4o-mini-tts stays on the
+            // speech endpoint until that shuts down.
+            ["gpt-realtime-2.1-mini", "gpt-realtime-2.1"]
+                + (Self.now() < Self.openAISpeechEndpointShutdown ? ["gpt-4o-mini-tts"] : [])
         }
     }
 
     var defaultModel: String {
         switch self {
         case .elevenLabs: HostedServiceConfig.defaultElevenLabsModel
-        case .openAI: "gpt-4o-mini-tts"
+        case .openAI: "gpt-realtime-2.1-mini"
         }
+    }
+
+    /// OpenAI shuts down every `/v1/audio/speech` model (tts-1, tts-1-hd, gpt-4o-mini-tts)
+    /// on 2027-01-06; the Realtime API replaces it.
+    static let openAISpeechEndpointShutdown = Date(timeIntervalSince1970: 1_799_193_600)
+    /// The clock the catalogue reads; tests move it.
+    nonisolated(unsafe) static var now: () -> Date = Date.init
+
+    static func usesOpenAIRealtime(_ model: String) -> Bool {
+        model.hasPrefix("gpt-realtime")
+    }
+
+    /// Voices the Realtime models offer; fable, nova and onyx exist only on the speech endpoint.
+    nonisolated static let openAIRealtimeVoices = ["marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"]
+
+    static func openAIVoices(for model: String) -> [String] {
+        usesOpenAIRealtime(model) ? openAIRealtimeVoices : TTSBackend.openAI.voiceOptions
+    }
+
+    /// The closest Realtime voice for a voice saved for the speech endpoint.
+    nonisolated static func openAIRealtimeVoice(for voice: String) -> String {
+        if openAIRealtimeVoices.contains(voice) { return voice }
+        return ["onyx", "fable"].contains(voice) ? "cedar" : "marin"
     }
 
     /// Fixed built-in voices exposed by the provider (OpenAI). ElevenLabs uses the
@@ -376,8 +400,9 @@ enum TTSBackend: String, CaseIterable, Codable, Sendable {
             // ElevenLabs: Flash is equivalent to Turbo with lower latency.
             ["eleven_turbo_v2_5": "eleven_flash_v2_5", "eleven_turbo_v2": "eleven_flash_v2"]
         case .openAI:
-            // Both shut down 2027-01-06 and lack the newer voices.
-            ["tts-1": "gpt-4o-mini-tts", "tts-1-hd": "gpt-4o-mini-tts"]
+            // The speech endpoint's models shut down 2027-01-06; tts-1 also lacks the newer voices.
+            ["tts-1": "gpt-realtime-2.1-mini", "tts-1-hd": "gpt-realtime-2.1-mini"]
+                .merging(Self.now() < Self.openAISpeechEndpointShutdown ? [:] : ["gpt-4o-mini-tts": "gpt-realtime-2.1-mini"]) { $1 }
         }
     }
 

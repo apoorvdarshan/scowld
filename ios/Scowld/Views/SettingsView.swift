@@ -202,7 +202,7 @@ struct SettingsView: View {
                         } else if selectedTTSBackend == .openAI {
                             settingRow {
                                 Picker("Voice", selection: $selectedOpenAITTSVoice) {
-                                    ForEach(TTSBackend.openAI.voiceOptions, id: \.self) { voice in
+                                    ForEach(TTSBackend.openAIVoices(for: selectedTTSModel), id: \.self) { voice in
                                         Text(voice.capitalized).tag(voice)
                                     }
                                 }
@@ -211,10 +211,15 @@ struct SettingsView: View {
                                     guard !isLoadingSettings else { return }
                                     saveOpenAITTSVoice()
                                 }
+                                .onChange(of: selectedTTSModel) {
+                                    // Realtime models lack fable, nova and onyx.
+                                    guard !TTSBackend.openAIVoices(for: selectedTTSModel).contains(selectedOpenAITTSVoice) else { return }
+                                    selectedOpenAITTSVoice = TTSBackend.openAIRealtimeVoice(for: selectedOpenAITTSVoice)
+                                }
                             }
 
                             settingsInfoRow(
-                                title: "OpenAI voices use your OpenAI API key. There's no local preview.",
+                                title: "OpenAI voices use your OpenAI API key. Realtime models speak over a live connection. There's no local preview.",
                                 systemImage: "info.circle"
                             )
                         }
@@ -846,7 +851,10 @@ struct SettingsView: View {
         ttsModelIsCustom = !backend.availableModels.isEmpty && !backend.availableModels.contains(selectedTTSModel)
         ttsAPIKey = KeychainManager.load(key: backend.keychainKey) ?? ""
         hasSavedTTSAPIKey = !ttsAPIKey.isEmpty
-        selectedOpenAITTSVoice = HostedServiceConfig.selectedOpenAITTSVoice()
+        let savedVoice = HostedServiceConfig.selectedOpenAITTSVoice()
+        selectedOpenAITTSVoice = TTSBackend.openAIVoices(for: selectedTTSModel).contains(savedVoice)
+            ? savedVoice
+            : TTSBackend.openAIRealtimeVoice(for: savedVoice)
         if resetMessage {
             ttsSettingsMessage = nil
         }

@@ -156,13 +156,30 @@ final class ServiceSettingsTests: XCTestCase {
         XCTAssertEqual(HostedServiceConfig.selectedModel(for: .ollama), "my-local-finetune")
 
         defaults.set("tts-1-hd", forKey: TTSBackend.openAI.modelDefaultsKey)
-        XCTAssertEqual(TTSBackend.selectedModel(for: .openAI), "gpt-4o-mini-tts")
+        XCTAssertEqual(TTSBackend.selectedModel(for: .openAI), "gpt-realtime-2.1-mini")
         defaults.set("eleven_turbo_v2_5", forKey: TTSBackend.elevenLabs.modelDefaultsKey)
         XCTAssertEqual(TTSBackend.selectedModel(for: .elevenLabs), "eleven_flash_v2_5")
 
         // STT offers no custom models, so anything retired falls back to the default.
         defaults.set("whisper-1", forKey: STTBackend.openaiWhisper.modelDefaultsKey)
         XCTAssertEqual(STTBackend.selectedModel(for: .openaiWhisper), "gpt-transcribe")
+    }
+
+    func testGPT4oMiniTTSStaysUntilTheSpeechEndpointShutsDownThenMovesToRealtime() {
+        cleanDefaults()
+        let originalClock = TTSBackend.now
+        defer { TTSBackend.now = originalClock }
+        let defaults = UserDefaults.standard
+
+        TTSBackend.now = { TTSBackend.openAISpeechEndpointShutdown.addingTimeInterval(-60) }
+        XCTAssertTrue(TTSBackend.openAI.availableModels.contains("gpt-4o-mini-tts"))
+        defaults.set("gpt-4o-mini-tts", forKey: TTSBackend.openAI.modelDefaultsKey)
+        XCTAssertEqual(TTSBackend.selectedModel(for: .openAI), "gpt-4o-mini-tts")
+
+        TTSBackend.now = { TTSBackend.openAISpeechEndpointShutdown }
+        XCTAssertFalse(TTSBackend.openAI.availableModels.contains("gpt-4o-mini-tts"))
+        XCTAssertEqual(TTSBackend.selectedModel(for: .openAI), "gpt-realtime-2.1-mini")
+        XCTAssertEqual(defaults.string(forKey: TTSBackend.openAI.modelDefaultsKey), "gpt-realtime-2.1-mini")
     }
 
     func testEveryReplacementAndDefaultIsAnOfferedModel() {

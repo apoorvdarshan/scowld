@@ -37,7 +37,7 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 - **Home tips** - A top-right info button explains the wake phrases and composer controls.
 - **BYOK AI providers** - Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.
 - **BYOK speech-to-text** - Native iOS speech, OpenAI, Groq Whisper, Deepgram, AssemblyAI, Google Cloud STT, browser Whisper, or text-only mode.
-- **BYOK text-to-speech** - ElevenLabs (Celine, Claire, bundled voice presets, custom voice IDs, model selection, and bundled local voice previews) and OpenAI voices.
+- **BYOK text-to-speech** - ElevenLabs (Celine, Claire, bundled voice presets, custom voice IDs, model selection, and bundled local voice previews) and OpenAI voices over the Realtime API (`gpt-realtime-2.1-mini` by default; `gpt-4o-mini-tts` until OpenAI retires it on 2027-01-06).
 - **Vision** - Optional front-camera context can be sent to the AI when enabled.
 - **Past chats** - Conversations are saved locally and can be selected as context for future replies.
 - **Character settings** - Avatar, custom name, and system prompt controls.
