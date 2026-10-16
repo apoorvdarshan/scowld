@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy - Scowld</title>
-<meta name="description" content="Privacy policy for Scowld, an iOS AI voice companion with BYOK AI, speech, voice, optional vision, and local saved chats.">
+<meta name="description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional vision, and local saved chats.">
 <meta name="author" content="Apoorv Darshan">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://www.scowld.xyz/privacy">
@@ -20,7 +20,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://www.scowld.xyz/privacy">
 <meta property="og:title" content="Privacy Policy - Scowld">
-<meta property="og:description" content="Privacy policy for Scowld, an iOS AI voice companion with BYOK AI, speech, voice, optional vision, and local saved chats.">
+<meta property="og:description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional vision, and local saved chats.">
 <meta property="og:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -28,7 +28,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:creator" content="@apoorvdarshan">
 <meta name="twitter:title" content="Privacy Policy - Scowld">
-<meta name="twitter:description" content="Privacy policy for Scowld, an iOS AI voice companion with BYOK AI, speech, voice, optional vision, and local saved chats.">
+<meta name="twitter:description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional vision, and local saved chats.">
 <meta name="twitter:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
 <meta name="twitter:image:alt" content="Scowld AI voice companion for iOS">
 </head>
@@ -45,12 +45,12 @@
 <main id="main">
 <div class="page-head">
   <h1>Privacy Policy</h1>
-  <p class="dateline">Last updated: October 15, 2026</p>
+  <p class="dateline">Last updated: October 16, 2026</p>
 </div>
 <article class="prose">
 <section>
 <h2>1. Overview</h2>
-<p>Scowld is a free, open-source iOS AI companion app. It uses bring-your-own-key provider settings for AI chat, optional cloud speech-to-text, and ElevenLabs or OpenAI text-to-speech. API keys you enter are stored in the iOS Keychain on your device. Scowld also includes an optional hands-free wake mode for starting voice input by saying the selected companion name.</p>
+<p>Scowld is a free, open-source iOS AI companion app. Conversations run live, speech to speech, with the provider you choose (Google Gemini Live, OpenAI Realtime, or xAI Grok Voice), using your own API key. The provider hears your voice directly and answers in its own voice. Scowld 2.0.1 and earlier instead use separate AI chat, speech-to-text, and text-to-speech providers that you choose (see AI and Voice Processing). API keys you enter are stored in the iOS Keychain on your device and are sent only to that provider. Scowld also includes an optional hands-free wake mode for starting a live conversation by saying the selected companion name.</p>
 <p>This policy explains what information is processed when you use the app and website.</p>
 </section>
 
@@ -68,26 +68,28 @@
 
 <section>
 <h2>3. AI and Voice Processing</h2>
-<p>To provide the app features, Scowld may process the following directly with the providers you configure:</p>
+<p>When you start a live conversation, Scowld opens one live connection from your device to the provider you selected. While the conversation is active, Scowld sends the following directly to that provider:</p>
 <ul>
-<li>Typed messages and selected conversation context.</li>
-<li>Voice audio sent for cloud speech-to-text when you choose a cloud STT provider.</li>
-<li>Hands-free wake detection audio processed on device while hands-free mode is enabled.</li>
-<li>Recognized speech text sent to the selected AI provider for a response.</li>
-<li>Assistant response text sent to ElevenLabs or OpenAI for speech generation.</li>
-<li>Optional camera image context when you enable camera/vision and send a message.</li>
+<li>Your microphone audio, streamed continuously for as long as the conversation is active, not only while you speak.</li>
+<li>The companion&apos;s instructions (her name, the system prompt, and the reply language) and recent messages from the active chat as context.</li>
+<li>Camera frames while the camera is on, with Google Gemini Live or OpenAI Realtime (see Camera Access).</li>
 </ul>
-<p>Scowld does not operate a hosted AI/speech proxy for app conversations in version 2.0. Hands-free wake detection is not sent to external providers before recording starts.</p>
+<p>The provider answers with speech in the voice you picked and with transcripts of what you said and what it said. Scowld plays her voice, shows captions if you turn them on, and saves each turn&apos;s transcript in the active chat on your device. With OpenAI Realtime, what you say is transcribed inside the same session (with OpenAI&apos;s whisper-1 model) so it can be saved to the chat. Providers process this data under their own terms and privacy policies.</p>
+<p>A live conversation ends by itself after 90 seconds of silence, and when you leave the Chat tab or the app goes to the background. Ending a conversation closes the connection and stops sending microphone audio to the provider.</p>
+<p>Scowld does not operate a hosted AI or speech proxy for app conversations. Hands-free wake detection runs on device, and nothing is sent to a provider before a live conversation starts.</p>
+<p>Scowld 2.0.1 and earlier work differently: voice input is transcribed by native iOS speech recognition or the cloud speech-to-text provider you choose, the text and selected conversation context are sent to the AI chat provider you choose, and replies are spoken by ElevenLabs or OpenAI text-to-speech. In those versions, a camera frame is sent only with a message you send while the camera is on, and voice samples in Settings play from files bundled with the app without calling ElevenLabs. The next Scowld update replaces this with the live conversations described above.</p>
 </section>
 
 <section>
 <h2>4. Camera Access</h2>
-<p>Scowld requests camera access for the optional vision feature. When camera context is enabled:</p>
+<p>Scowld requests camera access for the optional vision feature. The camera is off until you turn it on. While it is on during a live conversation:</p>
 <ul>
-<li>Frames are captured on device and sent to the selected AI provider only when visual context is used in a message.</li>
-<li>Images are not saved to your photo library by Scowld.</li>
+<li>With Google Gemini Live, Scowld sends a camera frame about every 2 seconds.</li>
+<li>With OpenAI Realtime, Scowld sends the latest frame with each thing you say.</li>
+<li>xAI Grok Voice does not support the camera, so no frames are sent.</li>
+<li>Frames are captured on device and sent only to the selected provider. Scowld does not record or store camera data, and does not save images to your photo library.</li>
 <li>Camera access can be disabled from the app or iOS settings.</li>
-<li>When camera is disabled, Scowld does not capture camera frames.</li>
+<li>When the camera is off, Scowld does not capture camera frames.</li>
 </ul>
 <p>Scowld does not use Apple&apos;s TrueDepth API or ARKit face tracking. Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data.</p>
 </section>
@@ -106,14 +108,13 @@
 
 <section>
 <h2>6. Microphone Access</h2>
-<p>Scowld requests microphone access for voice input and optional hands-free wake mode. When you record or send voice input:</p>
+<p>Scowld requests microphone access for live conversations and optional hands-free wake mode, and speech recognition permission only for hands-free wake mode.</p>
 <ul>
-<li>Speech audio is transcribed using native iOS speech recognition or the cloud STT provider you configure.</li>
-<li>The recognized text is sent to the selected AI provider as part of the conversation.</li>
-<li>When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device for Bella or your saved custom companion name.</li>
-<li>After the wake name is detected, Scowld starts normal voice recording; that command audio may be sent for transcription.</li>
-<li>The microphone is not needed for typed messages.</li>
-<li>Hands-free mode can be turned off in the composer, and microphone permission can be revoked from iOS settings.</li>
+<li>While a live conversation is active, microphone audio is streamed continuously to the selected provider, which hears it directly and produces the transcripts.</li>
+<li>When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device, with Apple&apos;s on-device speech recognition, only for Bella or your saved custom companion name. This audio is not sent to any provider.</li>
+<li>After the wake name is detected, Scowld starts a live conversation, and from then on microphone audio is streamed to the selected provider.</li>
+<li>A live conversation can be ended with the stop button, hands-free mode can be turned off in the composer, and microphone permission can be revoked from iOS settings.</li>
+<li>In Scowld 2.0.1 and earlier, recorded voice input is transcribed with native iOS speech recognition or the cloud speech-to-text provider you configure, and the recognized text is sent to the selected AI provider.</li>
 </ul>
 </section>
 
@@ -121,10 +122,9 @@
 <h2>7. Third-Party Providers</h2>
 <p>Scowld can integrate with third-party providers you configure. These providers may process data needed to provide app features:</p>
 <ul>
-<li><strong class="legal__strong-dim">AI providers</strong>, including Gemini, OpenAI, Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.</li>
-<li><strong class="legal__strong-dim">Speech-to-text providers</strong>, including native iOS speech, OpenAI, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
-<li><strong class="legal__strong-dim">ElevenLabs</strong> and <strong class="legal__strong-dim">OpenAI</strong> for text-to-speech.</li>
-<li><strong class="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, speech recognition, camera, microphone, and app distribution.</li>
+<li><strong class="legal__strong-dim">Live voice providers</strong>: Google (Gemini Live), OpenAI (Realtime), and xAI (Grok Voice). The provider you select receives your microphone audio, conversation context, and camera frames as described above.</li>
+<li><strong class="legal__strong-dim">Earlier versions</strong>: Scowld 2.0.1 and earlier send data to the separate AI chat, speech-to-text, and text-to-speech providers you configure in those versions.</li>
+<li><strong class="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, on-device speech recognition, camera, microphone, and app distribution.</li>
 <li><strong class="legal__strong-dim">RevenueCat</strong> to validate and record optional tips (in-app purchases).</li>
 <li><strong class="legal__strong-dim">Cloudflare</strong> for website deployment and delivery.</li>
 </ul>
@@ -144,9 +144,10 @@
 
 <section>
 <h2>9. Provider API Keys</h2>
-<p>Scowld lets you enter your own provider API keys. Provider keys are stored in the iOS Keychain on your device and are not included in the App Store binary.</p>
+<p>Scowld lets you enter your own provider API keys. Provider keys are stored in the iOS Keychain on your device, are sent only to the provider they belong to, and are not included in the App Store binary.</p>
 <ul>
 <li>Provider keys are not stored in UserDefaults or bundled files.</li>
+<li>When you update from Scowld 2.0.1 or earlier, keys saved for providers the app no longer uses are deleted from the Keychain. Saved Gemini, OpenAI, and xAI keys keep working.</li>
 <li>Provider keys are not committed to the source repository.</li>
 <li>Delete the app or remove keys from Settings to stop using saved keys.</li>
 </ul>
@@ -156,7 +157,7 @@
 <h2>10. Local Device Storage</h2>
 <p>Scowld stores app data locally on your device using Apple&apos;s local storage frameworks. This may include:</p>
 <ul>
-<li>Past chat messages and assistant replies.</li>
+<li>Past chats: the text transcript of each turn, what you said (or typed, in Scowld 2.0.1 and earlier) and what she said.</li>
 <li>The selected active chat.</li>
 <li>Character settings such as avatar, custom name, and system prompt.</li>
 <li>Voice, language, caption, and hands-free wake preferences.</li>
@@ -166,22 +167,17 @@
 </section>
 
 <section>
-<h2>11. Voice Samples</h2>
-<p>Voice sample playback in Settings uses bundled local preview audio files included with the app. Playing a bundled sample does not call ElevenLabs.</p>
-</section>
-
-<section>
-<h2>12. Children&apos;s Privacy</h2>
+<h2>11. Children&apos;s Privacy</h2>
 <p>Scowld is not directed at children under 13. We do not knowingly collect personal information from children under 13.</p>
 </section>
 
 <section>
-<h2>13. Changes to This Policy</h2>
+<h2>12. Changes to This Policy</h2>
 <p>We may update this privacy policy from time to time. Changes will be reflected on this page with an updated date.</p>
 </section>
 
 <section>
-<h2>14. Contact</h2>
+<h2>13. Contact</h2>
 <p>For privacy questions, contact:<br>
 <strong class="legal__strong-dim">Apoorv Darshan</strong> - <a href="mailto:ad13dtu@gmail.com">ad13dtu@gmail.com</a></p>
 </section>

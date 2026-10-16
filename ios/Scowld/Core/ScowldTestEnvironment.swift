@@ -44,7 +44,8 @@ enum ScowldTestEnvironment {
     }
 
     /// While tests run, Scowld never reaches the network, the microphone, speech
-    /// recognition or the camera, and never shows a permission prompt.
+    /// recognition or the camera, never starts a live conversation, and never shows
+    /// a permission prompt.
     static var isRunningTests: Bool {
         isUITesting || isHostingUnitTests
     }
@@ -54,6 +55,18 @@ enum ScowldTestEnvironment {
     /// too slowly to drive the app. Its native bridge is covered by unit tests.
     static var loadsCompanion: Bool {
         !isUITesting
+    }
+
+    /// Debug simulator only: the tab to open at launch, for screenshots
+    /// (`--preview-tab chat|chats|settings|about`).
+    static var previewTab: String? {
+        #if DEBUG && targetEnvironment(simulator)
+        let arguments = CommandLine.arguments
+        guard let index = arguments.firstIndex(of: "--preview-tab"), index + 1 < arguments.count else { return nil }
+        return arguments[index + 1]
+        #else
+        return nil
+        #endif
     }
 
     /// Applies the launch switches once, before any stored state is read.
@@ -95,10 +108,7 @@ enum ScowldTestEnvironment {
             try? FileManager.default.removeItem(at: storeDirectory.appendingPathComponent("Scowld.sqlite\(suffix)"))
         }
 
-        let keychainKeys = AIProvider.allCases.map(\.keychainKey)
-            + STTBackend.allCases.map(\.keychainKey)
-            + TTSBackend.allCases.map(\.keychainKey)
-            + [OllamaConfig.keychainURLKey]
+        let keychainKeys = AIProvider.allCases.map(\.keychainKey) + LegacySettingsCleanup.legacyKeychainKeys
         for key in Set(keychainKeys) {
             KeychainManager.delete(key: key)
         }

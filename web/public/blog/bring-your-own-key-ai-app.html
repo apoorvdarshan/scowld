@@ -33,10 +33,10 @@
 <meta name="twitter:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
 <meta name="twitter:image:alt" content="Scowld AI voice companion for iOS">
 <meta property="article:published_time" content="2026-07-09">
-<meta property="article:modified_time" content="2026-07-09">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"What 'Bring Your Own Key' Means for an AI App","description":"Scowld is a bring-your-own-key (BYOK) iOS AI companion — no subscription, no server storing your keys. Here's how BYOK works and why it's more private and often cheaper.","datePublished":"2026-07-09","dateModified":"2026-07-09","url":"https://www.scowld.xyz/blog/bring-your-own-key-ai-app","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.scowld.xyz/blog/bring-your-own-key-ai-app"},"image":"https://www.scowld.xyz/og-image-scowld.jpg","keywords":"bring your own key AI app, BYOK AI iOS, free AI companion app, open source AI companion, no subscription AI app","author":{"@type":"Person","name":"Apoorv Darshan","url":"https://x.com/apoorvdarshan"},"publisher":{"@type":"Organization","name":"Scowld","logo":{"@type":"ImageObject","url":"https://www.scowld.xyz/logo.png"}}}</script>
+<meta property="article:modified_time" content="2026-10-16">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"What 'Bring Your Own Key' Means for an AI App","description":"Scowld is a bring-your-own-key (BYOK) iOS AI companion — no subscription, no server storing your keys. Here's how BYOK works and why it's more private and often cheaper.","datePublished":"2026-07-09","dateModified":"2026-10-16","url":"https://www.scowld.xyz/blog/bring-your-own-key-ai-app","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.scowld.xyz/blog/bring-your-own-key-ai-app"},"image":"https://www.scowld.xyz/og-image-scowld.jpg","keywords":"bring your own key AI app, BYOK AI iOS, free AI companion app, open source AI companion, no subscription AI app","author":{"@type":"Person","name":"Apoorv Darshan","url":"https://x.com/apoorvdarshan"},"publisher":{"@type":"Organization","name":"Scowld","logo":{"@type":"ImageObject","url":"https://www.scowld.xyz/logo.png"}}}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.scowld.xyz"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.scowld.xyz/blog"},{"@type":"ListItem","position":3,"name":"What 'Bring Your Own Key' Means for an AI App","item":"https://www.scowld.xyz/blog/bring-your-own-key-ai-app"}]}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is a bring-your-own-key app actually free?","acceptedAnswer":{"@type":"Answer","text":"The Scowld app is free and open source with no subscription. You only pay the AI, speech-to-text, and text-to-speech providers you choose, based on your own usage."}},{"@type":"Question","name":"Can Scowld see my API keys?","acceptedAnswer":{"@type":"Answer","text":"No. Keys are stored in the iOS Keychain on your device and requests go directly to the provider. There is no Scowld server that receives or stores your keys."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is a bring-your-own-key app actually free?","acceptedAnswer":{"@type":"Answer","text":"The Scowld app is free and open source with no subscription. You only pay the live voice provider you choose, based on your own usage."}},{"@type":"Question","name":"Can Scowld see my API keys?","acceptedAnswer":{"@type":"Answer","text":"No. Keys are stored in the iOS Keychain on your device and requests go directly to the provider. There is no Scowld server that receives or stores your keys."}}]}</script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -52,7 +52,7 @@
 <div class="page-head">
   <p class="crumb"><a href="/blog">All posts</a></p>
   <h1>What 'Bring Your Own Key' Means for an AI App</h1>
-  <p class="dateline">Published <time datetime="2026-07-09">July 9, 2026</time>. 5 minute read.</p>
+  <p class="dateline">Published <time datetime="2026-07-09">July 9, 2026</time>. Updated <time datetime="2026-10-16">October 16, 2026</time>. 5 minute read.</p>
 </div>
 <article class="prose">
 <p>&quot;Bring your own key&quot; (BYOK) means an app doesn't sell you AI usage — instead, you bring an API key from a provider you already trust, and the app talks to that provider directly on your behalf. Scowld is built this way from the ground up.</p>
@@ -61,7 +61,7 @@
 <h2>Why BYOK matters</h2>
 <ul>
   <li>Privacy: requests go from your device straight to the provider you configured. Scowld runs no backend that receives, proxies off-device, or stores your keys or chats.</li>
-  <li>Cost: you pay your chosen provider for actual usage instead of a flat monthly fee, which is often far cheaper for typical use.</li>
+  <li>Cost: you pay your chosen provider for what you use instead of a flat monthly fee. Live voice is billed by the amount of audio, so light use costs little and long conversations cost more.</li>
   <li>Control: switch providers and models whenever you want, and stop instantly by removing the key.</li>
 </ul>
 
@@ -69,20 +69,20 @@
 <p>Keys you enter live in the iOS Keychain on your device. They are not bundled in the app binary, not written to plain preferences, and not committed to the open-source repository. Delete the app or remove a key in Settings and it's gone.</p>
 
 <h2>Which providers Scowld supports</h2>
-<p>You can mix and match across AI chat, speech-to-text, and text-to-speech:</p>
+<p>Scowld talks with you live, speech to speech. The provider you pick hears you directly and answers in its own voice, so one key covers the whole conversation:</p>
 <ul>
-  <li>AI chat: Google Gemini, OpenAI, Anthropic Claude, Ollama, Groq, OpenRouter, xAI, Together AI, Hugging Face, Venice AI, and Moonshot AI.</li>
-  <li>Speech-to-text: native iOS speech, OpenAI, Groq Whisper, Deepgram, AssemblyAI, and Google Cloud Speech-to-Text.</li>
-  <li>Text-to-speech: ElevenLabs and OpenAI voices.</li>
+  <li>Google Gemini Live: 30 built-in voices, plus camera vision.</li>
+  <li>OpenAI Realtime: 10 voices, including Marin and Cedar, plus camera vision.</li>
+  <li>xAI Grok Voice: 5 voices (Ara, Eve, Sal, Rex, and Leo), without camera vision.</li>
 </ul>
 
 <h2>Getting started</h2>
-<p>Download Scowld, open Settings, choose an AI provider, and paste your key. Add an ElevenLabs or OpenAI key under Text-to-Speech if you want spoken replies. That's the whole setup — no account, no card on file with Scowld. Scowld is also open source under the MIT License, so you can read exactly how your keys are handled.</p>
+<p>Download Scowld, open Settings, choose a live voice provider, pick a voice, and paste your key. That's the whole setup — no account, no card on file with Scowld. Scowld is also open source under the MIT License, so you can read exactly how your keys are handled.</p>
 
 <h2>Frequently asked questions</h2>
 <div class="faq-entry">
 <p><strong>Is a bring-your-own-key app actually free?</strong></p>
-<p>The Scowld app is free and open source with no subscription. You only pay the AI, speech-to-text, and text-to-speech providers you choose, based on your own usage.</p>
+<p>The Scowld app is free and open source with no subscription. You only pay the live voice provider you choose, based on your own usage.</p>
 </div>
 <div class="faq-entry">
 <p><strong>Can Scowld see my API keys?</strong></p>

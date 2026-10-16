@@ -139,26 +139,23 @@ enum SystemPromptTemplate {
         }
     }
 
-    static func build(userName: String?, conversationContext: [String], visionDescription: String?, characterName: String = "Bella") -> String {
+    /// The instructions for a live voice session. Everything Bella says is spoken
+    /// aloud, so the prompt asks for short, natural speech and nothing that would be
+    /// read out literally (lists, markdown, emoji or bracketed tags).
+    static func build(conversationContext: [String], characterName: String = "Bella", cameraAvailable: Bool) -> String {
         let customPrompt = UserDefaults.standard.string(forKey: "system_prompt") ?? ""
         let personality = customPrompt.isEmpty
-            ? "You are \(characterName), a friendly and expressive AI assistant with an anime avatar. You are warm, curious, and genuinely care about helping. You speak naturally and conversationally. You're cheerful and engaging, with a playful personality."
+            ? "You are \(characterName), a friendly and expressive AI companion with an anime avatar. You are warm, curious, and genuinely care about the person you're talking to. You're cheerful and engaging, with a playful personality."
             : "You are \(characterName). \(customPrompt)"
         let languageInstruction = responseLanguageInstruction()
 
         var prompt = """
         \(personality)
 
-        IMPORTANT: Start every response with an emotion tag in brackets that reflects the emotional tone of your response.
-        Valid emotions: [neutral], [happy], [sad], [angry], [surprised], [thinking], [concerned], [excited]
-        Example: [happy] That's wonderful to hear! I'd love to help with that.
+        You are talking with the user out loud in a real-time voice conversation through the Scowld app.
         Response language: \(languageInstruction)
 
         """
-
-        if let name = userName, !name.isEmpty {
-            prompt += "You are \(name)'s personal AI assistant.\n\n"
-        }
 
         if !conversationContext.isEmpty {
             prompt += """
@@ -174,20 +171,22 @@ enum SystemPromptTemplate {
 
         prompt += "Current date/time: \(DateFormatter.localizedString(from: Date(), dateStyle: .full, timeStyle: .short))\n\n"
 
-        if let vision = visionDescription, !vision.isEmpty {
-            prompt += "What you can currently see through the camera: \(vision)\n\n"
-        }
-
         prompt += """
         Rules:
         - Your name is \(characterName). Never say your name is Amica or anything else.
-        - Keep responses concise but warm
-        - Always start with an emotion tag
+        - Speak naturally and warmly, like a close friend. Keep most replies to one to three short sentences.
+        - Never use lists, markdown, emoji, stage directions or bracketed tags; everything you say is spoken aloud.
+        - If the user interrupts you, stop and respond to what they said.
         - Always follow the response language instruction, even when previous saved messages used a different language
         - Remember and reference things the user has told you
-        - Be proactive in offering help based on what you know about them
-        - If you can see the user through the camera, occasionally reference what you observe naturally
         """
+
+        if cameraAvailable {
+            prompt += """
+
+            - You may receive images from the user's front camera. Mention what you see only when it is relevant or the user asks.
+            """
+        }
 
         return prompt
     }

@@ -19,26 +19,16 @@ private final class PageMessage: WKScriptMessage {
     override var body: Any { payload }
 }
 
-/// The native half of the bridge between the bundled 3D companion page and the
-/// app: chat requests, speech requests and page events. Provider HTTP is
-/// answered by `StubURLProtocol`; no page, key or network is needed.
+/// The native half of the bridge to the bundled 3D companion page. The page only
+/// renders the companion now: conversations run natively, so its old chat and
+/// speech requests are ignored. No page, key or network is needed.
 @MainActor
 final class CompanionBridgeTests: XCTestCase {
-    private func makeCoordinator(apiKey: String? = "sk-bridge") -> (AmicaFullView.Coordinator, MemoryStore) {
+    private func makeCoordinator() -> (AmicaFullView.Coordinator, MemoryStore) {
         let defaults = DefaultsSnapshot()
         defaults.clear()
-        let keychain = KeychainSnapshot(keys: [AIProvider.openai.keychainKey, TTSBackend.elevenLabs.keychainKey])
-        if let apiKey {
-            XCTAssertTrue(KeychainManager.save(key: AIProvider.openai.keychainKey, value: apiKey))
-        } else {
-            KeychainManager.delete(key: AIProvider.openai.keychainKey)
-        }
-        KeychainManager.delete(key: TTSBackend.elevenLabs.keychainKey)
-        UserDefaults.standard.set(AIProvider.openai.rawValue, forKey: "selectedProvider")
-        UserDefaults.standard.set("Iris", forKey: "character_name")
         addTeardownBlock { @MainActor in
             StubURLProtocol.uninstall()
-            keychain.restore()
             defaults.restore()
         }
         let store = MemoryStore(inMemory: true)
@@ -49,79 +39,46 @@ final class CompanionBridgeTests: XCTestCase {
         coordinator.userContentController(WKUserContentController(), didReceive: message)
     }
 
-    private func chat(_ text: String) -> PageMessage {
-        .json(["type": "chat", "callbackId": "cb-1", "messages": [["role": "user", "content": text]]])
-    }
-
-    func testChatRequestIsAnsweredByTheSelectedProviderAndSaved() async throws {
+    func testPageEventsAreForwardedAndOldRequestsAndMalformedMessagesIgnored() async throws {
         let (coordinator, store) = makeCoordinator()
-        StubURLProtocol.install { _ in .json(["choices": [["message": ["content": "[happy] Bridge reply"]]]]) }
-        let reply = expectation(forNotification: .aiResponseReady, object: nil) { notification in
-            (notification.object as? String) == "[happy] Bridge reply"
-        }
-
-        post(chat("Hello bridge"), to: coordinator)
-        await fulfillment(of: [reply], timeout: 5)
-
-        XCTAssertEqual(store.fetchMessages().map(\.content), ["Hello bridge", "[happy] Bridge reply"])
-        let sent = try XCTUnwrap(StubURLProtocol.requests.last)
-        XCTAssertEqual(sent.request.url?.absoluteString, "https://api.openai.com/v1/chat/completions")
-        XCTAssertEqual(sent.request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-bridge")
-        let messages = try XCTUnwrap(sent.json["messages"] as? [[String: Any]])
-        XCTAssertTrue((messages.first?["content"] as? String)?.hasPrefix("You are Iris") == true,
-                      "The system prompt carries the character name")
-        XCTAssertEqual(messages.last?["content"] as? String, "Hello bridge")
-    }
-
-    func testChatWithoutAKeyNeverReachesTheNetwork() async throws {
-        let (coordinator, store) = makeCoordinator(apiKey: nil)
         StubURLProtocol.install { _ in .json([:]) }
-        let reply = expectation(forNotification: .aiResponseReady, object: nil)
-        reply.isInverted = true
-
-        post(chat("Hi"), to: coordinator)
-        await fulfillment(of: [reply], timeout: 1)
-
-        XCTAssertTrue(StubURLProtocol.requests.isEmpty)
-        XCTAssertTrue(store.fetchMessages().isEmpty)
-    }
-
-    func testRequestsAreIgnoredWhileTheChatTabIsInactive() async throws {
-        let (coordinator, store) = makeCoordinator()
-        StubURLProtocol.install { _ in .json(["choices": [["message": ["content": "late"]]]]) }
-        coordinator.setRuntimeActive(false)
-        let reply = expectation(forNotification: .aiResponseReady, object: nil)
-        reply.isInverted = true
-
-        post(chat("Are you there?"), to: coordinator)
-        await fulfillment(of: [reply], timeout: 1)
-
-        XCTAssertTrue(StubURLProtocol.requests.isEmpty)
-        XCTAssertTrue(store.fetchMessages().isEmpty)
-    }
-
-    func testSpeechWithoutAnElevenLabsKeyFailsWithoutARequest() async throws {
-        let (coordinator, _) = makeCoordinator()
-        StubURLProtocol.install { _ in .json([:]) }
-        let failed = expectation(forNotification: .ttsFailed, object: nil)
-
-        post(.json(["type": "tts_elevenlabs", "callbackId": "tts-1", "voiceId": "abc", "body": #"{"text":"Hi"}"#]), to: coordinator)
-        await fulfillment(of: [failed], timeout: 5)
-
-        XCTAssertTrue(StubURLProtocol.requests.isEmpty)
-    }
-
-    func testPageEventsAreForwardedAndMalformedMessagesIgnored() async throws {
-        let (coordinator, store) = makeCoordinator()
-        let done = expectation(forNotification: .ttsDone, object: nil)
         let ready = expectation(forNotification: .appReady, object: nil)
 
         post(PageMessage(body: "not json"), to: coordinator)
         post(PageMessage(body: ["type": "chat"]), to: coordinator)
-        post(.json(["type": "tts_done"]), to: coordinator)
+        post(.json(["type": "chat", "callbackId": "cb", "messages": [["role": "user", "content": "Hi"]]]), to: coordinator)
+        post(.json(["type": "tts_elevenlabs", "callbackId": "tts", "voiceId": "abc", "body": #"{"text":"Hi"}"#]), to: coordinator)
+        post(.json(["type": "console", "level": "log", "message": "hello"]), to: coordinator)
         post(.json(["type": "app_ready"]), to: coordinator)
-        await fulfillment(of: [done, ready], timeout: 2)
+        await fulfillment(of: [ready], timeout: 2)
 
+        XCTAssertTrue(StubURLProtocol.requests.isEmpty, "The page can no longer make the app call a provider")
         XCTAssertTrue(store.fetchMessages().isEmpty)
+    }
+
+    func testPageConfigCarriesTheNameAndAvatarAndKeepsThePageQuiet() {
+        _ = makeCoordinator()
+        UserDefaults.standard.set("Iris", forKey: "character_name")
+        UserDefaults.standard.set("AvatarSample_B", forKey: "selected_avatar")
+
+        let script = AmicaFullView.Coordinator.pageConfigScript(clearCachedSettings: true)
+        XCTAssertTrue(script.contains(#"name: "Iris""#))
+        XCTAssertTrue(script.contains(#"vrm_url: '/vrm/' + "AvatarSample_B" + '.vrm'"#))
+        XCTAssertTrue(script.contains("tts_muted: 'true'"))
+        XCTAssertTrue(script.contains("localStorage.removeItem"))
+        XCTAssertFalse(script.contains("elevenlabs"), "No speech provider settings reach the page")
+        XCTAssertFalse(script.contains("apikey"))
+
+        let update = AmicaFullView.Coordinator.pageConfigScript(clearCachedSettings: false)
+        XCTAssertFalse(update.contains("localStorage.removeItem"))
+    }
+
+    func testANameCannotBreakOutOfItsJavaScriptString() {
+        XCTAssertEqual(AmicaFullView.Coordinator.javaScriptString("Bella"), #""Bella""#)
+        let hostile = #"Bella'; alert("x"); //"#
+        let literal = AmicaFullView.Coordinator.javaScriptString(hostile)
+        // A JSON string literal is a valid JavaScript string literal.
+        let decoded = try? JSONSerialization.jsonObject(with: Data("[\(literal)]".utf8)) as? [String]
+        XCTAssertEqual(decoded, [hostile])
     }
 }

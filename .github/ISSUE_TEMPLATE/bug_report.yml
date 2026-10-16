@@ -15,9 +15,8 @@ body:
       description: Where did you see the bug?
       multiple: true
       options:
-        - Chat replies (AI provider)
-        - Voice input (speech-to-text)
-        - Voice output (text-to-speech)
+        - Live conversation (connecting, hearing you, her voice)
+        - Interrupting her
         - Hands-free wake mode
         - Avatar, animation or lip sync
         - Vision (camera)
@@ -42,12 +41,22 @@ body:
       placeholder: e.g. iPhone 16 Pro, iOS 26.1
     validations:
       required: true
-  - type: input
-    id: providers
+  - type: dropdown
+    id: provider
     attributes:
-      label: Providers and models (if relevant)
-      description: The AI, speech-to-text and text-to-speech providers selected in Settings. Names only, never keys.
-      placeholder: e.g. Claude Sonnet · native iOS speech · ElevenLabs Celine
+      label: Live voice provider (if relevant)
+      description: The provider selected in Settings > Live Voice. Pick each one where you saw the bug.
+      multiple: true
+      options:
+        - Google Gemini Live
+        - OpenAI Realtime
+        - xAI Grok Voice
+  - type: input
+    id: model-voice
+    attributes:
+      label: Model and voice (if relevant)
+      description: As shown in Settings > Live Voice. Names only, never keys.
+      placeholder: e.g. gemini-3.8-live · Leda
   - type: textarea
     id: steps
     attributes:

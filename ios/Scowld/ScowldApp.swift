@@ -32,12 +32,23 @@ private enum ScowldTab: Hashable {
     case pastChats
     case settings
     case about
+
+    /// The tab named by `--preview-tab` (Debug simulator screenshots only).
+    init?(previewName: String?) {
+        switch previewName {
+        case "chat": self = .chat
+        case "chats": self = .pastChats
+        case "settings": self = .settings
+        case "about": self = .about
+        default: return nil
+        }
+    }
 }
 
 struct ScowldRootView: View {
     var memoryStore: MemoryStore
     @AppStorage("startup_onboarding_completed") private var hasCompletedStartupOnboarding = false
-    @State private var selectedTab: ScowldTab = .chat
+    @State private var selectedTab: ScowldTab = ScowldTab(previewName: ScowldTestEnvironment.previewTab) ?? .chat
     @State private var appUpdateState: AppUpdateState = .idle
 
     var body: some View {
@@ -57,7 +68,7 @@ struct ScowldRootView: View {
 
     private var appTabs: some View {
         TabView(selection: $selectedTab) {
-            HomeView(memoryStore: memoryStore, isActive: selectedTab == .chat)
+            HomeView(memoryStore: memoryStore, isActive: selectedTab == .chat, openSettings: { selectedTab = .settings })
                 .tabItem {
                     Label("Chat", systemImage: "message.fill")
                 }

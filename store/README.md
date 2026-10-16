@@ -144,10 +144,11 @@ every build's `Info.plist` carries `ITSAppUsesNonExemptEncryption = false`).
 Without it, App Store Connect asks about each build by hand, and review
 submission fails with `usesNonExemptEncryption` missing.
 
-`NO` is right because Scowld only uses exempt encryption: HTTPS and the OpenAI
-Realtime WebSocket through Apple's networking, the Keychain for provider keys,
-and Apple's system crypto (RevenueCat's hashing and signature checks, the
-companion page's WebCrypto SHA-256 digests). If the app ever adds its own
+`NO` is right because Scowld only uses exempt encryption: HTTPS and the live
+voice WebSockets (Gemini Live, OpenAI Realtime, xAI Grok Voice) through Apple's
+networking, the Keychain for provider keys, and Apple's system crypto
+(RevenueCat's hashing and signature checks, the companion page's WebCrypto
+SHA-256 digests). If the app ever adds its own
 encryption, set it to `YES` and add
 `INFOPLIST_KEY_ITSEncryptionExportComplianceCode` with the code App Store
 Connect issues for the app's encryption documentation.

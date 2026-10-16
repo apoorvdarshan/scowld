@@ -1,1 +1,1 @@
-ai companion,voice chat,avatar,tts,stt,gemini,deepgram,elevenlabs,chatbot,assistant
+ai companion,voice chat,avatar,anime,gemini live,openai,grok,realtime,talk,chatbot,assistant
