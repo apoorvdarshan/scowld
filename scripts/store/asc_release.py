@@ -25,9 +25,10 @@ WAITING_FOR_REVIEW (already submitted) nothing can. A step that can no longer
 change only checks that App Store Connect already matches the repository, and
 those checks run before anything is written.
 
-Scowld sells nothing in-app (2.0 removed purchases), so no in-app purchase or
-subscription is submitted; submission stops instead if App Store Connect holds
-products that would have to go to review with the version.
+Scowld's in-app products (tips, and Scowld Premium's subscriptions and minute
+packs) are not submitted by this script: submission stops instead if App Store
+Connect holds products that would have to go to review with the version, so
+new products are added to the version's submission in App Store Connect by hand.
 
 `--create-version` (IOS_CREATE_VERSION) runs first on a release run: it adds the
 App Store version for the tag when App Store Connect does not have it yet, and

@@ -1,6 +1,7 @@
 // scowld.xyz runs on Cloudflare Workers. Static files in public/ are served
 // straight from the assets binding; only /api/* reaches this Worker (see
 // run_worker_first in wrangler.jsonc).
+import { isValidUserID } from "./premium.js";
 import {
   OWNER,
   parseStargazerPage,
@@ -8,6 +9,9 @@ import {
   renderStarHistory,
   REPOSITORY,
 } from "./star-history.js";
+
+export { PremiumAccount } from "./premium-account.js";
+export { PremiumLedger } from "./premium-ledger.js";
 
 export default {
   async fetch(request, env) {
@@ -23,9 +27,32 @@ export default {
         : response;
     }
 
+    if (url.pathname === "/api/live" || url.pathname === "/api/premium/balance") {
+      return premium(request, env, url);
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
+
+// Scowld Premium: the app identifies itself with its RevenueCat app user ID,
+// and each ID has its own Durable Object that checks its purchases with
+// RevenueCat, keeps its minute usage and relays its conversations.
+async function premium(request, env, url) {
+  const userID = request.headers.get("X-Scowld-User") ?? "";
+  if (!isValidUserID(userID)) {
+    return new Response("Unknown user", { status: 400 });
+  }
+  if (url.pathname === "/api/live") {
+    if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+      return new Response("Expected a WebSocket upgrade", { status: 426, headers: { Upgrade: "websocket" } });
+    }
+  } else if (request.method !== "GET") {
+    return new Response("Method not allowed", { status: 405, headers: { Allow: "GET" } });
+  }
+  const accounts = env.PREMIUM_ACCOUNTS;
+  return accounts.get(accounts.idFromName(userID)).fetch(request);
+}
 
 // The README embeds this chart, so failures render a designed fallback card
 // with a short cache instead of an error page.

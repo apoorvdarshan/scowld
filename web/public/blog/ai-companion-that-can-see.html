@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>An AI Companion That Can See What You Show It | Scowld</title>
-<meta name="description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key.">
+<meta name="description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key or Scowld Premium.">
 <meta name="keywords" content="AI companion that can see, AI vision app, AI that responds to what you show it, iOS AI vision, camera AI companion">
 <meta name="author" content="Apoorv Darshan">
 <meta name="robots" content="index, follow">
@@ -21,7 +21,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://www.scowld.xyz/blog/ai-companion-that-can-see">
 <meta property="og:title" content="An AI Companion That Can See What You Show It">
-<meta property="og:description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key.">
+<meta property="og:description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key or Scowld Premium.">
 <meta property="og:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -29,14 +29,14 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:creator" content="@apoorvdarshan">
 <meta name="twitter:title" content="An AI Companion That Can See What You Show It">
-<meta name="twitter:description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key.">
+<meta name="twitter:description" content="How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key or Scowld Premium.">
 <meta name="twitter:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
 <meta name="twitter:image:alt" content="Scowld AI voice companion for iOS">
 <meta property="article:published_time" content="2026-07-09">
 <meta property="article:modified_time" content="2026-10-16">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"An AI Companion That Can See What You Show It","description":"How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key.","datePublished":"2026-07-09","dateModified":"2026-10-16","url":"https://www.scowld.xyz/blog/ai-companion-that-can-see","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.scowld.xyz/blog/ai-companion-that-can-see"},"image":"https://www.scowld.xyz/og-image-scowld.jpg","keywords":"AI companion that can see, AI vision app, AI that responds to what you show it, iOS AI vision, camera AI companion","author":{"@type":"Person","name":"Apoorv Darshan","url":"https://x.com/apoorvdarshan"},"publisher":{"@type":"Organization","name":"Scowld","logo":{"@type":"ImageObject","url":"https://www.scowld.xyz/logo.png"}}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"An AI Companion That Can See What You Show It","description":"How Scowld's optional camera vision lets an AI voice companion respond to real objects you hold up — on iPhone and iPad, using your own API key or Scowld Premium.","datePublished":"2026-07-09","dateModified":"2026-10-16","url":"https://www.scowld.xyz/blog/ai-companion-that-can-see","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.scowld.xyz/blog/ai-companion-that-can-see"},"image":"https://www.scowld.xyz/og-image-scowld.jpg","keywords":"AI companion that can see, AI vision app, AI that responds to what you show it, iOS AI vision, camera AI companion","author":{"@type":"Person","name":"Apoorv Darshan","url":"https://x.com/apoorvdarshan"},"publisher":{"@type":"Organization","name":"Scowld","logo":{"@type":"ImageObject","url":"https://www.scowld.xyz/logo.png"}}}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.scowld.xyz"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.scowld.xyz/blog"},{"@type":"ListItem","position":3,"name":"An AI Companion That Can See What You Show It","item":"https://www.scowld.xyz/blog/ai-companion-that-can-see"}]}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Does Scowld record video?","acceptedAnswer":{"@type":"Answer","text":"No. While the camera is on, Scowld sends still frames to your provider (about one every 2 seconds with Gemini, or one with each thing you say with OpenAI), but it doesn't record or store camera data, and images are not saved to your photo library."}},{"@type":"Question","name":"Which providers support vision in Scowld?","acceptedAnswer":{"@type":"Answer","text":"Vision works with Google Gemini Live and OpenAI Realtime. xAI Grok Voice doesn't support the camera. You choose the provider and add your own key in Settings."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Does Scowld record video?","acceptedAnswer":{"@type":"Answer","text":"No. While the camera is on, Scowld sends still frames (about one every 2 seconds with Gemini, one with each thing you say with OpenAI, or at most one every 2 seconds with Scowld Premium), but it doesn't record or store camera data, and images are not saved to your photo library."}},{"@type":"Question","name":"Which providers support vision in Scowld?","acceptedAnswer":{"@type":"Answer","text":"Vision works with Google Gemini Live, OpenAI Realtime, and Scowld Premium, which uses Gemini Live. xAI Grok Voice doesn't support the camera. Choose Scowld Premium, or a provider with your own key, in Settings > Live Voice."}}]}</script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -59,15 +59,15 @@
 <p>This vision feature is optional and off by default. When you turn it on, it turns a one-way chat into something closer to showing a friend what you're looking at.</p>
 
 <h2>How the camera vision works</h2>
-<p>While the camera is on during a live conversation, Scowld captures frames from the front camera and sends them to the provider you configured: about one every 2 seconds with Google Gemini Live, or the latest frame with each thing you say with OpenAI Realtime. The provider's model sees the image and the companion replies out loud.</p>
+<p>While the camera is on during a live conversation, Scowld captures frames from the front camera and sends them to the provider you configured: about one every 2 seconds with Google Gemini Live, or the latest frame with each thing you say with OpenAI Realtime. With Scowld Premium, at most one frame every 2 seconds goes through Scowld's server to Google Gemini Live. The model sees the image and the companion replies out loud.</p>
 <ul>
   <li>Frames are captured on device and only sent while the camera is on.</li>
-  <li>Vision works with Google Gemini Live and OpenAI Realtime. xAI Grok Voice doesn't support the camera.</li>
+  <li>Vision works with Google Gemini Live, OpenAI Realtime, and Scowld Premium. xAI Grok Voice doesn't support the camera.</li>
   <li>Images are never saved to your photo library by Scowld.</li>
 </ul>
 
 <h2>Privacy by design</h2>
-<p>Vision is opt-in and off by default. Frames are sent only while the camera is on, Scowld doesn't record or store camera data, and Scowld does not run a server that sees your images — frames go straight from your device to the provider whose key you added.</p>
+<p>Vision is opt-in and off by default. Frames are sent only while the camera is on, and Scowld doesn't record or store camera data. With your own key, no Scowld server sees your images — frames go straight from your device to the provider whose key you added. With Scowld Premium, frames are relayed through Scowld's server to Google Gemini Live and aren't stored there.</p>
 <p>Scowld also does not use Apple's TrueDepth API or ARKit face tracking, and it does not collect, store, or share face geometry, depth maps, facial expressions, or any other face data. The camera is there to see the world you point it at, not to profile you.</p>
 
 <h2>When showing beats telling</h2>
@@ -78,16 +78,16 @@
 </ul>
 
 <h2>How to try it</h2>
-<p>Download Scowld from the App Store, add a Google Gemini or OpenAI key in Settings, then turn on the camera with the eye button and talk to her. Because Scowld is bring-your-own-key, you only pay your provider for what you use — there's no subscription.</p>
+<p>Download Scowld from the App Store, then use Scowld Premium or add a Google Gemini or OpenAI key in Settings &gt; Live Voice. Turn on the camera with the eye button and talk to her. With your own key, you only pay your provider for what you use — there's no subscription. Scowld Premium is an optional paid alternative that needs no key.</p>
 
 <h2>Frequently asked questions</h2>
 <div class="faq-entry">
 <p><strong>Does Scowld record video?</strong></p>
-<p>No. While the camera is on, Scowld sends still frames to your provider (about one every 2 seconds with Gemini, or one with each thing you say with OpenAI), but it doesn't record or store camera data, and images are not saved to your photo library.</p>
+<p>No. While the camera is on, Scowld sends still frames (about one every 2 seconds with Gemini, one with each thing you say with OpenAI, or at most one every 2 seconds with Scowld Premium), but it doesn't record or store camera data, and images are not saved to your photo library.</p>
 </div>
 <div class="faq-entry">
 <p><strong>Which providers support vision in Scowld?</strong></p>
-<p>Vision works with Google Gemini Live and OpenAI Realtime. xAI Grok Voice doesn't support the camera. You choose the provider and add your own key in Settings.</p>
+<p>Vision works with Google Gemini Live, OpenAI Realtime, and Scowld Premium, which uses Gemini Live. xAI Grok Voice doesn't support the camera. Choose Scowld Premium, or a provider with your own key, in Settings &gt; Live Voice.</p>
 </div>
 
 <h2>Try Scowld</h2>

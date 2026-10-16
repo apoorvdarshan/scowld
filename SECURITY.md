@@ -16,11 +16,12 @@ Security fixes are made against the latest released version of the iOS app and t
 Scowld is a **bring-your-own-key (BYOK)** app. Understanding the model helps when assessing a report:
 
 - Provider API keys are entered by the user and stored in the **iOS Keychain** on the device.
-- There is **no Scowld backend that receives, proxies, or stores user API keys**. Each live conversation is a WebSocket connection made natively from the device straight to the provider the user selected (Google Gemini Live, OpenAI Realtime, or xAI Grok Voice), and each key is sent only to its own provider.
+- There is **no Scowld backend that receives, proxies, or stores user API keys**. With the user's own key, each live conversation is a WebSocket connection made natively from the device straight to the provider the user selected (Google Gemini Live, OpenAI Realtime, or xAI Grok Voice), and each key is sent only to its own provider.
+- **Scowld Premium** conversations instead go through Scowld's relay on the website's Cloudflare Worker (`web/src/premium-account.js`), which adds Scowld's own Gemini key server-side; that key never reaches the app. The app identifies itself only with its anonymous RevenueCat app user ID; the relay checks purchases with a read-only RevenueCat key, fixes the model and context limit so a client can't run up costs, records minutes used per App Store purchase, and stores no audio, camera frames or transcripts.
 - A local HTTP server runs inside the app only to serve the bundled web (VRM) frontend; it is bound to localhost, not exposed off-device, and makes no provider calls. (Scowld 2.0.1 and earlier also use it to proxy text-to-speech requests on-device with the key from Keychain.)
 - Hands-free wake detection uses Apple's on-device speech recognition and listens only for the companion's name; nothing is sent to a provider before a live conversation starts.
 - Chat history (each turn's transcript), provider/model/voice choices, and preferences are stored locally on the device.
-- The marketing website at [scowld.xyz](https://scowld.xyz) serves marketing, blog, privacy, and terms pages, plus a star-history SVG for the README. That endpoint reads public stargazer data from the GitHub API with a read-only token kept as a Cloudflare Worker secret; the site has no accounts and stores no user data.
+- The marketing website at [scowld.xyz](https://scowld.xyz) serves marketing, blog, privacy, and terms pages, a star-history SVG for the README, and the Scowld Premium relay (`/api/live`, `/api/premium/balance`). The star-history endpoint reads public stargazer data from the GitHub API with a read-only token. Worker secrets (`GITHUB_TOKEN`, `GEMINI_API_KEY`, `REVENUECAT_SECRET_KEY`) live only in Cloudflare. The site has no accounts; the only stored data is Premium minute usage keyed by App Store purchase.
 
 ## Reporting a vulnerability
 

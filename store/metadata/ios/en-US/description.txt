@@ -1,47 +1,54 @@
-Scowld is an AI voice companion built for natural, expressive conversations with an animated character. Talk with her live, and she answers out loud in the voice you pick. Save conversations and personalize the companion experience from a polished iOS interface.
+Scowld is an AI voice companion built for natural, expressive conversations with an animated character. Talk with her live, and she answers out loud in the voice you pick. Use optional Scowld Premium with no API key, or bring your own key for free.
 
 WHAT YOU GET
 - Animated anime-style AI companion you talk with live, out loud
-- Live speech-to-speech: the provider you choose hears you directly and answers in its own voice, with no separate speech-to-text or text-to-speech step
+- Live speech-to-speech, with no separate speech-to-text or text-to-speech step
 - Interrupt her anytime by speaking
 - Optional hands-free wake mode using Bella or your custom companion name
-- Bring-your-own-key providers: Google Gemini Live, OpenAI Realtime, and xAI Grok Voice
-- Each provider's built-in female voices: 14 with Gemini, 4 with OpenAI including Marin and Coral, and 2 with xAI
+- Optional Scowld Premium: no API key needed, with Google Gemini Live and 14 female voices
+- Or bring your own key, free and unlimited: Google Gemini Live (14 female voices), OpenAI Realtime (4), or xAI Grok Voice (2)
 - Lip sync that follows her voice
-- Saved past chats that can be reused as conversation context
-- Custom character name and system prompt controls
+- Saved past chats you can reuse as conversation context
+- Custom character name and system prompt
 - Optional captions of what she says
-- Optional camera vision with Gemini or OpenAI, off until you turn it on
+- Optional camera vision with Premium, Gemini, or OpenAI, off until you turn it on
 - Reply language that follows your iPhone language, or one you choose
-- App Store update checks, rating, sharing, contact, and social links in About
+
+SCOWLD PREMIUM (OPTIONAL)
+Google Gemini Live with Scowld's own key, so there's nothing to set up.
+- Weekly: $6.99 a week, with 20 minutes a week
+- Yearly: $99.99 a year, with 50 minutes a month; new subscribers get a 3-day free trial that includes 10 minutes
+- Minute packs, no subscription needed: 20 minutes for $6.99, 60 for $16.99, or 150 for $34.99. They never expire and are used after a plan's minutes run out
+- Minutes count the time a Premium conversation is connected. Plan minutes reset each week or each month of the subscription year and don't roll over
+- US prices shown; other countries get local equivalents
+
+Payment is charged to your Apple ID at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period. The free trial converts to the paid yearly plan unless canceled at least 24 hours before it ends. Manage or cancel in the iPhone Settings app > [your name] > Subscriptions.
 
 PRIVACY AND SECURITY
 - No user account is required
-- Provider API keys are entered by you, stored in iOS Keychain, and sent only to that provider
-- Provider API keys are not bundled in the app and are not stored in plain app preferences
-- No subscriptions, paywall, Billing tab, voice credits, or extra credit packs; optional one-time tips unlock nothing
-- Hands-free wake mode listens on device, with Apple's on-device speech recognition, only for her name; nothing is sent before a live conversation starts
-- During a live conversation, microphone audio streams continuously to the provider you chose
-- Camera frames go to the provider only while the camera is on, and Scowld doesn't record or store them
+- With your own key, there's no subscription and nothing goes through a Scowld server; keys are stored in iOS Keychain, sent only to their provider, and never bundled in the app
+- With Premium, Scowld's server (hosted on Cloudflare) relays your conversation to Google Gemini Live in real time and doesn't store audio, camera frames, or transcripts
+- Optional one-time tips unlock nothing
+- Hands-free wake mode listens on device only for her name; nothing is sent before a live conversation starts
+- During a live conversation, microphone audio streams continuously to the provider (with Premium, through Scowld's server)
+- Camera frames are sent only while the camera is on, and Scowld doesn't record or store them
 - A live conversation ends after 90 seconds of silence, or when you leave the Chat tab or the app
 - Saved chats stay on your device
-- Scowld does not use Apple's TrueDepth API or ARKit face tracking
-- Scowld does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data
+- Scowld does not use Apple's TrueDepth API or ARKit face tracking, and does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or other face data
 
 HOW IT WORKS
-1. Open Settings and choose Google Gemini Live, OpenAI Realtime, or xAI Grok Voice
-2. Add your API key for that provider and pick a voice
+1. Tap the mic and pick a Premium plan, or open Settings > Live Voice, choose Own API Key, and add a Gemini, OpenAI, or xAI key
+2. Pick a voice in Settings > Live Voice
 3. Tap the mic, or say her name with hands-free on, and talk naturally
-4. The provider hears you over one live connection and answers in its own voice while the companion lip syncs
-5. Each turn is saved on your device; switch between past chats when you want separate conversation contexts
+4. She hears you over one live connection and answers out loud while the companion lip syncs
+5. Each turn is saved on your device; switch past chats for separate contexts
 
-Built with SwiftUI, iOS Keychain, Google Gemini Live, OpenAI Realtime, xAI Grok Voice, and a Cloudflare-hosted website.
 Website: https://scowld.xyz
 Blog: https://scowld.xyz/blog
 Instagram: https://www.instagram.com/apoorvcodes/
 Product Hunt: https://www.producthunt.com/products/scowld
+Terms of Use: https://scowld.xyz/terms
 Privacy Policy: https://scowld.xyz/privacy
-Terms of Service: https://scowld.xyz/terms
 Contact: ad13dtu@gmail.com
 
 Not affiliated with Google, OpenAI, xAI, Apple, or Cloudflare.

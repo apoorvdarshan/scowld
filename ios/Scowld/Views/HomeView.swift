@@ -49,6 +49,9 @@ struct HomeView: View {
     var isActive = true
     /// Shows the Settings tab, where the provider key is added.
     var openSettings: () -> Void = {}
+    /// Shows the Premium plans or the minute packs.
+    var openPremium: (PremiumSheet) -> Void = { _ in }
+    @Environment(PremiumModel.self) private var premium
     @State private var amicaCoordinator: AmicaFullView.Coordinator?
     @State private var live: LiveConversation
     @State private var camera = LiveCamera()
@@ -57,16 +60,23 @@ struct HomeView: View {
     @State private var speechRecognitionGranted = false
     @State private var showHomeTips = false
     @State private var hasProviderKey = true
+    @State private var liveMode = LiveMode.premium
     @AppStorage("camera_enabled") private var cameraOn = false
     @AppStorage("show_ai_caption") private var showAICaption = false
     @AppStorage("hands_free_mode_enabled") private var handsFreeModeEnabled = true
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(memoryStore: MemoryStore, isActive: Bool = true, openSettings: @escaping () -> Void = {}) {
+    init(
+        memoryStore: MemoryStore,
+        isActive: Bool = true,
+        openSettings: @escaping () -> Void = {},
+        openPremium: @escaping (PremiumSheet) -> Void = { _ in }
+    ) {
         self.memoryStore = memoryStore
         self.isActive = isActive
         self.openSettings = openSettings
+        self.openPremium = openPremium
         _live = State(initialValue: LiveConversation(memoryStore: memoryStore))
     }
 
@@ -164,7 +174,17 @@ struct HomeView: View {
                 stopActiveConversation()
             }
         }
+        .onChange(of: live.ranOutOfMinutes) {
+            // Out of minutes mid-conversation: offer more right away.
+            if live.ranOutOfMinutes {
+                live.ranOutOfMinutes = false
+                openPremium(premium.isSubscribed ? .minutes : .paywall)
+            }
+        }
         .onChange(of: live.isActive) {
+            if !live.isActive, live.mode == .premium {
+                Task { await premium.refreshBalance() }
+            }
             updateHandsFreeWakeListener()
             updateCamera()
         }
@@ -281,12 +301,27 @@ struct HomeView: View {
 
     // MARK: - Live status
 
+    private enum StatusAction: Equatable {
+        case settings
+        case premium(PremiumSheet)
+    }
+
     private struct LiveStatus: Equatable {
         let icon: String
         let text: String
         let isError: Bool
         let isBusy: Bool
-        var opensSettings = false
+        var action: StatusAction?
+    }
+
+    /// What a Premium user needs before talking: a plan, or more minutes.
+    private var premiumNeed: (text: String, sheet: PremiumSheet)? {
+        guard liveMode == .premium, !premium.canTalk else { return nil }
+        let name = CharacterPack.resolveCharacterName()
+        if premium.isSubscribed || premium.balance?.plan != nil {
+            return (NSLocalizedString("You're out of minutes. Get more to keep talking.", comment: "Premium minutes ran out"), .minutes)
+        }
+        return (String.localizedStringWithFormat(NSLocalizedString("Start Scowld Premium to talk to %@.", comment: "Premium needed"), name), .paywall)
     }
 
     private var liveStatus: LiveStatus? {
@@ -297,17 +332,21 @@ struct HomeView: View {
             name
         )
         if let error = live.errorMessage {
-            return LiveStatus(icon: "exclamationmark.triangle.fill", text: error, isError: true, isBusy: false, opensSettings: error == missingKey)
+            return LiveStatus(icon: "exclamationmark.triangle.fill", text: error, isError: true, isBusy: false, action: error == missingKey ? .settings : nil)
         }
         switch live.phase {
         case .idle:
+            if liveMode == .premium {
+                guard let need = premiumNeed else { return nil }
+                return LiveStatus(icon: "sparkles", text: need.text, isError: false, isBusy: false, action: .premium(need.sheet))
+            }
             // Until a key is saved, say so up front and link to Settings.
             guard !hasProviderKey else { return nil }
-            return LiveStatus(icon: "key.fill", text: missingKey, isError: false, isBusy: false, opensSettings: true)
+            return LiveStatus(icon: "key.fill", text: missingKey, isError: false, isBusy: false, action: .settings)
         case .connecting:
             return LiveStatus(
                 icon: "antenna.radiowaves.left.and.right",
-                text: String.localizedStringWithFormat(NSLocalizedString("Connecting to %@...", comment: "Live status"), live.provider.shortName),
+                text: String.localizedStringWithFormat(NSLocalizedString("Connecting to %@...", comment: "Live status"), live.connectionName),
                 isError: false,
                 isBusy: true
             )
@@ -322,15 +361,18 @@ struct HomeView: View {
     @ViewBuilder
     private var statusPill: some View {
         if let status = liveStatus {
-            if status.opensSettings {
+            if let action = status.action {
                 Button {
                     InteractionFeedback.tap()
-                    openSettings()
+                    switch action {
+                    case .settings: openSettings()
+                    case .premium(let sheet): openPremium(sheet)
+                    }
                 } label: {
                     statusPillContent(status)
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Opens Settings.")
+                .accessibilityHint(action == .settings ? "Opens Settings." : "Shows Scowld Premium.")
                 .accessibilityIdentifier("chat.status")
             } else {
                 statusPillContent(status)
@@ -355,7 +397,7 @@ struct HomeView: View {
                 .font(.footnote.weight(.semibold))
                 .lineLimit(3)
                 .multilineTextAlignment(.leading)
-            if status.opensSettings {
+            if status.action != nil {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.bold))
                     .opacity(0.7)
@@ -385,6 +427,7 @@ struct HomeView: View {
     private func refreshProviderKey() {
         let provider = HostedServiceConfig.selectedProvider()
         hasProviderKey = KeychainManager.exists(key: provider.keychainKey)
+        liveMode = HostedServiceConfig.liveMode()
     }
 
     private func connectLiveConversation() {
@@ -409,6 +452,12 @@ struct HomeView: View {
         if live.isActive {
             live.end()
             InteractionFeedback.liveEnd()
+            return
+        }
+        // Premium without a plan or minutes left: offer them instead of connecting.
+        if let need = premiumNeed {
+            InteractionFeedback.tap()
+            openPremium(need.sheet)
             return
         }
         guard !ScowldTestEnvironment.isRunningTests else { return }
@@ -483,7 +532,7 @@ struct HomeView: View {
 
     private func handleHandsFreeWake() {
         handsFreeWakeListener.stop()
-        guard handsFreeModeEnabled, !live.isActive, microphoneGranted else {
+        guard handsFreeModeEnabled, !live.isActive, microphoneGranted, premiumNeed == nil else {
             updateHandsFreeWakeListener()
             return
         }

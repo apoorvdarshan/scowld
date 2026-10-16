@@ -20,7 +20,12 @@ final class LiveConversationTests: XCTestCase {
         init(_ value: Value) { self.value = value }
     }
 
-    private func makeConversation(_ provider: AIProvider, key: String? = "live-key") -> Harness {
+    private func makeConversation(
+        _ provider: AIProvider,
+        key: String? = "live-key",
+        mode: LiveMode = .ownKey,
+        premiumUser: String? = nil
+    ) -> Harness {
         let defaults = DefaultsSnapshot()
         defaults.clear()
         addTeardownBlock { defaults.restore() }
@@ -40,6 +45,8 @@ final class LiveConversationTests: XCTestCase {
                 return fake
             },
             loadKey: { _ in key },
+            loadMode: { mode },
+            premiumUserID: { premiumUser },
             now: { now.value }
         )
         addTeardownBlock { @MainActor in conversation.end() }
@@ -72,7 +79,7 @@ final class LiveConversationTests: XCTestCase {
         let h = makeConversation(.openai)
         let audio = FakeLiveAudio()
         audio.failsToStart = true
-        let conversation = LiveConversation(memoryStore: h.store, makeSocket: h.sockets.make, makeAudio: { audio }, loadKey: { _ in "k" })
+        let conversation = LiveConversation(memoryStore: h.store, makeSocket: h.sockets.make, makeAudio: { audio }, loadKey: { _ in "k" }, loadMode: { .ownKey })
         conversation.start()
         XCTAssertEqual(conversation.phase, .idle)
         XCTAssertTrue(audio.isStopped)
@@ -101,6 +108,65 @@ final class LiveConversationTests: XCTestCase {
         await waitUntil { socket.sent.count == 2 }
         let chunk = (socket.sentJSON[1]["realtimeInput"] as? [String: Any])?["audio"] as? [String: Any]
         XCTAssertEqual(chunk?["data"] as? String, pcm(6, value: 4).base64EncodedString(), "Speech before the connection was ready is kept")
+    }
+
+    // MARK: Scowld Premium
+
+    func testPremiumTalksToGeminiThroughScowldWithTheAppUserID() async throws {
+        let user = "$RCAnonymousID:0123456789abcdef0123456789abcdef"
+        // Premium uses Gemini even when another provider is selected for the user's own key.
+        let h = makeConversation(.openai, key: nil, mode: .premium, premiumUser: user)
+        UserDefaults.standard.set("Aoede", forKey: AIProvider.gemini.voiceDefaultsKey)
+        h.conversation.start()
+        XCTAssertEqual(h.conversation.phase, .connecting)
+        XCTAssertEqual(h.conversation.provider, .gemini)
+        XCTAssertEqual(h.conversation.connectionName, "Scowld Premium")
+
+        let socket = try XCTUnwrap(h.sockets.last)
+        XCTAssertEqual(socket.request.url?.absoluteString, "wss://scowld.xyz/api/live")
+        XCTAssertEqual(socket.request.value(forHTTPHeaderField: "X-Scowld-User"), user)
+        XCTAssertNil(socket.request.value(forHTTPHeaderField: "x-goog-api-key"), "No provider key is sent")
+        await waitUntil { socket.sent.count == 1 }
+        let setup = try XCTUnwrap(socket.sentJSON[0]["setup"] as? [String: Any])
+        XCTAssertEqual(setup["model"] as? String, "models/\(AIProvider.gemini.defaultModel)")
+        let voice = (((setup["generationConfig"] as? [String: Any])?["speechConfig"] as? [String: Any])?["voiceConfig"] as? [String: Any])?["prebuiltVoiceConfig"] as? [String: Any]
+        XCTAssertEqual(voice?["voiceName"] as? String, "Aoede")
+    }
+
+    func testPremiumWithoutAnAccountIDDoesntConnect() {
+        let h = makeConversation(.gemini, mode: .premium, premiumUser: nil)
+        h.conversation.start()
+        XCTAssertEqual(h.conversation.phase, .idle)
+        XCTAssertTrue(h.sockets.sockets.isEmpty)
+        XCTAssertEqual(h.conversation.errorMessage, "Scowld Premium is unavailable right now. Try again soon.")
+    }
+
+    func testRunningOutOfPremiumMinutesEndsTheConversation() async throws {
+        let h = makeConversation(.gemini, mode: .premium, premiumUser: "$RCAnonymousID:0123456789abcdef0123456789abcdef")
+        h.conversation.start()
+        let socket = try XCTUnwrap(h.sockets.last)
+        socket.deliver(["setupComplete": [String: Any]()])
+        await waitUntil { h.conversation.phase == .live }
+
+        socket.deliver(["scowld": ["event": "out_of_minutes"]])
+        await waitUntil { h.conversation.phase == .idle }
+        XCTAssertTrue(h.conversation.ranOutOfMinutes)
+        XCTAssertEqual(h.conversation.errorMessage, "You're out of Premium minutes.")
+        XCTAssertTrue(socket.isClosed)
+
+        // The next conversation starts fresh.
+        h.conversation.start()
+        XCTAssertFalse(h.conversation.ranOutOfMinutes)
+    }
+
+    func testPremiumBeingUnavailableIsExplained() async throws {
+        let h = makeConversation(.gemini, mode: .premium, premiumUser: "$RCAnonymousID:0123456789abcdef0123456789abcdef")
+        h.conversation.start()
+        let socket = try XCTUnwrap(h.sockets.last)
+        socket.deliver(["scowld": ["event": "unavailable"]])
+        await waitUntil { h.conversation.phase == .idle }
+        XCTAssertFalse(h.conversation.ranOutOfMinutes)
+        XCTAssertEqual(h.conversation.errorMessage, "Scowld Premium is unavailable right now. Try again soon.")
     }
 
     // MARK: Replies

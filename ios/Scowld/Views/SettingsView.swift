@@ -18,6 +18,10 @@ struct SettingsView: View {
     @State private var aiSettingsMessage: String?
     @State private var fetchedModels: [String] = []
     @State private var voicePreviewer = VoicePreviewer()
+    @State private var liveMode: LiveMode = .premium
+    @State private var premiumVoice = AIProvider.gemini.defaultVoice
+    @State private var premiumSheet: PremiumSheet?
+    @Environment(PremiumModel.self) private var premium
     // MARK: - Secret visibility
     @State private var revealAIKey = false
 
@@ -188,79 +192,269 @@ struct SettingsView: View {
         }
         .onAppear { loadSettings() }
         .onDisappear { voicePreviewer.stop() }
+        .sheet(item: $premiumSheet) { sheet in
+            switch sheet {
+            case .paywall:
+                PremiumPaywallView()
+            case .minutes:
+                MinutePacksView()
+                    .presentationDetents([.medium, .large])
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .amicaSettingsChanged)) { _ in
+            // The paywall can switch to the user's own key.
+            liveMode = HostedServiceConfig.liveMode()
+        }
     }
 
     private var aiProviderSection: some View {
         settingsSection(
             "Live Voice",
             icon: "waveform.and.mic",
-            footer: "Scowld streams your voice to the provider you choose and plays her voice back. Your API key stays in the iOS Keychain and is sent only to that provider."
+            footer: liveMode == .premium
+                ? "Scowld Premium relays your conversation to Google Gemini Live with Scowld's own key, so you don't need one. Nothing is stored on the way."
+                : "Scowld streams your voice to the provider you choose and plays her voice back. Your API key stays in the iOS Keychain and is sent only to that provider."
         ) {
-            menuRow("Provider", value: selectedAIProvider.displayName, identifier: "settings.ai.provider") {
-                Picker("Provider", selection: $selectedAIProviderID) {
-                    ForEach(AIProvider.allCases, id: \.rawValue) { provider in
-                        Text(provider.displayName).tag(provider.rawValue)
-                    }
+            settingRow {
+                Picker("Connection", selection: $liveMode) {
+                    Text("Scowld Premium").tag(LiveMode.premium)
+                    Text("Own API Key").tag(LiveMode.ownKey)
                 }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("settings.ai.mode")
             }
-            .onChange(of: selectedAIProviderID) {
+            .onChange(of: liveMode) {
                 guard !isLoadingSettings else { return }
-                loadAIProviderSettings()
+                voicePreviewer.stop()
+                UserDefaults.standard.set(liveMode.rawValue, forKey: HostedServiceConfig.liveModeDefaultsKey)
+                NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
             }
 
-            modelSelectionRows(
-                models: LiveModelCatalog.merged(builtIn: selectedAIProvider.availableModels, fetched: fetchedModels),
-                selection: $selectedAIModel,
-                isCustom: $aiModelIsCustom,
-                identifier: "settings.ai"
-            )
+            if liveMode == .premium {
+                premiumRows
+            } else {
+                ownKeyRows
+            }
+        }
+    }
 
-            settingRow {
-                Text("Voice")
-                    .layoutPriority(1)
-                Spacer(minLength: 8)
-                choiceMenu("Voice", value: selectedVoiceTitle, identifier: "settings.ai.voice") {
-                    Picker("Voice", selection: $selectedVoice) {
-                        ForEach(selectedAIProvider.voices) { voice in
-                            Text(Self.voiceTitle(voice)).tag(voice.id)
-                        }
+    // MARK: Premium
+
+    @ViewBuilder
+    private var premiumRows: some View {
+        settingRow {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(premiumPlanTitle)
+                    .font(.body.weight(.medium))
+                Text(premiumMinutesText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("settings.premium.status")
+            Spacer(minLength: 0)
+        }
+
+        settingRow {
+            Text("Voice")
+                .layoutPriority(1)
+            Spacer(minLength: 8)
+            choiceMenu("Voice", value: premiumVoiceTitle, identifier: "settings.premium.voice") {
+                Picker("Voice", selection: $premiumVoice) {
+                    ForEach(AIProvider.gemini.voices) { voice in
+                        Text(Self.voiceTitle(voice)).tag(voice.id)
                     }
                 }
-                voicePreviewButton
             }
-            .onChange(of: selectedVoice) {
-                voicePreviewer.stop()
-            }
+            premiumPreviewButton
+        }
+        .onChange(of: premiumVoice) {
+            voicePreviewer.stop()
+            guard !isLoadingSettings else { return }
+            UserDefaults.standard.set(premiumVoice, forKey: AIProvider.gemini.voiceDefaultsKey)
+            NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+        }
 
-            if case .failed(let message) = voicePreviewer.state {
-                settingsInfoRow(title: message, systemImage: "exclamationmark.triangle.fill", color: .red)
-            }
+        if case .failed(let message) = voicePreviewer.state {
+            settingsInfoRow(title: message, systemImage: "exclamationmark.triangle.fill", color: .red)
+        }
 
-            settingRow {
-                apiKeyField(placeholder: aiAPIKeyPlaceholder, text: $aiAPIKey, isRevealed: $revealAIKey, identifier: "settings.ai.apiKey")
-            }
-
+        if premium.isSubscribed {
             settingsActionRow(
-                title: String.localizedStringWithFormat(
-                    NSLocalizedString("Get your %@ API key", comment: "Link to the provider's API key page"),
-                    selectedAIProvider.shortName
-                ),
-                subtitle: selectedAIProvider.keyHost,
-                systemImage: "key.fill"
+                title: NSLocalizedString("Manage Subscription", comment: "Settings row"),
+                subtitle: NSLocalizedString("Change or cancel your plan", comment: "Settings row subtitle"),
+                systemImage: "creditcard.fill"
             ) {
-                openURL(selectedAIProvider.keyURL)
+                Task { await premium.manageSubscription() }
             }
+        } else {
+            settingsActionRow(
+                title: NSLocalizedString("See Premium Plans", comment: "Settings row"),
+                subtitle: NSLocalizedString("Weekly or yearly, with a free trial", comment: "Settings row subtitle"),
+                systemImage: "sparkles",
+                tint: .amicaBlue
+            ) {
+                premiumSheet = .paywall
+            }
+            .accessibilityIdentifier("settings.premium.plans")
+        }
 
-            if selectedAIProvider.cameraSupport == .unsupported {
-                settingsInfoRow(
-                    title: NSLocalizedString("Grok Voice can't see the camera. Choose Gemini or OpenAI for vision.", comment: "xAI camera note"),
-                    systemImage: "eye.slash"
-                )
-            }
+        settingsActionRow(
+            title: NSLocalizedString("Buy More Minutes", comment: "Settings row"),
+            subtitle: NSLocalizedString("Extra minutes never expire", comment: "Settings row subtitle"),
+            systemImage: "plus.circle.fill"
+        ) {
+            premiumSheet = .minutes
+        }
+        .accessibilityIdentifier("settings.premium.minutes")
 
-            glassSaveRow(status: aiSettingsMessage ?? aiSaveSubtitle, identifier: "settings.ai") {
-                saveAISettings()
+        settingsActionRow(
+            title: NSLocalizedString("Restore Purchases", comment: "Settings row"),
+            systemImage: "arrow.clockwise",
+            isDisabled: premium.isBusy
+        ) {
+            Task { await premium.restore() }
+        }
+        .accessibilityIdentifier("settings.premium.restore")
+    }
+
+    private var premiumPlanTitle: String {
+        switch premium.balance?.plan ?? premium.activePlan?.rawValue {
+        case "yearly": NSLocalizedString("Yearly plan", comment: "Premium plan name")
+        case "weekly": NSLocalizedString("Weekly plan", comment: "Premium plan name")
+        case "trial": NSLocalizedString("Free trial", comment: "Premium plan name")
+        default: NSLocalizedString("No plan yet", comment: "Premium plan name")
+        }
+    }
+
+    private var premiumMinutesText: String {
+        guard let balance = premium.balance else {
+            return NSLocalizedString("Talk without your own API key.", comment: "Premium status")
+        }
+        var text = String.localizedStringWithFormat(NSLocalizedString("Minutes left: %d", comment: "Premium minutes left"), balance.minutesLeft)
+        if let renews = balance.planRenewsAt, balance.plan != nil {
+            text += " · " + String.localizedStringWithFormat(
+                NSLocalizedString("more on %@", comment: "When plan minutes renew"),
+                renews.formatted(date: .abbreviated, time: .omitted)
+            )
+        }
+        return text
+    }
+
+    private var premiumVoiceTitle: String {
+        AIProvider.gemini.voices.first { $0.id == premiumVoice }.map(Self.voiceTitle) ?? premiumVoice
+    }
+
+    /// Plays the voice through Premium, which uses a few seconds of the user's minutes.
+    private var premiumPreviewButton: some View {
+        let isBusy = voicePreviewer.voice == premiumVoice &&
+            (voicePreviewer.state == .loading || voicePreviewer.state == .playing)
+        let canPlay = premium.canTalk
+        return Button {
+            if isBusy {
+                voicePreviewer.stop()
+            } else {
+                Task { await previewPremiumVoice() }
             }
+        } label: {
+            ZStack {
+                if voicePreviewer.state == .loading && voicePreviewer.voice == premiumVoice {
+                    ProgressView()
+                } else {
+                    Image(systemName: isBusy ? "stop.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(canPlay ? Color.amicaBlue : Color.secondary)
+                }
+            }
+            .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .disabled(!canPlay)
+        .accessibilityLabel(isBusy ? "Stop voice preview" : "Play voice preview")
+        .accessibilityHint("Plays a short line in this voice using a few seconds of your Premium minutes.")
+        .accessibilityIdentifier("settings.premium.voicePreview")
+    }
+
+    private func previewPremiumVoice() async {
+        guard !ScowldTestEnvironment.isRunningTests, let userID = await premium.premiumUserID() else { return }
+        voicePreviewer.play(
+            provider: .gemini,
+            model: AIProvider.gemini.defaultModel,
+            voice: premiumVoice,
+            apiKey: userID,
+            name: CharacterPack.resolveCharacterName(),
+            wire: ScowldPremiumWire()
+        )
+    }
+
+    // MARK: Own key
+
+    @ViewBuilder
+    private var ownKeyRows: some View {
+        menuRow("Provider", value: selectedAIProvider.displayName, identifier: "settings.ai.provider") {
+            Picker("Provider", selection: $selectedAIProviderID) {
+                ForEach(AIProvider.allCases, id: \.rawValue) { provider in
+                    Text(provider.displayName).tag(provider.rawValue)
+                }
+            }
+        }
+        .onChange(of: selectedAIProviderID) {
+            guard !isLoadingSettings else { return }
+            loadAIProviderSettings()
+        }
+
+        modelSelectionRows(
+            models: LiveModelCatalog.merged(builtIn: selectedAIProvider.availableModels, fetched: fetchedModels),
+            selection: $selectedAIModel,
+            isCustom: $aiModelIsCustom,
+            identifier: "settings.ai"
+        )
+
+        settingRow {
+            Text("Voice")
+                .layoutPriority(1)
+            Spacer(minLength: 8)
+            choiceMenu("Voice", value: selectedVoiceTitle, identifier: "settings.ai.voice") {
+                Picker("Voice", selection: $selectedVoice) {
+                    ForEach(selectedAIProvider.voices) { voice in
+                        Text(Self.voiceTitle(voice)).tag(voice.id)
+                    }
+                }
+            }
+            voicePreviewButton
+        }
+        .onChange(of: selectedVoice) {
+            voicePreviewer.stop()
+        }
+
+        if case .failed(let message) = voicePreviewer.state {
+            settingsInfoRow(title: message, systemImage: "exclamationmark.triangle.fill", color: .red)
+        }
+
+        settingRow {
+            apiKeyField(placeholder: aiAPIKeyPlaceholder, text: $aiAPIKey, isRevealed: $revealAIKey, identifier: "settings.ai.apiKey")
+        }
+
+        settingsActionRow(
+            title: String.localizedStringWithFormat(
+                NSLocalizedString("Get your %@ API key", comment: "Link to the provider's API key page"),
+                selectedAIProvider.shortName
+            ),
+            subtitle: selectedAIProvider.keyHost,
+            systemImage: "key.fill"
+        ) {
+            openURL(selectedAIProvider.keyURL)
+        }
+
+        if selectedAIProvider.cameraSupport == .unsupported {
+            settingsInfoRow(
+                title: NSLocalizedString("Grok Voice can't see the camera. Choose Gemini or OpenAI for vision.", comment: "xAI camera note"),
+                systemImage: "eye.slash"
+            )
+        }
+
+        glassSaveRow(status: aiSettingsMessage ?? aiSaveSubtitle, identifier: "settings.ai") {
+            saveAISettings()
         }
     }
 
@@ -705,6 +899,8 @@ struct SettingsView: View {
         let defaults = UserDefaults.standard
         selectedAIProviderID = HostedServiceConfig.selectedProvider().rawValue
         loadAIProviderSettings(resetMessage: false)
+        liveMode = HostedServiceConfig.liveMode()
+        premiumVoice = HostedServiceConfig.selectedVoice(for: .gemini)
         selectedLanguageID = HostedServiceConfig.selectedServiceLanguageID()
         let storedCharacterName = defaults.string(forKey: "character_name")?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

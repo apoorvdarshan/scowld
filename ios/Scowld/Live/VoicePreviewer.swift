@@ -43,14 +43,24 @@ final class VoicePreviewer {
         self.makeAudio = makeAudio
     }
 
-    func play(provider: AIProvider, model: String, voice: String, apiKey: String, name: String, timeout: TimeInterval = VoicePreviewer.timeout) {
+    /// Plays a line in `voice`. `wire` defaults to the provider's own; Scowld Premium
+    /// passes its relay with the app user ID as `apiKey`.
+    func play(
+        provider: AIProvider,
+        model: String,
+        voice: String,
+        apiKey: String,
+        name: String,
+        wire: (any LiveWire)? = nil,
+        timeout: TimeInterval = VoicePreviewer.timeout
+    ) {
         stop()
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
 
         number += 1
         let current = number
-        let wire = provider.wire
+        let wire = wire ?? provider.wire
         let config = LiveSessionConfig(provider: provider, model: model, voice: voice, apiKey: key, instructions: Self.instructions)
         let session = LiveSession(config: config, wire: wire, makeSocket: makeSocket) { [weak self] event in
             DispatchQueue.main.async {
@@ -127,6 +137,10 @@ final class VoicePreviewer {
                 session?.close()
                 session = nil
             }
+        case .premiumOutOfMinutes:
+            fail(NSLocalizedString("You're out of Premium minutes.", comment: "Premium minutes ran out"))
+        case .premiumUnavailable:
+            fail(NSLocalizedString("Scowld Premium is unavailable right now. Try again soon.", comment: "Premium unavailable"))
         case .error(let message):
             logger.error("[Preview] Provider error: \(message, privacy: .public)")
             if state != .playing { fail(message) }

@@ -23,6 +23,17 @@
       "custom_domain": true
     }
   ],
+  // Scowld Premium: one object per user checks their purchases and relays
+  // their conversations (src/premium-account.js); one ledger keeps the minutes
+  // used per purchase (src/premium-ledger.js). Secrets: GEMINI_API_KEY and
+  // REVENUECAT_SECRET_KEY (npx wrangler secret put ...).
+  "durable_objects": {
+    "bindings": [
+      { "name": "PREMIUM_ACCOUNTS", "class_name": "PremiumAccount" },
+      { "name": "PREMIUM_LEDGER", "class_name": "PremiumLedger" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PremiumAccount", "PremiumLedger"] }],
   "observability": {
     "enabled": false
   }

@@ -20,6 +20,23 @@ final class LiveWireTests: XCTestCase {
 
     // MARK: Gemini
 
+    func testPremiumGoesThroughScowldAndReadsItsNotices() throws {
+        let wire = ScowldPremiumWire()
+        let premium = LiveSessionConfig(provider: .gemini, model: "gemini-3.8-live", voice: "Leda", apiKey: "$RCAnonymousID:abc", instructions: "Hi")
+        let request = wire.request(for: premium)
+        XCTAssertEqual(request.url?.absoluteString, "wss://scowld.xyz/api/live")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-Scowld-User"), "$RCAnonymousID:abc")
+        XCTAssertNil(request.value(forHTTPHeaderField: "x-goog-api-key"))
+        XCTAssertEqual(wire.setupMessages(for: premium, resumptionHandle: nil), GeminiLiveWire().setupMessages(for: premium, resumptionHandle: nil))
+        XCTAssertEqual(wire.inputSampleRate, 16_000)
+        XCTAssertNil(wire.truncateMessage(itemID: "i", audioEndMs: 10))
+
+        XCTAssertEqual(wire.parse(#"{"scowld":{"event":"out_of_minutes"}}"#), [.premiumOutOfMinutes])
+        XCTAssertEqual(wire.parse(#"{"scowld":{"event":"unavailable"}}"#), [.premiumUnavailable])
+        XCTAssertEqual(wire.parse(#"{"scowld":{"event":"something_new"}}"#), [])
+        XCTAssertEqual(wire.parse(#"{"setupComplete":{}}"#), [.ready], "Gemini's own messages pass through")
+    }
+
     func testGeminiRequestAndSetup() throws {
         let wire = GeminiLiveWire()
         let request = wire.request(for: config(.gemini))
