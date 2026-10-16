@@ -1,6 +1,6 @@
 # App Store Listing
 
-App Store Connect submission details for Scowld. Each field is in a code block for easy copy-paste. The description, promotional text, keywords and reviewer notes describe the live voice and Scowld Premium update that follows v2.0.1; What's New is still the v2.0.1 text.
+App Store Connect submission details for Scowld v2.1.0, including live voice and optional Scowld Premium. Each field is in a code block for easy copy-paste.
 
 > Reference copy. The release automation uploads the listing from
 > [`store/metadata/ios/`](store/metadata/ios), which is exported from the live
@@ -34,7 +34,7 @@ App Store Connect submission details for Scowld. Each field is in a code block f
     - Interrupt her anytime by speaking
     - Optional hands-free wake mode using Bella or your custom companion name
     - Optional Scowld Premium: no API key needed, with Google Gemini Live and 14 female voices
-    - Or bring your own key, free and unlimited: Google Gemini Live (14 female voices), OpenAI Realtime (4), or xAI Grok Voice (2)
+    - Or bring your own key with no Scowld subscription (provider fees apply): Google Gemini Live (14 female voices), OpenAI Realtime (4), or xAI Grok Voice (2)
     - Lip sync that follows her voice
     - Saved past chats you can reuse as conversation context
     - Custom character name and system prompt
@@ -81,12 +81,19 @@ App Store Connect submission details for Scowld. Each field is in a code block f
 
     Not affiliated with Google, OpenAI, xAI, Apple, or Cloudflare.
 
-## What's New (v2.0.1)
+## What's New (v2.1.0)
 
-    - Streamlined onboarding with direct Privacy Policy and Terms links
-    - Simplified the About screen
-    - Character settings now show an editable default name and system prompt with a Clear option
-    - Minor fixes and refinements
+    Scowld 2.1 introduces live voice conversations.
+
+    - Talk naturally with Google Gemini Live, OpenAI Realtime, or xAI Grok Voice, and interrupt replies by speaking.
+    - Use optional Scowld Premium to talk without an API key, with weekly or yearly plans and non-expiring minute packs.
+    - Bring your own supported provider key with no Scowld subscription; provider fees apply.
+    - Choose and preview built-in voices, with live lip sync and optional captions.
+    - Share optional camera context with Premium, Gemini, or OpenAI.
+    - Live transcripts are saved on your device, and past chats can be reused as context.
+    - Support development with optional one-time tips.
+
+    This update replaces typed chat and separate speech-to-text/text-to-speech settings with live voice. Claude, Ollama, and the other text-only integrations are no longer offered. Existing saved keys for Gemini, OpenAI, and xAI remain available in Own API Key mode.
 
 ## Keywords (100 chars max)
 
@@ -110,14 +117,18 @@ App Store Connect submission details for Scowld. Each field is in a code block f
 
 ## Reviewer Notes
 
+    No Scowld account or login is required. Reviewers can test Premium with sandbox
+    purchases without supplying a provider API key.
+
     IMPORTANT - Scowld offers two ways to talk with the companion. Both are in
     Settings > Live Voice (Scowld Premium / Own API Key):
     - Scowld Premium (the default for new installs): no API key needed. It uses
       Google Gemini Live with Scowld's own key, through Scowld's server, and needs a
       Premium plan or a minute pack. It can be tested with a sandbox account.
-    - Own API Key: bring-your-own-key (BYOK), free and unlimited. You enter your OWN
-      API key for one of three live voice providers. The app has NO bundled or free
-      provider keys for this mode. This is by design.
+    - Own API Key: bring-your-own-key (BYOK), with no Scowld subscription. Provider
+      fees and usage limits apply. You enter your OWN API key for one of three live
+      voice providers. The app has NO bundled or free provider keys for this mode.
+      This is by design.
 
     Both run live, speech to speech: the model (Google Gemini Live, OpenAI Realtime,
     or xAI Grok Voice) hears the microphone and answers in its own voice. There is no
@@ -136,7 +147,8 @@ App Store Connect submission details for Scowld. Each field is in a code block f
     2. Tap the mic on the Chat tab, or open Settings > Live Voice > Scowld Premium >
        See Premium Plans.
     3. Choose Weekly ($6.99/week, 20 minutes a week) or Yearly ($99.99/year, 50
-       minutes a month, with a 3-day free trial that includes 10 minutes) and
+       minutes a month, with a 3-day free trial including 10 minutes for eligible
+       new subscribers) and
        confirm with the sandbox account.
     4. On the Chat tab, tap the mic button and speak. The companion answers out loud.
        Speak while she talks to interrupt her, and tap stop to end the conversation.

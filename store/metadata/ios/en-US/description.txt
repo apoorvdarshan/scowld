@@ -6,7 +6,7 @@ WHAT YOU GET
 - Interrupt her anytime by speaking
 - Optional hands-free wake mode using Bella or your custom companion name
 - Optional Scowld Premium: no API key needed, with Google Gemini Live and 14 female voices
-- Or bring your own key, free and unlimited: Google Gemini Live (14 female voices), OpenAI Realtime (4), or xAI Grok Voice (2)
+- Or bring your own key with no Scowld subscription (provider fees apply): Google Gemini Live (14 female voices), OpenAI Realtime (4), or xAI Grok Voice (2)
 - Lip sync that follows her voice
 - Saved past chats you can reuse as conversation context
 - Custom character name and system prompt
