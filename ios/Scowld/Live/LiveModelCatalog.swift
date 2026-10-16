@@ -7,8 +7,11 @@ nonisolated enum LiveModelCatalog {
         switch provider {
         case .gemini:
             var components = URLComponents(string: "https://generativelanguage.googleapis.com/v1beta/models")!
-            components.queryItems = [URLQueryItem(name: "pageSize", value: "1000"), URLQueryItem(name: "key", value: apiKey)]
-            return URLRequest(url: components.url!)
+            components.queryItems = [URLQueryItem(name: "pageSize", value: "1000")]
+            var request = URLRequest(url: components.url!)
+            // The key goes in a header, never the URL, so it cannot end up in logged URLs.
+            request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+            return request
         case .openai:
             var request = URLRequest(url: URL(string: "https://api.openai.com/v1/models")!)
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")

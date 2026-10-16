@@ -82,9 +82,10 @@ nonisolated struct GeminiLiveWire: LiveWire {
     static let endpoint = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
 
     func request(for config: LiveSessionConfig) -> URLRequest {
-        var components = URLComponents(string: Self.endpoint)!
-        components.queryItems = [URLQueryItem(name: "key", value: config.apiKey)]
-        return URLRequest(url: components.url!)
+        var request = URLRequest(url: URL(string: Self.endpoint)!)
+        // The key goes in a header, never the URL, so it cannot end up in logged URLs.
+        request.setValue(config.apiKey, forHTTPHeaderField: "x-goog-api-key")
+        return request
     }
 
     func setupMessages(for config: LiveSessionConfig, resumptionHandle: String?) -> [String] {

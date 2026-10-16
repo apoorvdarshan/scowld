@@ -11,7 +11,8 @@ final class LiveModelCatalogTests: XCTestCase {
         let gemini = LiveModelCatalog.request(for: .gemini, apiKey: "g-key")
         let query = URLComponents(url: try XCTUnwrap(gemini.url), resolvingAgainstBaseURL: false)?.queryItems ?? []
         XCTAssertEqual(gemini.url?.host(), "generativelanguage.googleapis.com")
-        XCTAssertTrue(query.contains(URLQueryItem(name: "key", value: "g-key")))
+        XCTAssertEqual(gemini.value(forHTTPHeaderField: "x-goog-api-key"), "g-key")
+        XCTAssertFalse(query.contains { $0.name == "key" }, "The key never goes in the URL")
 
         let openAI = LiveModelCatalog.request(for: .openai, apiKey: "o-key")
         XCTAssertEqual(openAI.url?.absoluteString, "https://api.openai.com/v1/models")
@@ -76,7 +77,7 @@ final class VoicePreviewerTests: XCTestCase {
         let setup = try XCTUnwrap(socket.sentJSON[0]["setup"] as? [String: Any])
         let voice = (((setup["generationConfig"] as? [String: Any])?["speechConfig"] as? [String: Any])?["voiceConfig"] as? [String: Any])?["prebuiltVoiceConfig"] as? [String: Any]
         XCTAssertEqual(voice?["voiceName"] as? String, "Aoede")
-        XCTAssertEqual(URLComponents(url: try XCTUnwrap(socket.request.url), resolvingAgainstBaseURL: false)?.queryItems?.first?.value, "key")
+        XCTAssertEqual(socket.request.value(forHTTPHeaderField: "x-goog-api-key"), "key")
 
         socket.deliver(["setupComplete": [String: Any]()])
         await waitUntil { socket.sent.count == 2 }
