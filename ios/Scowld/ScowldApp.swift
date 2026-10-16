@@ -157,7 +157,7 @@ struct AboutView: View {
     private let websiteURL = URL(string: "https://scowld.xyz")!
     private let privacyURL = URL(string: "https://scowld.xyz/privacy")!
     private let termsURL = URL(string: "https://scowld.xyz/terms")!
-    private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld")!
+    private let productHuntURL = URL(string: "https://www.producthunt.com/products/scowld-2")!
     private let githubRepoURL = URL(string: "https://github.com/apoorvdarshan/scowld")!
     // Open the repository's issue forms directly (.github/ISSUE_TEMPLATE).
     private let githubBugReportURL = URL(string: "https://github.com/apoorvdarshan/scowld/issues/new?template=bug_report.yml")!
@@ -198,7 +198,7 @@ struct AboutView: View {
 
                         linkRow(
                             title: "Vote on Product Hunt",
-                            subtitle: "producthunt.com/products/scowld",
+                            subtitle: "producthunt.com/products/scowld-2",
                             systemImage: "arrow.up.circle.fill",
                             url: productHuntURL
                         )
