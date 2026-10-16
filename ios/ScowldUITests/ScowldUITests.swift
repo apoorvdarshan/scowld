@@ -263,8 +263,8 @@ final class ScowldUITests: XCTestCase {
         waitUntil(model, "value == %@", "gpt-realtime-2.1")
         let voice = app.buttons["settings.ai.voice"]
         waitUntil(voice, "value == %@", "Marin - Natural, warm")
-        choose("Cedar - Natural, lower", from: voice, in: app)
-        waitUntil(voice, "value == %@", "Cedar - Natural, lower")
+        choose("Coral - Friendly", from: voice, in: app)
+        waitUntil(voice, "value == %@", "Coral - Friendly")
         XCTAssertTrue(button(startingWith: "Get your OpenAI API key", in: app).exists)
         let preview = app.buttons["settings.ai.voicePreview"]
         XCTAssertFalse(preview.isEnabled, "A preview needs a key")
@@ -287,7 +287,7 @@ final class ScowldUITests: XCTestCase {
         reveal(restoredProvider, in: app)
         XCTAssertEqual(restoredProvider.value as? String, "OpenAI Realtime")
         XCTAssertEqual(app.buttons["settings.ai.model"].value as? String, "gpt-realtime-2.1")
-        XCTAssertEqual(app.buttons["settings.ai.voice"].value as? String, "Cedar - Natural, lower")
+        XCTAssertEqual(app.buttons["settings.ai.voice"].value as? String, "Coral - Friendly")
         XCTAssertEqual(app.staticTexts["settings.ai.status"].label, "Key saved in Keychain")
     }
 

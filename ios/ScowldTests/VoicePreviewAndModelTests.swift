@@ -118,7 +118,7 @@ final class VoicePreviewerTests: XCTestCase {
 
     func testStoppingEndsThePreview() async throws {
         let (previewer, sockets, audio) = makePreviewer()
-        previewer.play(provider: .openai, model: "gpt-realtime-2.1-mini", voice: "cedar", apiKey: "k", name: "Bella")
+        previewer.play(provider: .openai, model: "gpt-realtime-2.1-mini", voice: "coral", apiKey: "k", name: "Bella")
         previewer.stop()
         XCTAssertEqual(previewer.state, .idle)
         XCTAssertTrue(try XCTUnwrap(sockets.last).isClosed)
