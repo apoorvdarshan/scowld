@@ -102,13 +102,24 @@ final class ServiceSettingsTests: XCTestCase {
         let defaults = UserDefaults.standard
         defaults.set(AIProvider.openai.rawValue, forKey: HostedServiceConfig.providerDefaultsKey)
         defaults.set("gpt-realtime-2.1", forKey: AIProvider.openai.modelDefaultsKey)
-        defaults.set("cedar", forKey: AIProvider.openai.voiceDefaultsKey)
+        defaults.set("coral", forKey: AIProvider.openai.voiceDefaultsKey)
 
         HostedServiceConfig.applyBYOKDefaults()
 
         XCTAssertEqual(HostedServiceConfig.selectedProvider(), .openai)
         XCTAssertEqual(HostedServiceConfig.selectedModel(for: .openai), "gpt-realtime-2.1")
-        XCTAssertEqual(HostedServiceConfig.selectedVoice(for: .openai), "cedar")
+        XCTAssertEqual(HostedServiceConfig.selectedVoice(for: .openai), "coral")
+    }
+
+    func testARemovedVoiceFallsBackToTheDefault() {
+        cleanDefaults()
+        // Male voices were removed; a saved one falls back to the provider's default.
+        UserDefaults.standard.set("cedar", forKey: AIProvider.openai.voiceDefaultsKey)
+        UserDefaults.standard.set("Puck", forKey: AIProvider.gemini.voiceDefaultsKey)
+        UserDefaults.standard.set("rex", forKey: AIProvider.xai.voiceDefaultsKey)
+        XCTAssertEqual(HostedServiceConfig.selectedVoice(for: .openai), "marin")
+        XCTAssertEqual(HostedServiceConfig.selectedVoice(for: .gemini), "Leda")
+        XCTAssertEqual(HostedServiceConfig.selectedVoice(for: .xai), "ara")
     }
 
     func testARemovedProviderFallsBackToGemini() {
@@ -246,6 +257,14 @@ final class ProviderCatalogTests: XCTestCase {
         XCTAssertEqual(AIProvider.xai.cameraSupport, .unsupported)
         XCTAssertEqual(LiveVoice(id: "marin", style: "").name, "Marin")
         XCTAssertEqual(LiveVoice(id: "Leda", style: "").name, "Leda")
-        XCTAssertEqual(AIProvider.gemini.voices.count, 30)
+    }
+
+    func testOnlyFemaleVoicesAreOffered() {
+        XCTAssertEqual(AIProvider.gemini.voices.map(\.id), [
+            "Leda", "Aoede", "Zephyr", "Achernar", "Vindemiatrix", "Sulafat", "Laomedeia",
+            "Kore", "Callirrhoe", "Despina", "Autonoe", "Erinome", "Pulcherrima", "Gacrux",
+        ])
+        XCTAssertEqual(AIProvider.openai.voices.map(\.id), ["marin", "shimmer", "coral", "sage"])
+        XCTAssertEqual(AIProvider.xai.voices.map(\.id), ["ara", "eve"])
     }
 }

@@ -51,9 +51,9 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 
 | Provider | Models (default first) | Voices | Camera |
 |----------|------------------------|--------|--------|
-| Google Gemini Live | `gemini-3.8-live`, `gemini-3.8-live-extended-thinking`, `gemini-3.1-flash-live-preview` | 30 built-in voices, Leda by default | A frame about every 2 seconds while the eye is on |
-| OpenAI Realtime | `gpt-realtime-2.1-mini`, `gpt-realtime-2.1` | 10 voices, including Marin (default) and Cedar | The latest frame with each thing you say |
-| xAI Grok Voice | `grok-voice-latest`, `grok-voice-3.0` | Ara (default), Eve, Sal, Rex, Leo | Not supported |
+| Google Gemini Live | `gemini-3.8-live`, `gemini-3.8-live-extended-thinking`, `gemini-3.1-flash-live-preview` | 14 built-in female voices, Leda by default | A frame about every 2 seconds while the eye is on |
+| OpenAI Realtime | `gpt-realtime-2.1-mini`, `gpt-realtime-2.1` | Marin (default), Shimmer, Coral, Sage | The latest frame with each thing you say |
+| xAI Grok Voice | `grok-voice-latest`, `grok-voice-3.0` | Ara (default), Eve | Not supported |
 
 With OpenAI Realtime, what you say is transcribed inside the session (`whisper-1`) so it can be saved to the chat. Users bring their own key for the provider they pick; Scowld runs no server.
 

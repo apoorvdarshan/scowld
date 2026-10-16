@@ -110,7 +110,7 @@ final class LiveWireTests: XCTestCase {
         XCTAssertFalse(wire.waitsForSetupAcknowledgement)
         XCTAssertEqual(wire.inputSampleRate, 24_000)
 
-        let messages = wire.setupMessages(for: config(.openai, voice: "cedar"), resumptionHandle: nil)
+        let messages = wire.setupMessages(for: config(.openai, voice: "coral"), resumptionHandle: nil)
         XCTAssertEqual(messages.count, 2, "Transcription is configured separately")
         let main = try XCTUnwrap(try json(messages[0])["session"] as? [String: Any])
         XCTAssertEqual(main["type"] as? String, "realtime")
@@ -122,7 +122,7 @@ final class LiveWireTests: XCTestCase {
         let turns = try XCTUnwrap(input["turn_detection"] as? [String: Any])
         XCTAssertEqual(turns["type"] as? String, "semantic_vad")
         XCTAssertEqual(turns["interrupt_response"] as? Bool, true)
-        XCTAssertEqual((audio["output"] as? [String: Any])?["voice"] as? String, "cedar")
+        XCTAssertEqual((audio["output"] as? [String: Any])?["voice"] as? String, "coral")
 
         let transcription = try XCTUnwrap(try json(messages[1])["session"] as? [String: Any])
         let model = (((transcription["audio"] as? [String: Any])?["input"] as? [String: Any])?["transcription"] as? [String: Any])?["model"] as? String

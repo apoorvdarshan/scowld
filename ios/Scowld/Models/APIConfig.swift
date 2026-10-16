@@ -42,7 +42,8 @@ nonisolated enum AIProvider: String, CaseIterable, Codable, Sendable {
         availableModels[0]
     }
 
-    /// The provider's built-in voices. Scowld cannot add voices of its own.
+    /// The provider's built-in female voices: the companion is a woman, so male
+    /// and gender-neutral voices are left out. Scowld cannot add voices of its own.
     var voices: [LiveVoice] {
         switch self {
         case .gemini:
@@ -61,43 +62,18 @@ nonisolated enum AIProvider: String, CaseIterable, Codable, Sendable {
                 LiveVoice(id: "Erinome", style: "Clear"),
                 LiveVoice(id: "Pulcherrima", style: "Forward"),
                 LiveVoice(id: "Gacrux", style: "Mature"),
-                LiveVoice(id: "Puck", style: "Upbeat"),
-                LiveVoice(id: "Fenrir", style: "Excitable"),
-                LiveVoice(id: "Charon", style: "Informative"),
-                LiveVoice(id: "Orus", style: "Firm"),
-                LiveVoice(id: "Umbriel", style: "Easy-going"),
-                LiveVoice(id: "Schedar", style: "Even"),
-                LiveVoice(id: "Achird", style: "Friendly"),
-                LiveVoice(id: "Sadachbia", style: "Lively"),
-                LiveVoice(id: "Enceladus", style: "Breathy"),
-                LiveVoice(id: "Algieba", style: "Smooth"),
-                LiveVoice(id: "Algenib", style: "Gravelly"),
-                LiveVoice(id: "Zubenelgenubi", style: "Casual"),
-                LiveVoice(id: "Sadaltager", style: "Knowledgeable"),
-                LiveVoice(id: "Iapetus", style: "Clear"),
-                LiveVoice(id: "Rasalgethi", style: "Informative"),
-                LiveVoice(id: "Alnilam", style: "Firm"),
             ]
         case .openai:
             [
                 LiveVoice(id: "marin", style: "Natural, warm"),
-                LiveVoice(id: "cedar", style: "Natural, lower"),
                 LiveVoice(id: "shimmer", style: "Bright"),
                 LiveVoice(id: "coral", style: "Friendly"),
                 LiveVoice(id: "sage", style: "Calm"),
-                LiveVoice(id: "ballad", style: "Expressive"),
-                LiveVoice(id: "alloy", style: "Balanced"),
-                LiveVoice(id: "verse", style: "Lively"),
-                LiveVoice(id: "ash", style: "Steady"),
-                LiveVoice(id: "echo", style: "Smooth"),
             ]
         case .xai:
             [
                 LiveVoice(id: "ara", style: "Warm, friendly"),
                 LiveVoice(id: "eve", style: "Energetic"),
-                LiveVoice(id: "sal", style: "Smooth"),
-                LiveVoice(id: "rex", style: "Confident"),
-                LiveVoice(id: "leo", style: "Strong"),
             ]
         }
     }

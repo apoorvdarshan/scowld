@@ -6,7 +6,7 @@ WHAT YOU GET
 - Interrupt her anytime by speaking
 - Optional hands-free wake mode using Bella or your custom companion name
 - Bring-your-own-key providers: Google Gemini Live, OpenAI Realtime, and xAI Grok Voice
-- Each provider's built-in voices: 30 with Gemini, 10 with OpenAI including Marin and Cedar, and 5 with xAI
+- Each provider's built-in female voices: 14 with Gemini, 4 with OpenAI including Marin and Coral, and 2 with xAI
 - Lip sync that follows her voice
 - Saved past chats that can be reused as conversation context
 - Custom character name and system prompt controls
