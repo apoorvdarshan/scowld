@@ -31,6 +31,10 @@ nonisolated enum LiveEvent: Equatable, Sendable {
     case resumptionHandle(String)
     /// Gemini: this connection will close soon; reconnect with the latest handle.
     case goAway
+    /// Scowld Premium: no minutes are left, so the relay is ending the conversation.
+    case premiumOutOfMinutes
+    /// Scowld Premium couldn't reach Gemini or check the purchases.
+    case premiumUnavailable
     /// The provider reported a problem; the session continues unless it also closes.
     case error(String)
     /// The connection ended. The message explains an unexpected end.
@@ -59,6 +63,47 @@ nonisolated protocol LiveWire: Sendable {
     /// Tells the provider how much of a reply the user actually heard, or nil if unsupported.
     func truncateMessage(itemID: String, audioEndMs: Int) -> String?
     func parse(_ message: String) -> [LiveEvent]
+}
+
+// MARK: - Scowld Premium
+
+/// Scowld Premium: Gemini Live through Scowld's relay (web/src/premium-account.js),
+/// which adds Scowld's key, fixes the model and meters the minutes. Instead of a
+/// key, the app sends its RevenueCat app user ID (`config.apiKey`).
+nonisolated struct ScowldPremiumWire: LiveWire {
+    static let endpoint = "wss://scowld.xyz/api/live"
+    private let gemini = GeminiLiveWire()
+
+    var inputSampleRate: Double { gemini.inputSampleRate }
+    var outputSampleRate: Double { gemini.outputSampleRate }
+    var waitsForSetupAcknowledgement: Bool { gemini.waitsForSetupAcknowledgement }
+
+    func request(for config: LiveSessionConfig) -> URLRequest {
+        var request = URLRequest(url: URL(string: Self.endpoint)!)
+        request.setValue(config.apiKey, forHTTPHeaderField: "X-Scowld-User")
+        return request
+    }
+
+    func setupMessages(for config: LiveSessionConfig, resumptionHandle: String?) -> [String] {
+        gemini.setupMessages(for: config, resumptionHandle: resumptionHandle)
+    }
+
+    func audioMessage(_ pcm16: Data) -> String { gemini.audioMessage(pcm16) }
+    func textMessages(_ text: String, image: Data?) -> [String] { gemini.textMessages(text, image: image) }
+    func imageMessages(_ jpeg: Data) -> [String] { gemini.imageMessages(jpeg) }
+    func truncateMessage(itemID: String, audioEndMs: Int) -> String? { nil }
+
+    func parse(_ message: String) -> [LiveEvent] {
+        // The relay adds {"scowld": {"event": ...}} notices to Gemini's stream.
+        if let notice = LiveJSON.object(message)?["scowld"] as? [String: Any] {
+            switch notice["event"] as? String {
+            case "out_of_minutes": return [.premiumOutOfMinutes]
+            case "unavailable": return [.premiumUnavailable]
+            default: return []
+            }
+        }
+        return gemini.parse(message)
+    }
 }
 
 nonisolated extension AIProvider {

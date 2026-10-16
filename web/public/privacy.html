@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy - Scowld</title>
-<meta name="description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional vision, and local saved chats.">
+<meta name="description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional Scowld Premium, optional vision, and local saved chats.">
 <meta name="author" content="Apoorv Darshan">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://www.scowld.xyz/privacy">
@@ -20,7 +20,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://www.scowld.xyz/privacy">
 <meta property="og:title" content="Privacy Policy - Scowld">
-<meta property="og:description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional vision, and local saved chats.">
+<meta property="og:description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional Scowld Premium, optional vision, and local saved chats.">
 <meta property="og:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -28,7 +28,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:creator" content="@apoorvdarshan">
 <meta name="twitter:title" content="Privacy Policy - Scowld">
-<meta name="twitter:description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional vision, and local saved chats.">
+<meta name="twitter:description" content="Privacy policy for Scowld, an iOS AI voice companion with bring-your-own-key live voice, optional Scowld Premium, optional vision, and local saved chats.">
 <meta name="twitter:image" content="https://www.scowld.xyz/og-image-scowld.jpg">
 <meta name="twitter:image:alt" content="Scowld AI voice companion for iOS">
 </head>
@@ -50,44 +50,66 @@
 <article class="prose">
 <section>
 <h2>1. Overview</h2>
-<p>Scowld is a free, open-source iOS AI companion app. Conversations run live, speech to speech, with the provider you choose (Google Gemini Live, OpenAI Realtime, or xAI Grok Voice), using your own API key. The provider hears your voice directly and answers in its own voice. Scowld 2.0.1 and earlier instead use separate AI chat, speech-to-text, and text-to-speech providers that you choose (see AI and Voice Processing). API keys you enter are stored in the iOS Keychain on your device and are sent only to that provider. Scowld also includes an optional hands-free wake mode for starting a live conversation by saying the selected companion name.</p>
+<p>Scowld is a free, open-source iOS AI companion app. Conversations run live, speech to speech, with the provider you choose (Google Gemini Live, OpenAI Realtime, or xAI Grok Voice), using your own API key. The provider hears your voice directly and answers in its own voice. Alternatively, the optional paid Scowld Premium lets you talk without an API key: it relays your conversation through Scowld&apos;s server to Google Gemini Live (see Scowld Premium). Scowld 2.0.1 and earlier instead use separate AI chat, speech-to-text, and text-to-speech providers that you choose (see AI and Voice Processing). API keys you enter are stored in the iOS Keychain on your device and are sent only to that provider; with your own key, nothing goes through a Scowld server. Scowld also includes an optional hands-free wake mode for starting a live conversation by saying the selected companion name.</p>
 <p>This policy explains what information is processed when you use the app and website.</p>
 </section>
 
 <section>
 <h2>2. Account and App Analytics</h2>
-<p>The iOS app does not require a Scowld account. The app does not include advertising SDKs or third-party app analytics SDKs. It includes the RevenueCat SDK only to process optional tips (see Optional Tips below).</p>
+<p>The iOS app does not require a Scowld account. The app does not include advertising SDKs or third-party app analytics SDKs. It includes the RevenueCat SDK only to process Scowld Premium purchases and optional tips (see Purchases and Optional Tips below).</p>
 <p>Scowld 2.0.1 and earlier also include a third-party avatar component, the bundled Amica page, that was built with Sentry error reporting set up by its upstream project. In those versions it can send error reports, performance data, and session replays of the avatar view to Sentry. Scowld does not receive or use this data, and the next Scowld update removes this reporting.</p>
 <ul>
 <li>We do not ask for your name, email, location, or account password in the iOS app.</li>
 <li>We do not sell personal data.</li>
 <li>We do not use advertising frameworks in the iOS app.</li>
-<li>The marketing website is hosted on Cloudflare Workers and does not include a third-party analytics component.</li>
+<li>The marketing website, and Scowld&apos;s server for Scowld Premium, are hosted on Cloudflare Workers and do not include a third-party analytics component.</li>
 </ul>
 </section>
 
 <section>
 <h2>3. AI and Voice Processing</h2>
-<p>When you start a live conversation, Scowld opens one live connection from your device to the provider you selected. While the conversation is active, Scowld sends the following directly to that provider:</p>
+<p>When you start a live conversation with your own API key, Scowld opens one live connection from your device to the provider you selected. While the conversation is active, Scowld sends the following directly to that provider:</p>
 <ul>
 <li>Your microphone audio, streamed continuously for as long as the conversation is active, not only while you speak.</li>
 <li>The companion&apos;s instructions (her name, the system prompt, and the reply language) and recent messages from the active chat as context.</li>
 <li>Camera frames while the camera is on, with Google Gemini Live or OpenAI Realtime (see Camera Access).</li>
 </ul>
+<p>With Scowld Premium, the same information goes to Google Gemini Live through Scowld&apos;s server instead, as described in Scowld Premium.</p>
 <p>The provider answers with speech in the voice you picked and with transcripts of what you said and what it said. Scowld plays her voice, shows captions if you turn them on, and saves each turn&apos;s transcript in the active chat on your device. With OpenAI Realtime, what you say is transcribed inside the same session (with OpenAI&apos;s whisper-1 model) so it can be saved to the chat. Providers process this data under their own terms and privacy policies.</p>
-<p>A live conversation ends by itself after 90 seconds of silence, and when you leave the Chat tab or the app goes to the background. Ending a conversation closes the connection and stops sending microphone audio to the provider.</p>
-<p>Scowld does not operate a hosted AI or speech proxy for app conversations. Hands-free wake detection runs on device, and nothing is sent to a provider before a live conversation starts.</p>
+<p>A live conversation ends by itself after 90 seconds of silence, and when you leave the Chat tab or the app goes to the background. Ending a conversation closes the connection and stops sending microphone audio to the provider (or, with Scowld Premium, to Scowld&apos;s server).</p>
+<p>For conversations that use your own API key, Scowld does not operate a hosted AI or speech proxy: nothing goes through a Scowld server. Only Scowld Premium conversations go through Scowld&apos;s server. Hands-free wake detection runs on device, and nothing is sent to a provider or to Scowld&apos;s server before a live conversation starts.</p>
 <p>Scowld 2.0.1 and earlier work differently: voice input is transcribed by native iOS speech recognition or the cloud speech-to-text provider you choose, the text and selected conversation context are sent to the AI chat provider you choose, and replies are spoken by ElevenLabs or OpenAI text-to-speech. In those versions, a camera frame is sent only with a message you send while the camera is on, and voice samples in Settings play from files bundled with the app without calling ElevenLabs. The next Scowld update replaces this with the live conversations described above.</p>
 </section>
 
 <section>
-<h2>4. Camera Access</h2>
+<h2>4. Scowld Premium</h2>
+<p>Scowld Premium is an optional, paid way to talk without your own API key. Premium conversations use Google Gemini Live with Scowld&apos;s own key. Instead of connecting to a provider directly, the app connects to Scowld&apos;s server at scowld.xyz, hosted on Cloudflare Workers, which relays the live conversation to Google Gemini Live in real time. Scowld 2.0.1 and earlier do not include Scowld Premium.</p>
+<p>While a Premium conversation is active, the following goes through Scowld&apos;s server to Google:</p>
+<ul>
+<li>Your microphone audio, streamed continuously for as long as the conversation is active.</li>
+<li>Camera frames while the camera is on, at most one every 2 seconds.</li>
+<li>The companion&apos;s instructions (her name, the system prompt, and the reply language) and recent messages from the active saved chat.</li>
+</ul>
+<p>What Scowld&apos;s server keeps, and what it does not:</p>
+<ul>
+<li>Scowld&apos;s server does not store your audio, camera frames, transcripts, or conversation content. Transcripts are saved only on your device, in your past chats, as with your own key.</li>
+<li>The app identifies itself to Scowld&apos;s server with its anonymous RevenueCat app user ID (the anonymous identifier described in Purchases and Optional Tips). To check your purchases, Scowld&apos;s server sends that ID to RevenueCat.</li>
+<li>Scowld&apos;s server records the minutes used for each App Store purchase, keyed by App Store transaction identifiers rather than by your name, email, or device, so plan and minute pack limits still apply after you reinstall the app.</li>
+<li>Cloudflare processes connection data, such as your IP address, as the host of Scowld&apos;s server.</li>
+<li>Google processes what it receives under Google&apos;s terms for the Gemini API.</li>
+</ul>
+<p>When you use your own API key instead, nothing goes through Scowld&apos;s server. You can switch between Scowld Premium and your own key in Settings &gt; Live Voice.</p>
+</section>
+
+<section>
+<h2>5. Camera Access</h2>
 <p>Scowld requests camera access for the optional vision feature. The camera is off until you turn it on. While it is on during a live conversation:</p>
 <ul>
 <li>With Google Gemini Live, Scowld sends a camera frame about every 2 seconds.</li>
 <li>With OpenAI Realtime, Scowld sends the latest frame with each thing you say.</li>
+<li>With Scowld Premium, Scowld sends at most one camera frame every 2 seconds, through Scowld&apos;s server to Google Gemini Live.</li>
 <li>xAI Grok Voice does not support the camera, so no frames are sent.</li>
-<li>Frames are captured on device and sent only to the selected provider. Scowld does not record or store camera data, and does not save images to your photo library.</li>
+<li>Frames are captured on device and sent only to the selected provider (with Scowld Premium, through Scowld&apos;s server, which does not store them). Scowld does not record or store camera data, and does not save images to your photo library.</li>
 <li>Camera access can be disabled from the app or iOS settings.</li>
 <li>When the camera is off, Scowld does not capture camera frames.</li>
 </ul>
@@ -95,7 +117,7 @@
 </section>
 
 <section>
-<h2>5. Face Data and TrueDepth API</h2>
+<h2>6. Face Data and TrueDepth API</h2>
 <p>Scowld does not use Apple&apos;s TrueDepth API. The app does not collect, use, store, disclose, share, or retain face geometry, depth maps, facial blend shapes, facial expressions, biometric identifiers, or any other face data.</p>
 <ul>
 <li>No TrueDepth information is collected by Scowld.</li>
@@ -107,43 +129,43 @@
 </section>
 
 <section>
-<h2>6. Microphone Access</h2>
+<h2>7. Microphone Access</h2>
 <p>Scowld requests microphone access for live conversations and optional hands-free wake mode, and speech recognition permission only for hands-free wake mode.</p>
 <ul>
-<li>While a live conversation is active, microphone audio is streamed continuously to the selected provider, which hears it directly and produces the transcripts.</li>
-<li>When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device, with Apple&apos;s on-device speech recognition, only for Bella or your saved custom companion name. This audio is not sent to any provider.</li>
-<li>After the wake name is detected, Scowld starts a live conversation, and from then on microphone audio is streamed to the selected provider.</li>
+<li>While a live conversation is active, microphone audio is streamed continuously to the selected provider, which hears it directly and produces the transcripts. With Scowld Premium, it is streamed through Scowld&apos;s server to Google Gemini Live, and Scowld&apos;s server does not store it.</li>
+<li>When hands-free mode is enabled, Scowld may keep the microphone active while the app is open and idle to listen on device, with Apple&apos;s on-device speech recognition, only for Bella or your saved custom companion name. This audio is not sent to any provider or to Scowld&apos;s server.</li>
+<li>After the wake name is detected, Scowld starts a live conversation, and from then on microphone audio is streamed to the selected provider (with Scowld Premium, through Scowld&apos;s server).</li>
 <li>A live conversation can be ended with the stop button, hands-free mode can be turned off in the composer, and microphone permission can be revoked from iOS settings.</li>
 <li>In Scowld 2.0.1 and earlier, recorded voice input is transcribed with native iOS speech recognition or the cloud speech-to-text provider you configure, and the recognized text is sent to the selected AI provider.</li>
 </ul>
 </section>
 
 <section>
-<h2>7. Third-Party Providers</h2>
-<p>Scowld can integrate with third-party providers you configure. These providers may process data needed to provide app features:</p>
+<h2>8. Third-Party Providers</h2>
+<p>Scowld can integrate with third-party providers you configure, and relies on a few third-party services itself. These providers may process data needed to provide app features:</p>
 <ul>
-<li><strong class="legal__strong-dim">Live voice providers</strong>: Google (Gemini Live), OpenAI (Realtime), and xAI (Grok Voice). The provider you select receives your microphone audio, conversation context, and camera frames as described above.</li>
+<li><strong class="legal__strong-dim">Live voice providers</strong>: Google (Gemini Live), OpenAI (Realtime), and xAI (Grok Voice). The provider you select receives your microphone audio, conversation context, and camera frames as described above. With Scowld Premium, Google receives your Premium conversations through Scowld&apos;s server, under Scowld&apos;s API key, and processes them under Google&apos;s terms for the Gemini API.</li>
 <li><strong class="legal__strong-dim">Earlier versions</strong>: Scowld 2.0.1 and earlier send data to the separate AI chat, speech-to-text, and text-to-speech providers you configure in those versions.</li>
 <li><strong class="legal__strong-dim">Apple</strong> for iOS platform services such as Keychain, on-device speech recognition, camera, microphone, and app distribution.</li>
-<li><strong class="legal__strong-dim">RevenueCat</strong> to validate and record optional tips (in-app purchases).</li>
-<li><strong class="legal__strong-dim">Cloudflare</strong> for website deployment and delivery.</li>
+<li><strong class="legal__strong-dim">RevenueCat</strong> to validate and record Scowld Premium subscriptions, minute packs, and optional tips (in-app purchases), and to let Scowld&apos;s server check your Premium purchases.</li>
+<li><strong class="legal__strong-dim">Cloudflare</strong> for website deployment and delivery, and as the host of Scowld&apos;s server for Scowld Premium, where it processes connection data such as your IP address.</li>
 </ul>
 <p>These third-party services have their own privacy policies and terms. You are responsible for the provider accounts and API keys you configure.</p>
 </section>
 
 <section>
-<h2>8. Optional Tips</h2>
-<p>Scowld offers optional one-time tips in About &gt; Support Scowld. Tips do not unlock any features, and Scowld works the same without them.</p>
+<h2>9. Purchases and Optional Tips</h2>
+<p>Scowld sells optional Scowld Premium subscriptions and minute packs (see Scowld Premium), and offers optional one-time tips in About &gt; Support Scowld. Tips do not unlock any features, and Scowld works the same without them. Using your own API key needs no purchase.</p>
 <ul>
 <li>Payments are processed by Apple through the App Store. Scowld never receives your payment card details, name, or Apple Account email.</li>
-<li>The app uses RevenueCat, a purchase management service, to validate and record tips. RevenueCat receives an anonymous identifier generated on your device, purchase details (the tip, price, currency, storefront, and date), basic device and app information (such as iOS version, app version, device model, and locale), and the IP address of its network requests.</li>
-<li>This information is used to complete and verify purchases and to report tip revenue. Scowld does not link it to your identity or use it for advertising.</li>
+<li>The app uses RevenueCat, a purchase management service, to validate and record purchases. RevenueCat receives an anonymous identifier generated on your device, purchase details (the product, such as a plan, minute pack, or tip, and its price, currency, storefront, and date), basic device and app information (such as iOS version, app version, device model, and locale), and the IP address of its network requests.</li>
+<li>This information is used to complete and verify purchases, to give you the Premium minutes you paid for, and to report revenue. Scowld does not link it to your identity or use it for advertising.</li>
 <li>RevenueCat processes this data under its own <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a>.</li>
 </ul>
 </section>
 
 <section>
-<h2>9. Provider API Keys</h2>
+<h2>10. Provider API Keys</h2>
 <p>Scowld lets you enter your own provider API keys. Provider keys are stored in the iOS Keychain on your device, are sent only to the provider they belong to, and are not included in the App Store binary.</p>
 <ul>
 <li>Provider keys are not stored in UserDefaults or bundled files.</li>
@@ -154,30 +176,30 @@
 </section>
 
 <section>
-<h2>10. Local Device Storage</h2>
+<h2>11. Local Device Storage</h2>
 <p>Scowld stores app data locally on your device using Apple&apos;s local storage frameworks. This may include:</p>
 <ul>
 <li>Past chats: the text transcript of each turn, what you said (or typed, in Scowld 2.0.1 and earlier) and what she said.</li>
 <li>The selected active chat.</li>
 <li>Character settings such as avatar, custom name, and system prompt.</li>
 <li>Voice, language, caption, and hands-free wake preferences.</li>
-<li>Provider choices, model choices, and local Keychain references.</li>
+<li>Your Live Voice connection (Scowld Premium or your own API key), provider choices, model choices, and local Keychain references.</li>
 </ul>
 <p>Deleting the app removes local app data from the device, subject to normal iOS behavior and backups.</p>
 </section>
 
 <section>
-<h2>11. Children&apos;s Privacy</h2>
+<h2>12. Children&apos;s Privacy</h2>
 <p>Scowld is not directed at children under 13. We do not knowingly collect personal information from children under 13.</p>
 </section>
 
 <section>
-<h2>12. Changes to This Policy</h2>
+<h2>13. Changes to This Policy</h2>
 <p>We may update this privacy policy from time to time. Changes will be reflected on this page with an updated date.</p>
 </section>
 
 <section>
-<h2>13. Contact</h2>
+<h2>14. Contact</h2>
 <p>For privacy questions, contact:<br>
 <strong class="legal__strong-dim">Apoorv Darshan</strong> - <a href="mailto:ad13dtu@gmail.com">ad13dtu@gmail.com</a></p>
 </section>

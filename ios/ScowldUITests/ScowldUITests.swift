@@ -68,6 +68,16 @@ final class ScowldUITests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch
     }
 
+    /// Switches Live Voice to the user's own API key (new installs start with Premium).
+    @MainActor
+    private func useOwnKey(in app: XCUIApplication) {
+        openTab("Settings", in: app)
+        let ownKey = app.segmentedControls["settings.ai.mode"].buttons["Own API Key"]
+        XCTAssertTrue(ownKey.waitForExistence(timeout: 10), "Missing the connection switch")
+        ownKey.tap()
+        XCTAssertTrue(app.buttons["settings.ai.provider"].waitForExistence(timeout: 5))
+    }
+
     @MainActor
     private func replaceText(in field: XCUIElement, with text: String) {
         field.tap()
@@ -175,13 +185,26 @@ final class ScowldUITests: XCTestCase {
     }
 
     @MainActor
-    func testWithoutAKeyTheChatPointsToSettings() throws {
+    func testNewUsersAreOfferedPremiumOrTheirOwnKey() throws {
         let app = launchApp()
+        // New users start with Scowld Premium; without a plan the chat offers it.
         let hint = app.buttons["chat.status"]
-        XCTAssertTrue(hint.waitForExistence(timeout: 20), "A missing key is pointed out before she is tapped")
-        XCTAssertEqual(hint.label, "Add your Gemini API key in Settings to talk to Bella.")
-        hint.tap()
+        XCTAssertTrue(hint.waitForExistence(timeout: 20), "Premium is offered before she is tapped")
+        XCTAssertEqual(hint.label, "Start Scowld Premium to talk to Bella.")
+        app.buttons["chat.live"].tap()
+        let paywall = app.staticTexts["premium.title"]
+        XCTAssertTrue(paywall.waitForExistence(timeout: 5), "The mic opens the plans")
+        XCTAssertTrue(app.buttons["premium.plan.yearly"].exists)
+        XCTAssertTrue(app.buttons["premium.plan.weekly"].exists)
+        XCTAssertTrue(app.buttons["premium.restore"].exists)
+        XCTAssertTrue(app.buttons["Terms"].exists)
+        XCTAssertTrue(app.buttons["Privacy"].exists)
+        XCTAssertFalse(app.buttons["premium.subscribe"].isEnabled, "No purchase without the store's prices")
 
+        // Choosing your own key goes to Settings, where the key is added.
+        let ownKey = app.buttons["premium.ownKey"]
+        reveal(ownKey, in: app)
+        ownKey.tap()
         let key = app.secureTextFields["settings.ai.apiKey"]
         reveal(key, in: app)
         key.tap()
@@ -194,6 +217,45 @@ final class ScowldUITests: XCTestCase {
         openTab("Chat", in: app)
         XCTAssertTrue(app.buttons["chat.live"].waitForExistence(timeout: 5))
         waitUntil(hint, "exists == false")
+    }
+
+    @MainActor
+    func testWithoutAKeyTheChatPointsToSettings() throws {
+        let app = launchApp()
+        useOwnKey(in: app)
+        openTab("Chat", in: app)
+        let hint = app.buttons["chat.status"]
+        XCTAssertTrue(hint.waitForExistence(timeout: 20), "A missing key is pointed out before she is tapped")
+        XCTAssertEqual(hint.label, "Add your Gemini API key in Settings to talk to Bella.")
+        hint.tap()
+        XCTAssertTrue(app.secureTextFields["settings.ai.apiKey"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testPremiumSettingsShowThePlanAndOpenThePlans() throws {
+        let app = launchApp()
+        openTab("Settings", in: app)
+        let status = app.descendants(matching: .any)["settings.premium.status"]
+        reveal(status, in: app)
+        XCTAssertTrue(status.label.hasPrefix("No plan yet"))
+        XCTAssertTrue(app.buttons["settings.premium.voice"].exists)
+        XCTAssertEqual(app.buttons["settings.premium.voice"].value as? String, "Leda - Youthful")
+        XCTAssertFalse(app.buttons["settings.ai.provider"].exists, "Premium has no provider or key to set")
+        XCTAssertFalse(app.secureTextFields["settings.ai.apiKey"].exists)
+
+        let minutes = app.buttons["settings.premium.minutes"]
+        reveal(minutes, in: app)
+        minutes.tap()
+        XCTAssertTrue(app.buttons["premium.pack.20"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["premium.pack.150"].exists)
+        app.buttons["Done"].tap()
+
+        let plans = app.buttons["settings.premium.plans"]
+        reveal(plans, in: app)
+        plans.tap()
+        XCTAssertTrue(app.staticTexts["premium.title"].waitForExistence(timeout: 5))
+        app.buttons["premium.close"].tap()
+        waitUntil(app.staticTexts["premium.title"], "exists == false")
     }
 
     @MainActor
@@ -245,7 +307,7 @@ final class ScowldUITests: XCTestCase {
     @MainActor
     func testLiveProviderModelVoiceAndKeyAreSaved() throws {
         let app = launchApp()
-        openTab("Settings", in: app)
+        useOwnKey(in: app)
 
         let provider = app.buttons["settings.ai.provider"]
         reveal(provider, in: app)
@@ -294,7 +356,7 @@ final class ScowldUITests: XCTestCase {
     @MainActor
     func testGrokVoiceExplainsThatItCannotSeeTheCamera() throws {
         let app = launchApp()
-        openTab("Settings", in: app)
+        useOwnKey(in: app)
         let provider = app.buttons["settings.ai.provider"]
         reveal(provider, in: app)
         choose("xAI Grok Voice", from: provider, in: app)

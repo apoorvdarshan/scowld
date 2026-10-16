@@ -7,6 +7,16 @@ enum HostedServiceConfig {
     static let autoLanguageID = "__auto_language__"
     static let deviceLanguageID = "__device_language__"
     static let providerDefaultsKey = "selectedProvider"
+    static let liveModeDefaultsKey = "live_mode"
+
+    /// Scowld Premium or the user's own key. People who already saved a key keep
+    /// using it; everyone else starts with Premium.
+    static func liveMode(hasSavedKey: (AIProvider) -> Bool = { KeychainManager.exists(key: $0.keychainKey) }) -> LiveMode {
+        if let saved = UserDefaults.standard.string(forKey: liveModeDefaultsKey), let mode = LiveMode(rawValue: saved) {
+            return mode
+        }
+        return AIProvider.allCases.contains(where: hasSavedKey) ? .ownKey : .premium
+    }
 
     static func applyBYOKDefaults() {
         LegacySettingsCleanup.runOnce()

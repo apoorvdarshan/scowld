@@ -87,7 +87,8 @@ Variables). Missing means off. Any value other than
 | `IOS_BUILD_WAIT_MINUTES` | Total wait counted from upload start (upload + processing), default 120 (10–300) |
 
 Copy names from [`gates.env.example`](gates.env.example). Scowld needs no shared
-`STORE_*` switch: it has no in-app purchases and no RevenueCat catalog.
+`STORE_*` switch: the pipeline never creates, changes or submits in-app products
+(see [In-app purchases](#in-app-purchases)).
 
 Listing, What's New, screenshots and review submission act on the App Store
 version named by the tag. With `IOS_CREATE_VERSION` on, the tag run creates a
@@ -128,13 +129,18 @@ that fails, no artifact is uploaded.
 
 ### In-app purchases
 
-Scowld 2.0 sells nothing (no subscriptions, StoreKit purchases or credits), and
-App Store Connect lists no in-app products for the app, so the pipeline submits
-none. If App Store Connect ever holds a product that would have to go to review
-with a version (`READY_TO_SUBMIT`, `DEVELOPER_REJECTED`, `READY_FOR_REVIEW`),
-`IOS_SUBMIT_REVIEW` stops before anything is uploaded or changed (in the
-preflight, and again before the listing step); add a product catalog and the
-Fud AI product-submission step before selling anything.
+Scowld sells optional Scowld Premium subscriptions (weekly and yearly, the yearly
+plan with a free trial), consumable minute packs, and optional one-time tips. All
+of them are App Store in-app purchases managed with RevenueCat; Premium minutes
+are enforced by the Worker in [`web/`](../web) (see the main README). Using your
+own API key needs no purchase.
+
+The pipeline does not submit in-app products. If App Store Connect holds a
+product that would have to go to review with a version (`READY_TO_SUBMIT`,
+`DEVELOPER_REJECTED`, `READY_FOR_REVIEW`), `IOS_SUBMIT_REVIEW` stops before
+anything is uploaded or changed (in the preflight, and again before the listing
+step). Submit those products in App Store Connect, or add a product catalog and
+the Fud AI product-submission step, then rerun.
 
 ## Export compliance
 
@@ -145,10 +151,10 @@ Without it, App Store Connect asks about each build by hand, and review
 submission fails with `usesNonExemptEncryption` missing.
 
 `NO` is right because Scowld only uses exempt encryption: HTTPS and the live
-voice WebSockets (Gemini Live, OpenAI Realtime, xAI Grok Voice) through Apple's
-networking, the Keychain for provider keys, and Apple's system crypto
-(RevenueCat's hashing and signature checks, the companion page's WebCrypto
-SHA-256 digests). If the app ever adds its own
+voice WebSockets (Gemini Live, OpenAI Realtime, xAI Grok Voice, and Scowld
+Premium's relay at `wss://scowld.xyz/api/live`) through Apple's networking, the
+Keychain for provider keys, and Apple's system crypto (RevenueCat's hashing and
+signature checks, the companion page's WebCrypto SHA-256 digests). If the app ever adds its own
 encryption, set it to `YES` and add
 `INFOPLIST_KEY_ITSEncryptionExportComplianceCode` with the code App Store
 Connect issues for the app's encryption documentation.

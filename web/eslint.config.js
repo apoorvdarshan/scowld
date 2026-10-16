@@ -5,7 +5,8 @@ export default [
   js.configs.recommended,
   {
     files: ["src/**/*.js"],
-    languageOptions: { globals: globals.serviceworker },
+    // Workers runtime globals that aren't part of the service worker set.
+    languageOptions: { globals: { ...globals.serviceworker, WebSocketPair: "readonly" } },
   },
   {
     files: ["public/assets/**/*.js"],

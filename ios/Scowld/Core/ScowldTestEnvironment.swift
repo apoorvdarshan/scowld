@@ -57,8 +57,8 @@ enum ScowldTestEnvironment {
         !isUITesting
     }
 
-    /// Debug simulator only: the tab to open at launch, for screenshots
-    /// (`--preview-tab chat|chats|settings|about`).
+    /// Debug simulator only: the tab (or Premium screen) to open at launch, for
+    /// screenshots (`--preview-tab chat|chats|settings|about|paywall|minutes`).
     static var previewTab: String? {
         #if DEBUG && targetEnvironment(simulator)
         let arguments = CommandLine.arguments

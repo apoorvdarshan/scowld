@@ -23,6 +23,15 @@ final class LiveConversation {
     /// The latest problem, shown briefly.
     private(set) var errorMessage: String?
     private(set) var provider: AIProvider = .gemini
+    private(set) var mode: LiveMode = .ownKey
+    /// Set when a Premium conversation ended because no minutes were left; the
+    /// home screen offers more and clears it.
+    var ranOutOfMinutes = false
+
+    /// What the status line calls the connection: Scowld Premium or the provider.
+    var connectionName: String {
+        mode == .premium ? NSLocalizedString("Scowld Premium", comment: "Product name") : provider.shortName
+    }
 
     var isActive: Bool { phase != .idle }
 
@@ -43,6 +52,8 @@ final class LiveConversation {
     @ObservationIgnored private let makeSocket: LiveSession.SocketFactory
     @ObservationIgnored private let makeAudio: () -> any LiveAudioIO
     @ObservationIgnored private let loadKey: (AIProvider) -> String?
+    @ObservationIgnored private let loadMode: () -> LiveMode
+    @ObservationIgnored private let premiumUserID: () -> String?
     @ObservationIgnored private let now: () -> Date
 
     @ObservationIgnored private var session: LiveSession?
@@ -62,39 +73,62 @@ final class LiveConversation {
         makeSocket: @escaping LiveSession.SocketFactory = { URLSessionLiveSocket(request: $0) },
         makeAudio: @escaping () -> any LiveAudioIO = { LiveAudioEngine() },
         loadKey: @escaping (AIProvider) -> String? = { KeychainManager.load(key: $0.keychainKey) },
+        loadMode: @escaping () -> LiveMode = { HostedServiceConfig.liveMode() },
+        premiumUserID: @escaping () -> String? = { PremiumIdentity.currentUserID() },
         now: @escaping () -> Date = Date.init
     ) {
         self.memoryStore = memoryStore
         self.makeSocket = makeSocket
         self.makeAudio = makeAudio
         self.loadKey = loadKey
+        self.loadMode = loadMode
+        self.premiumUserID = premiumUserID
         self.now = now
     }
 
     // MARK: - Control
 
-    /// Starts a voice conversation with the selected provider.
+    /// Starts a voice conversation through Scowld Premium or with the selected
+    /// provider and the user's own key.
     func start() {
         guard !isActive else { return }
 
         HostedServiceConfig.applyBYOKDefaults()
-        let provider = HostedServiceConfig.selectedProvider()
+        let mode = loadMode()
+        // Premium conversations are Gemini Live through Scowld's relay.
+        let provider = mode == .premium ? .gemini : HostedServiceConfig.selectedProvider()
+        self.mode = mode
         self.provider = provider
-        guard let key = loadKey(provider)?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty else {
-            showError(String.localizedStringWithFormat(
-                NSLocalizedString("Add your %@ API key in Settings to talk to %@.", comment: "Missing provider key"),
-                provider.shortName,
-                CharacterPack.resolveCharacterName()
-            ))
-            return
+        ranOutOfMinutes = false
+
+        let wire: any LiveWire
+        let credential: String
+        switch mode {
+        case .premium:
+            guard let userID = premiumUserID() else {
+                showError(NSLocalizedString("Scowld Premium is unavailable right now. Try again soon.", comment: "Premium unavailable"))
+                return
+            }
+            wire = ScowldPremiumWire()
+            credential = userID
+        case .ownKey:
+            guard let key = loadKey(provider)?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty else {
+                showError(String.localizedStringWithFormat(
+                    NSLocalizedString("Add your %@ API key in Settings to talk to %@.", comment: "Missing provider key"),
+                    provider.shortName,
+                    CharacterPack.resolveCharacterName()
+                ))
+                return
+            }
+            wire = provider.wire
+            credential = key
         }
 
-        let wire = provider.wire
         let config = LiveSessionConfig(
             provider: provider,
-            model: HostedServiceConfig.selectedModel(for: provider),
+            model: mode == .premium ? provider.defaultModel : HostedServiceConfig.selectedModel(for: provider),
             voice: HostedServiceConfig.selectedVoice(for: provider),
-            apiKey: key,
+            apiKey: credential,
             instructions: ContextBuilder(memoryStore: memoryStore)
                 .buildSystemPrompt(cameraAvailable: provider.cameraSupport != .unsupported)
         )
@@ -177,7 +211,7 @@ final class LiveConversation {
         if phase == .connecting, current.timeIntervalSince(startedAt) > Self.connectTimeout {
             end(error: String.localizedStringWithFormat(
                 NSLocalizedString("Couldn't connect to %@. Check your connection and try again.", comment: "Live connection timeout"),
-                provider.shortName
+                connectionName
             ))
             return
         }
@@ -220,6 +254,11 @@ final class LiveConversation {
             interruptReply(tellProvider: false)
         case .turnComplete:
             saveTurn()
+        case .premiumOutOfMinutes:
+            ranOutOfMinutes = true
+            end(error: NSLocalizedString("You're out of Premium minutes.", comment: "Premium minutes ran out"))
+        case .premiumUnavailable:
+            end(error: NSLocalizedString("Scowld Premium is unavailable right now. Try again soon.", comment: "Premium unavailable"))
         case .error(let message):
             logger.error("[Live] Provider error: \(message, privacy: .public)")
             showError(message)

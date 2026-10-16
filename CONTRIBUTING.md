@@ -93,7 +93,7 @@ Releases are built, signed, and uploaded by GitHub Actions from a `v<version>` t
 ## Coding guidelines
 
 - **Never hardcode or commit API keys, tokens, or secrets.** Keys belong in the iOS Keychain at runtime, entered by the user — never in source or git history.
-- Keep the **BYOK model intact**: requests go directly from the device to the user's chosen provider. Do not introduce a server that receives or stores user keys.
+- Keep the **BYOK model intact**: with the user's own key, requests go directly from the device to the chosen provider. Do not introduce a server that receives or stores user keys. Scowld Premium is the only server path (`web/src/`); it uses Scowld's own key and must keep enforcing the model, context limit and minutes on the server.
 - Prefer the existing helpers and components (settings rows, providers, `KeychainManager`, etc.) over new one-off patterns.
 - If you change legal text, update the **website Privacy/Terms** pages — startup onboarding links to them.
 - Keep user-facing copy concise and consistent with the existing tone.

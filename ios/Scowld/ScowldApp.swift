@@ -50,25 +50,66 @@ struct ScowldRootView: View {
     @AppStorage("startup_onboarding_completed") private var hasCompletedStartupOnboarding = false
     @State private var selectedTab: ScowldTab = ScowldTab(previewName: ScowldTestEnvironment.previewTab) ?? .chat
     @State private var appUpdateState: AppUpdateState = .idle
+    @State private var premium = PremiumModel()
+    @State private var premiumSheet: PremiumSheet?
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
             if !hasCompletedStartupOnboarding {
                 StartupOnboardingView {
                     hasCompletedStartupOnboarding = true
+                    // New users start with Premium: show the plans once, right after onboarding.
+                    if HostedServiceConfig.liveMode() == .premium, !premium.isSubscribed {
+                        premiumSheet = .paywall
+                    }
                 }
             } else {
                 appTabs
             }
         }
+        .environment(premium)
+        .sheet(item: $premiumSheet) { sheet in
+            switch sheet {
+            case .paywall:
+                PremiumPaywallView(onUseOwnKey: useOwnKey)
+                    .environment(premium)
+            case .minutes:
+                MinutePacksView()
+                    .environment(premium)
+                    .presentationDetents([.medium, .large])
+            }
+        }
         .task {
+            // Debug simulator screenshots of the Premium screens.
+            if let preview = ScowldTestEnvironment.previewTab, let sheet = PremiumSheet(rawValue: preview) {
+                premiumSheet = sheet
+            }
+            await premium.load()
             await checkForAppUpdateIfNeeded()
         }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
+                Task { await premium.refresh() }
+            }
+        }
+    }
+
+    /// Leaves Premium for the user's own API key and opens Settings to add it.
+    private func useOwnKey() {
+        UserDefaults.standard.set(LiveMode.ownKey.rawValue, forKey: HostedServiceConfig.liveModeDefaultsKey)
+        NotificationCenter.default.post(name: .amicaSettingsChanged, object: nil)
+        selectedTab = .settings
     }
 
     private var appTabs: some View {
         TabView(selection: $selectedTab) {
-            HomeView(memoryStore: memoryStore, isActive: selectedTab == .chat, openSettings: { selectedTab = .settings })
+            HomeView(
+                memoryStore: memoryStore,
+                isActive: selectedTab == .chat,
+                openSettings: { selectedTab = .settings },
+                openPremium: { premiumSheet = $0 }
+            )
                 .tabItem {
                     Label("Chat", systemImage: "message.fill")
                 }
