@@ -113,7 +113,12 @@ final class ScowldUITests: XCTestCase {
         back.tap()
         waitUntil(back, "exists == false")
 
-        for _ in 0..<3 { next.tap() }
+        // Each page slides in; a tap during the slide can be lost, so wait for
+        // each page's title before tapping again.
+        for title in ["Talk naturally.", "Choose her vibe.", "Before you continue"] {
+            next.tap()
+            waitUntil(app.staticTexts[title], "hittable == true")
+        }
         waitUntil(next, "label BEGINSWITH %@", "Accept to Continue")
         XCTAssertFalse(next.isEnabled, "Continuing requires accepting the Privacy Policy and Terms")
         XCTAssertTrue(element(startingWith: "Privacy Policy", in: app).exists)
