@@ -74,7 +74,7 @@ App Store Connect submission details for Scowld. Each field is in a code block f
     Website: https://scowld.xyz
     Blog: https://scowld.xyz/blog
     Instagram: https://www.instagram.com/apoorvcodes/
-    Product Hunt: https://www.producthunt.com/products/scowld
+    Product Hunt: https://www.producthunt.com/products/scowld-2
     Terms of Use: https://scowld.xyz/terms
     Privacy Policy: https://scowld.xyz/privacy
     Contact: ad13dtu@gmail.com
