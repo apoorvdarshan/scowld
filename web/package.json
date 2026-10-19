@@ -18,7 +18,7 @@
     "fast-xml-parser": "5.11.2",
     "globals": "^17.13.0",
     "html-validate": "^11.16.2",
-    "vitest": "5.0.4",
+    "vitest": "5.0.5",
     "wrangler": "^4.151.0"
   },
   "allowScripts": {
