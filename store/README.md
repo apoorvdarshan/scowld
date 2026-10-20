@@ -189,7 +189,8 @@ step). Submit those products in App Store Connect, or add a product catalog and
 the Fud AI product-submission step, then rerun.
 
 A draft review submission is submitted only while it holds this version and
-nothing else: it is checked before the run changes anything and read again
+nothing else: it is chosen and checked with the other decisions, before the
+listing text, screenshots, creative images or the build change, and read again
 right before it is submitted, so an item added by hand (or by another tool)
 stops the run instead of riding along. Drafts holding creative images belong to
 those images' own review and are never used for the version. The draft that
@@ -197,9 +198,10 @@ already holds this version is used; otherwise only a draft holding no app
 version is reused (two such drafts are ambiguous and stop the run), so another
 version's draft is never touched. A draft is created only right before the
 version is added to it, so a run that stops earlier, or a rerun with nothing to
-send, leaves no empty draft behind. In Ready for Review a
-draft already holds the version, so when no usable draft does, the run stops
-before changing anything instead of adding the version to another one.
+send, leaves no empty draft behind. In Ready for Review a draft already holds
+the version, so when no usable draft does, the run stops before changing
+anything instead of adding the version to another one, and the read-only
+preflight checks it too, before anything is built.
 
 ## Export compliance
 
@@ -304,8 +306,9 @@ changed image a new file name. A reservation left by an interrupted upload
 each new image on its own (Scowld already has an approved version), and a later
 run places it on every repository locale's version once it is approved, or swaps
 it in for the image placed there; a rejected image stops the run with Apple's
-reason. A retry finishes the image review submission an earlier attempt left
-behind instead of starting another.
+reason. Images never take the draft the version chose. An unfinished draft
+holding only these images is finished first, else an empty one, instead of
+starting another, so a rerun leaves no extra drafts.
 While the version is in a review submission (Ready for Review or Waiting for
 Review) nothing is uploaded, sent to App Review or placed: an image that still
 has to be uploaded or sent to App Review stops the run. An image Apple approved
