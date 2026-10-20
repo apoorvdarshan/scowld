@@ -12,27 +12,31 @@ main run them. The release's prepare job sets CHECK_COMMITTED_STORE_FILES=false
 and validates only the files its enabled switches use, so an unused file never
 blocks a release.
 
-The App Store Connect token test signs a real ES256 token with the hash-locked
-store tooling (requirements-store.txt). It is skipped where that tooling is not
-installed (a local run, the release's prepare job); store-automation.yml installs
-it and sets REQUIRE_STORE_TOOLING=true, so there it fails instead of skipping.
+The App Store Connect token test signs a real ES256 token, and the RGB screenshot
+tests flatten real images, with the hash-locked store tooling
+(requirements-store.txt: PyJWT and Pillow). They are skipped where that tooling is
+not installed (a local run, the release's prepare job); store-automation.yml
+installs it and sets REQUIRE_STORE_TOOLING=true, so there they fail instead of
+skipping.
 """
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import functools
+import hashlib
 import http.client
 import io
 import json
 import os
 import plistlib
 import re
-import struct
 import subprocess
 import sys
 import tempfile
 import unittest
 import urllib.error
+import urllib.parse
 import zlib
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -54,13 +58,15 @@ try:  # Only where the store tooling (requirements-store.txt) is installed.
     from cryptography.hazmat.primitives.asymmetric import ec  # noqa: E402
 except ImportError:
     pyjwt = None
+# Pillow, from the same lock: the RGB screenshot copies.
+PILLOW = asc_release.try_import_pillow()
 
 ROOT = HERE.parents[1]
 CHECK_COMMITTED_FILES = os.environ.get("CHECK_COMMITTED_STORE_FILES", "true").strip().lower() not in {
     "0", "false", "no", "off",
 }
 # store-automation.yml installs the tooling and sets this, so a lock that fails to
-# provide PyJWT can never turn the token test into a silent skip.
+# provide PyJWT or Pillow can never turn the token or RGB tests into a silent skip.
 STORE_TOOLING_REQUIRED = os.environ.get("REQUIRE_STORE_TOOLING", "").strip().lower() in {"1", "true", "yes", "on"}
 committed_files_test = unittest.skipUnless(
     CHECK_COMMITTED_FILES, "CHECK_COMMITTED_STORE_FILES=false: this run checks only the files its switches use"
@@ -78,8 +84,27 @@ ALL_ON = {
     "IOS_PUBLIC_RELEASE": "true",
 }
 OPS = ("create_version", "upload_build", "listing", "whats_new", "screenshots", "submit", "public_release")
-ASC_FLAGS = ("UPLOAD_LISTING", "UPLOAD_WHATS_NEW", "UPLOAD_SCREENSHOTS", "SUBMIT_IOS_REVIEW", "PUBLIC_RELEASE",
-             "CREATE_IOS_VERSION")
+ASC_FLAGS = ("UPLOAD_LISTING", "UPLOAD_WHATS_NEW", "UPLOAD_SCREENSHOTS", "UPLOAD_CREATIVE_ASSETS", "SUBMIT_IOS_REVIEW",
+             "PUBLIC_RELEASE", "CREATE_IOS_VERSION")
+
+
+@functools.lru_cache(maxsize=None)
+def make_png(width: int, height: int, colour_type: int = 2, *, chunks: tuple[tuple[bytes, bytes], ...] = ()) -> bytes:
+    """A valid PNG of black pixels (8 bits per sample), built without Pillow.
+
+    chunks are extra (type, data) chunks written before the image data, e.g. tRNS.
+    """
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[colour_type]
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return len(data).to_bytes(4, "big") + kind + data + zlib.crc32(kind + data).to_bytes(4, "big")
+
+    header = width.to_bytes(4, "big") + height.to_bytes(4, "big") + bytes([8, colour_type, 0, 0, 0])
+    extra = b"".join(chunk(kind, data) for kind, data in chunks)
+    palette = chunk(b"PLTE", b"\x00\x00\x00") if colour_type == 3 else b""
+    pixels = zlib.compress((b"\x00" + b"\x00" * (width * channels)) * height)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + palette + extra
+            + chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
 
 
 def gates(env: dict[str, str], *, event: str = "push", ref: str = TAG) -> dict:
@@ -702,11 +727,9 @@ class TokenRefreshTests(unittest.TestCase):
 
 
 def png(path: Path, width: int, height: int, *, alpha: bool = False, seed: int = 0) -> Path:
-    """A real (tiny-header) PNG with the given dimensions; seed makes contents unique."""
+    """A real PNG with the given dimensions (the upload path refuses anything else); seed makes contents unique."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    ihdr = struct.pack(">IIBBBBB", width, height, 8, 6 if alpha else 2, 0, 0, 0)
-    chunk = lambda kind, data: struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))  # noqa: E731
-    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"tEXt", f"seed{seed}".encode()) + chunk(b"IEND", b""))
+    path.write_bytes(make_png(width, height, 6 if alpha else 2, chunks=((b"tEXt", b"seed\x00%d" % seed),)))
     return path
 
 
@@ -841,10 +864,12 @@ class LocalInputTests(unittest.TestCase):
         manifest.write_text(json.dumps({"APP_IPHONE_67": ["store/metadata/screenshots/a.png"], "APP_IPAD_PRO_3GEN_129": ["store/metadata/screenshots/ipad.png"]}))
         plan = self.validate(upload_screenshots=True)["en-US"]["screenshots"]
         self.assertEqual(plan["APP_IPHONE_67"], [good.resolve()])
+        # A frame that stores alpha is listed like any other: staging uploads an RGB copy of it.
+        manifest.write_text(json.dumps({"APP_IPHONE_67": ["store/metadata/screenshots/alpha.png"]}))
+        self.assertEqual(len(self.validate(upload_screenshots=True)["en-US"]["screenshots"]["APP_IPHONE_67"]), 1)
 
         cases = {
             "1179x2556; APP_IPHONE_67 accepts": {"APP_IPHONE_67": ["store/metadata/screenshots/small.png"]},
-            "alpha channel": {"APP_IPHONE_67": ["store/metadata/screenshots/alpha.png"]},
             "unsupported display type": {"APP_WATCH": ["store/metadata/screenshots/a.png"]},
             "not an image file in this repository": {"APP_IPHONE_67": ["../outside.png"]},
             "lists 11 images": {"APP_IPHONE_67": ["store/metadata/screenshots/a.png"] * 11},
@@ -872,6 +897,20 @@ class LocalInputTests(unittest.TestCase):
                 self.assertTrue(entry["version"]["description"])
                 self.assertTrue(entry["app_info"]["name"])
                 self.assertTrue(entry["screenshots"], "every locale lists App Store-ready screenshots")
+        committed = {locale: {display: list(files) for display, files in entry["screenshots"].items()}
+                     for locale, entry in plan.items()}
+        before = {path: path.read_bytes() for sets in committed.values() for files in sets.values() for path in files}
+        with tempfile.TemporaryDirectory() as tmp:
+            quiet(asc_release.stage_screenshots, plan, Path(tmp))
+            for locale, sets in committed.items():
+                for display, files in sets.items():
+                    for source, staged in zip(files, plan[locale]["screenshots"][display]):
+                        with self.subTest(display=display, name=source.name):
+                            # The live sets hold these exact files (their checksums match App Store
+                            # Connect's), so their RGB copies are byte for byte the same.
+                            self.assertEqual(staged.read_bytes(), before[source])
+                            self.assertNotEqual(staged, source)
+        self.assertEqual({path: path.read_bytes() for path in before}, before, "the committed files are untouched")
 
 
 class ListingUploadTests(unittest.TestCase):
@@ -1140,7 +1179,8 @@ class FakeAsc:
 
     def __init__(self, *, state: str = "PREPARE_FOR_SUBMISSION", attached: str | None = "OLD",
                  revert_after_select: bool = False, products: list[dict] | None = None,
-                 draft_items: list[dict] | None = None, drafts: int = 1, versions: list[str] | None = None) -> None:
+                 draft_items: list[dict] | None = None, drafts: int = 1, versions: list[str] | None = None,
+                 live_by_display: dict[str, list[dict]] | None = None) -> None:
         self.state = state
         self.attached = attached
         self.revert_after_select = revert_after_select
@@ -1148,11 +1188,28 @@ class FakeAsc:
         self.draft_items = draft_items or []
         self.drafts = drafts
         self.versions = versions if versions is not None else [VERSION]
+        # display type -> the screenshots its live set holds.
+        self.live_by_display = dict(live_by_display or {})
+        self.created_sets: list[str] = []
+        # (set id, file name, uploaded bytes) of every screenshot uploaded.
+        self.uploaded_shots: list[tuple[str, str, bytes]] = []
         self.build_reads = 0
         self.calls: list[tuple[str, str]] = []
 
     def get(self, path: str) -> dict:
         self.calls.append(("GET", path))
+        if path.startswith("/appStoreVersions/V1/appStoreVersionLocalizations"):
+            return {"data": [{"id": "LOC1", "attributes": {"locale": "en-US"}}]}
+        if path.startswith("/appStoreVersionLocalizations/LOC1/appScreenshotSets"):
+            return {"data": [{"id": f"SET-{display}", "attributes": {"screenshotDisplayType": display}}
+                             for display in self.live_by_display]}
+        if path.startswith("/appScreenshotSets/") and "/appScreenshots" in path:
+            # Live sets hold live_by_display; sets created by this run start empty.
+            set_id = path.split("/")[2]
+            live = self.live_by_display.get(set_id.removeprefix("SET-"), []) if set_id.startswith("SET-") else []
+            return {"data": [{"id": f"SHOT{i}", "attributes": shot} for i, shot in enumerate(live)]}
+        if path.startswith("/appScreenshots/"):
+            return {"data": {"id": path.split("/")[2], "attributes": {"assetDeliveryState": {"state": "COMPLETE"}}}}
         if path.startswith("/apps?"):
             return {"data": [{"id": APP, "attributes": {"bundleId": "com.apoorvdarshan.Scowld"}}]}
         if path.startswith(f"/apps/{APP}/appStoreVersions"):
@@ -1175,10 +1232,24 @@ class FakeAsc:
             return {"data": [{"id": f"SUB{i + 1}"} for i in range(self.drafts)]}
         if path.startswith("/reviewSubmissions/SUB1/items"):
             return {"data": self.draft_items}
+        if path.startswith("/reviewSubmissions/SUB") and "/items?" in path:
+            return {"data": []}  # the other drafts are empty
         raise AssertionError(f"unexpected GET {path}")
 
     def post(self, path: str, body: dict) -> dict:
         self.calls.append(("POST", path))
+        if path == "/appScreenshotSets":
+            display = body["data"]["attributes"]["screenshotDisplayType"]
+            self.created_sets.append(display)
+            return {"data": {"id": f"NEW-{display}"}}
+        if path == "/appScreenshots":
+            attributes = body["data"]["attributes"]
+            shot_id = f"UP{len(self.uploaded_shots)}"
+            self.uploaded_shots.append((body["data"]["relationships"]["appScreenshotSet"]["data"]["id"],
+                                        attributes["fileName"], b""))
+            return {"data": {"id": shot_id, "attributes": {"uploadOperations": [
+                {"url": f"https://upload.example/{shot_id}", "method": "PUT", "offset": 0,
+                 "length": attributes["fileSize"], "requestHeaders": [{"name": "Content-Type", "value": "image/png"}]}]}}}
         return {"data": {"id": "ITEM"}}
 
     def patch(self, path: str, body: dict) -> dict:
@@ -1190,6 +1261,19 @@ class FakeAsc:
         if method == "PATCH" and path == "/appStoreVersions/V1/relationships/build":
             self.attached = body["data"]["id"]
         return None
+
+    def delete(self, path: str) -> None:
+        self.calls.append(("DELETE", path))
+
+    def upload_bytes(self, url: str, data: bytes, headers: dict, *, method: str = "PUT") -> None:
+        self.calls.append(("UPLOAD", url))
+        index = int(url.rsplit("/UP", 1)[1])
+        set_id, name, _ = self.uploaded_shots[index]
+        self.uploaded_shots[index] = (set_id, name, data)
+
+
+def writes(fake: FakeAsc) -> list[tuple[str, str]]:
+    return [call for call in fake.calls if call[0] != "GET"]
 
 
 class LiveSubmitFlowTests(unittest.TestCase):
@@ -1449,6 +1533,10 @@ class PreflightTests(unittest.TestCase):
             f"/apps/{APP}/subscriptionGroups?limit=200": {"data": [{"id": "G1"}] if products else []},
             "/subscriptionGroups/G1/subscriptions?limit=200": {"data": products or []},
             f"/apps/{APP}/inAppPurchasesV2?limit=200": {"data": []},
+            # A READY_FOR_REVIEW version sits in its draft, as in App Store Connect.
+            f"/apps/{APP}/reviewSubmissions?*": {"data": [{"id": "D1"}] if state == "READY_FOR_REVIEW" else []},
+            "/reviewSubmissions/D1/items?*": {"data": [
+                {"id": "I1", "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": "V0"}}}}]},
         }
 
     def run_preflight(self, client: RouteClient, **flags: str) -> tuple[int, str]:
@@ -1752,6 +1840,1015 @@ class AscCliTests(unittest.TestCase):
                                             "--metadata-dir", str(root / "meta"))
         self.assertEqual(code, 0, output)
         self.assertIn("no API calls", output)
+
+
+# MARK: - Header and search results images, the screenshot alpha guard, Apple Watch and RGB copies
+
+
+class CreativeGateTests(unittest.TestCase):
+    """IOS_UPLOAD_CREATIVE_ASSETS follows every switch convention."""
+
+    def test_creative_assets_are_their_own_switch(self) -> None:
+        result = gates({"IOS_RELEASE_AUTOMATION": "true", "IOS_UPLOAD_CREATIVE_ASSETS": "true"})
+        self.assertTrue(result["creative"])
+        self.assertTrue(result["asc"], "the store job runs for creative assets alone")
+        self.assertFalse(result["build"])
+        for key in OPS:
+            self.assertFalse(result[key], key)
+        self.assertFalse(gates({**ALL_ON, "IOS_UPLOAD_CREATIVE_ASSETS": "false"})["creative"])
+
+    def test_it_needs_the_master_switch_and_validation_runs_never_use_it(self) -> None:
+        result = gates({"IOS_UPLOAD_CREATIVE_ASSETS": "true"})
+        self.assertFalse(result["creative"])
+        self.assertFalse(result["asc"])
+        self.assertTrue(any("IOS_UPLOAD_CREATIVE_ASSETS" in note for note in result["notes"]))
+        manual = gates({**ALL_ON, "IOS_UPLOAD_CREATIVE_ASSETS": "true"}, event="workflow_dispatch", ref="main")
+        self.assertFalse(manual["creative"])
+
+    def test_invalid_values_fail_even_when_the_master_is_off(self) -> None:
+        for env in ({"IOS_UPLOAD_CREATIVE_ASSETS": "maybe"},
+                    {"IOS_RELEASE_AUTOMATION": "false", "IOS_UPLOAD_CREATIVE_ASSETS": "2"}):
+            with self.subTest(env=env), self.assertRaisesRegex(ReleaseError, "IOS_UPLOAD_CREATIVE_ASSETS"):
+                gates(env)
+
+    def test_every_ios_switch_is_printed_and_documented(self) -> None:
+        example = (Path(ios_release.ROOT) / "store" / "gates.env.example").read_text()
+        self.assertEqual(dict(ios_release.OPERATION_SWITCHES).get("IOS_UPLOAD_CREATIVE_ASSETS"), "creative")
+        for name, _ in ios_release.OPERATION_SWITCHES:
+            with self.subTest(name=name):
+                self.assertIn(name, print_gates.GATES)
+                self.assertIn(f"\n{name}=false\n", example)
+
+    def test_preflight_reads_the_switch(self) -> None:
+        # On: the images go on the version's localization, so the preflight checks it, and
+        # their Asset Library state, without writing. Off: nothing is read.
+        with tempfile.TemporaryDirectory() as tmp:
+            creative = Path(tmp) / "creative"
+            header = creative / "header" / "header.png"
+            header.parent.mkdir(parents=True)
+            header.write_bytes(make_png(3840, 1646))
+            library = [{"id": "HDR", "attributes": {"fileName": header.name, "fileSize": header.stat().st_size,
+                                                    "state": "APPROVED"}}]
+            placements = {"PL-HDR": {"type": "PRODUCT_PAGE_HEADER_ASSET", "image": "HDR", "loc": "LOC1"}}
+            for flags, reads in (({"UPLOAD_CREATIVE_ASSETS": "true"}, True), ({}, False)):
+                fake = CreativeFake(library=library, placements=placements)
+                env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+                with self.subTest(flags=flags), mock.patch.dict(os.environ, {**env, **flags}, clear=True), \
+                        mock.patch.object(asc_release, "client_from_environment", return_value=fake), \
+                        redirect_stdout(io.StringIO()):
+                    asc_release.main(["--preflight", "--version", VERSION, "--creative-dir", str(creative)])
+                    self.assertEqual(bool([c for c in fake.calls if "appStoreVersionLocalizations" in c[1]]), reads)
+                    self.assertEqual((("GET", f"/apps/{APP}/assetLibrary") in fake.calls), reads)
+                    self.assertEqual(writes(fake), [])
+
+    def test_print_gates_lists_it(self) -> None:
+        clean = {k: v for k, v in os.environ.items() if not k.startswith("IOS_")}
+        for value, shown in (("true", "IOS_UPLOAD_CREATIVE_ASSETS=true\n"),
+                             ("maybe", "IOS_UPLOAD_CREATIVE_ASSETS=INVALID 'maybe'")):
+            out = io.StringIO()
+            with mock.patch.dict(os.environ, {**clean, "IOS_RELEASE_AUTOMATION": "true",
+                                              "IOS_UPLOAD_CREATIVE_ASSETS": value}, clear=True), redirect_stdout(out):
+                print_gates.main()
+            self.assertIn(shown, out.getvalue())
+
+
+class ScreenshotAlphaGuardTests(unittest.TestCase):
+    """The last guard: a staged file that still stores alpha never reaches App Store Connect."""
+
+    def test_alpha_is_detected_the_way_app_store_connect_refuses_it(self) -> None:
+        cases = {
+            "rgb": (make_png(2, 2, 2), False),
+            "grey": (make_png(2, 2, 0), False),
+            "palette": (make_png(2, 2, 3), False),
+            "grey + alpha": (make_png(2, 2, 4), True),
+            "rgba": (make_png(2, 2, 6), True),
+            "rgb + tRNS": (make_png(2, 2, 2, chunks=((b"tRNS", b"\x00\x00\x00\x00\x00\x00"),)), True),
+            "palette + tRNS": (make_png(2, 2, 3, chunks=((b"tRNS", b"\x00"),)), True),
+        }
+        for label, (raw, alpha) in cases.items():
+            with self.subTest(label):
+                self.assertEqual(asc_release.png_stores_alpha(asc_release.png_chunks(raw)), alpha)
+
+    def test_truncated_or_corrupt_pngs_are_refused(self) -> None:
+        good = make_png(8, 8)
+        ihdr_end = 8 + 12 + 13
+        idat = good.index(b"IDAT") - 4
+        corrupt_crc = bytearray(good)
+        corrupt_crc[idat + 8] ^= 0xFF  # first byte of the IDAT data; its CRC no longer matches
+        cases = {
+            "signature and IHDR only": good[:ihdr_end],
+            "cut in the image data": good[: idat + 10],
+            "no IEND": good[:-12],
+            "IEND without its CRC": good[:-4],
+            "bad CRC": bytes(corrupt_crc),
+            "no IDAT": good[:ihdr_end] + good[-12:],
+            "image data is not zlib": make_png(8, 8)[:idat] + self.chunk(b"IDAT", b"not zlib") + good[-12:],
+            "image data for another size": make_png(8, 8)[:idat] + make_png(4, 4)[make_png(4, 4).index(b"IDAT") - 4:],
+        }
+        for label, raw in cases.items():
+            with self.subTest(label), self.assertRaises(ValueError):
+                asc_release.png_chunks(raw)
+        self.assertEqual([kind for kind, _ in asc_release.png_chunks(good)], [b"IHDR", b"IDAT", b"IEND"])
+        # Lenient reading (deciding how to copy a screenshot) only needs the header.
+        self.assertEqual(asc_release.png_chunks(good[:ihdr_end], strict=False)[0][0], b"IHDR")
+
+    @staticmethod
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return len(data).to_bytes(4, "big") + kind + data + zlib.crc32(kind + data).to_bytes(4, "big")
+
+    def test_staged_files_with_alpha_or_not_png_are_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "01-home.png"
+            for raw in (make_png(4, 4, 6), make_png(4, 4, 4), make_png(4, 4, 2, chunks=((b"tRNS", b"\x00" * 6),)),
+                        b"\x89PNG\r\n\x1a\n" + b"screenshot" * 4, b"GIF89a", make_png(4, 4)[:-12]):
+                path.write_bytes(raw)
+                with self.subTest(raw=raw[:30]), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    asc_release.staged_png(path, "APP_IPHONE_67")
+            path.write_bytes(make_png(4, 4, 2))
+            self.assertEqual(asc_release.staged_png(path, "APP_IPHONE_67"), (4, 4))
+
+    def test_a_truncated_or_corrupt_screenshot_fails_before_any_call(self) -> None:
+        # Staging copies an RGB file as it is, so the guard is what stops a broken one.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            loc = root / "meta" / "en-US"
+            loc.mkdir(parents=True)
+            shot = png(root / "shots" / "a.png", 1260, 2736)
+            (loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["shots/a.png"]}))
+            good = shot.read_bytes()
+            for raw in (good[:-12], good[: len(good) // 2]):
+                shot.write_bytes(raw)
+                fake = FakeAsc()
+                err = io.StringIO()
+                env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+                with self.subTest(size=len(raw)), mock.patch.dict(os.environ, {**env, "UPLOAD_SCREENSHOTS": "true"}, clear=True), \
+                        mock.patch.object(asc_release, "client_from_environment", return_value=fake), \
+                        mock.patch.object(asc_release, "ROOT", root), redirect_stdout(io.StringIO()), redirect_stderr(err), \
+                        self.assertRaises(SystemExit):
+                    asc_release.main(["--version", VERSION, "--metadata-dir", str(root / "meta")])
+                self.assertIn("not a readable PNG", err.getvalue())
+                self.assertEqual(fake.calls, [])
+
+
+class WatchScreenshotTests(unittest.TestCase):
+    """Apple Watch frames are uploaded like the other sets, by the display type their size belongs to."""
+
+    PHONE_SETS = {"APP_IPHONE_67": (1260, 2736), "APP_IPAD_PRO_3GEN_129": (2048, 2732), "APP_IPHONE_DUO": (1398, 2034)}
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        self.loc = self.root / "meta" / "en-US"
+        self.loc.mkdir(parents=True)
+        self.shots = self.root / "store" / "metadata" / "screenshots" / "ios"
+        self.phone: dict[str, bytes] = {}
+        for display, size in self.PHONE_SETS.items():
+            self.phone[display] = png(self.shots / display.lower() / "01-home.png", *size).read_bytes()
+        self.watch = self.shots / "watch"
+        self.watch_png = make_png(416, 496)
+        self.watch.mkdir()
+        (self.watch / "01-home-glance.png").write_bytes(self.watch_png)
+        self.manifest(["01-home-glance.png"])
+
+    def manifest(self, watch: list[str] | None) -> None:
+        # "watch" comes first here: the Watch sets still go after the others.
+        sets: dict[str, list[str]] = {}
+        if watch is not None:
+            sets["watch"] = [f"store/metadata/screenshots/ios/watch/{name}" for name in watch]
+        for display in self.PHONE_SETS:
+            sets[display] = [f"store/metadata/screenshots/ios/{display.lower()}/01-home.png"]
+        (self.loc / "screenshots.json").write_text(json.dumps(sets))
+
+    @staticmethod
+    def shot(name: str, raw: bytes) -> dict:
+        return {"fileName": name, "fileSize": len(raw), "sourceFileChecksum": hashlib.md5(raw).hexdigest()}
+
+    def live(self) -> dict[str, list[dict]]:
+        return {display: [self.shot("01-home.png", raw)] for display, raw in self.phone.items()}
+
+    def run_main(self, fake: FakeAsc, env: dict[str, str]) -> int:
+        argv = ["--version", VERSION, "--build-id", "B9", "--build-number", "14", "--metadata-dir", str(self.root / "meta")]
+        full_env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+        full_env.update(env)
+        with mock.patch.dict(os.environ, full_env, clear=True), \
+                mock.patch.object(asc_release, "client_from_environment", return_value=fake), \
+                mock.patch.object(asc_release, "ROOT", self.root), \
+                mock.patch.object(asc_release.time, "sleep"), \
+                redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            try:
+                asc_release.main(argv)
+            except SystemExit as exc:
+                return exc.code if isinstance(exc.code, int) else 1
+        return 0
+
+    def test_each_watch_size_maps_to_its_display_type(self) -> None:
+        (self.watch / "02-ultra-3.png").write_bytes(make_png(422, 514))
+        (self.watch / "03-ultra.png").write_bytes(make_png(410, 502))
+        (self.watch / "04-series-7.png").write_bytes(make_png(396, 484))
+        self.manifest(["01-home-glance.png", "02-ultra-3.png", "03-ultra.png", "04-series-7.png"])
+        sets = quiet(asc_release.load_screenshot_manifest, self.loc, self.root)
+        self.assertEqual(
+            [(display, [p.name for p in files]) for display, files in sets.items() if display.startswith("APP_WATCH")],
+            [("APP_WATCH_SERIES_10", ["01-home-glance.png"]),
+             ("APP_WATCH_ULTRA", ["02-ultra-3.png", "03-ultra.png"]),
+             ("APP_WATCH_SERIES_7", ["04-series-7.png"])],
+        )
+        expected = {(416, 496): "APP_WATCH_SERIES_10", (422, 514): "APP_WATCH_ULTRA", (410, 502): "APP_WATCH_ULTRA",
+                    (396, 484): "APP_WATCH_SERIES_7", (368, 448): "APP_WATCH_SERIES_4", (312, 390): "APP_WATCH_SERIES_3"}
+        self.assertEqual(asc_release.WATCH_DISPLAY_TYPES, expected)
+        # The Watch sets come after the iPhone, iPad and iPhone Duo sets.
+        self.assertEqual(list(sets), ["APP_IPHONE_67", "APP_IPAD_PRO_3GEN_129", "APP_IPHONE_DUO",
+                                      "APP_WATCH_SERIES_10", "APP_WATCH_ULTRA", "APP_WATCH_SERIES_7"])
+        # The iPhone Duo set takes the outer and the inner screen.
+        self.assertEqual(asc_release.SCREENSHOT_SIZES["APP_IPHONE_DUO"], {(1398, 2034), (2007, 2853)})
+
+    def test_a_frame_that_is_no_watch_size_or_stores_alpha_fails_before_any_call(self) -> None:
+        # Without Pillow an alpha frame is copied as it is, so it is refused; with Pillow it is flattened.
+        for name, raw in (("02-phone.png", make_png(1290, 2796)), ("02-alpha.png", make_png(416, 496, 6))):
+            (self.watch / name).write_bytes(raw)
+            self.manifest(["01-home-glance.png", name])
+            fake = FakeAsc()
+            with self.subTest(name=name), mock.patch.object(asc_release, "try_import_pillow", return_value=None):
+                self.assertEqual(self.run_main(fake, {"UPLOAD_SCREENSHOTS": "true"}), 1)
+                self.assertEqual(fake.calls, [])
+            (self.watch / name).unlink()
+
+    def test_the_watch_set_is_uploaded_with_its_display_type(self) -> None:
+        fake = FakeAsc()
+        self.assertEqual(self.run_main(fake, {"UPLOAD_SCREENSHOTS": "true"}), 0)
+        self.assertEqual(fake.created_sets, ["APP_IPHONE_67", "APP_IPAD_PRO_3GEN_129", "APP_IPHONE_DUO",
+                                             "APP_WATCH_SERIES_10"])
+        self.assertEqual(fake.uploaded_shots[-1], ("NEW-APP_WATCH_SERIES_10", "01-home-glance.png", self.watch_png))
+
+    def test_a_watch_set_is_replaced_only_when_it_differs(self) -> None:
+        same = {**self.live(), "APP_WATCH_SERIES_10": [self.shot("01-home-glance.png", self.watch_png)]}
+        fake = FakeAsc(live_by_display=same)
+        self.assertEqual(self.run_main(fake, {"UPLOAD_SCREENSHOTS": "true"}), 0)
+        self.assertEqual(writes(fake), [])
+        # A different live Watch set is replaced; the others are left alone.
+        old = {**self.live(), "APP_WATCH_SERIES_10": [self.shot("01-old.png", b"old")]}
+        fake = FakeAsc(live_by_display=old)
+        self.assertEqual(self.run_main(fake, {"UPLOAD_SCREENSHOTS": "true"}), 0)
+        self.assertEqual([(set_id, name) for set_id, name, _ in fake.uploaded_shots],
+                         [("SET-APP_WATCH_SERIES_10", "01-home-glance.png")])
+        self.assertEqual([c for c in writes(fake) if c[0] == "DELETE"], [("DELETE", "/appScreenshots/SHOT0")])
+
+    def test_a_locked_version_only_compares_the_watch_set(self) -> None:
+        same = {**self.live(), "APP_WATCH_SERIES_10": [self.shot("01-home-glance.png", self.watch_png)]}
+        env = {"UPLOAD_SCREENSHOTS": "true", "SUBMIT_IOS_REVIEW": "true"}
+        held = [version_item()]
+        fake = FakeAsc(state="READY_FOR_REVIEW", live_by_display=same, draft_items=held)
+        self.assertEqual(self.run_main(fake, env), 0)
+        self.assertFalse([c for c in writes(fake) if "creenshot" in c[1]])
+        # A Watch set that differs while the version is in a review submission stops the run before any write.
+        fake = FakeAsc(state="READY_FOR_REVIEW", live_by_display=self.live(), draft_items=held)
+        self.assertEqual(self.run_main(fake, env), 1)
+        self.assertEqual(writes(fake), [])
+
+    def test_without_staged_watch_frames_the_live_watch_sets_are_left_alone(self) -> None:
+        self.manifest(None)
+        fake = FakeAsc(live_by_display={**self.live(), "APP_WATCH_ULTRA": [self.shot("01-hand.png", b"by hand")]})
+        self.assertEqual(self.run_main(fake, {"UPLOAD_SCREENSHOTS": "true"}), 0)
+        self.assertEqual(writes(fake), [])
+        self.assertEqual(asc_release.watch_sets([]), {})
+
+
+class StageScreenshotTests(unittest.TestCase):
+    """Screenshots are uploaded from copies in a temporary folder; the committed files are only read."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        self.staging = self.root / "staging"
+        self.staging.mkdir()
+
+    def stage(self, sets: dict[str, list[Path]]) -> dict[str, list[Path]]:
+        plan = {"en-US": {"screenshots": {display: list(files) for display, files in sets.items()}}}
+        quiet(asc_release.stage_screenshots, plan, self.staging)
+        return plan["en-US"]["screenshots"]
+
+    def test_rgb_files_are_copied_byte_for_byte(self) -> None:
+        # The live sets were uploaded from these exact bytes; a re-encoded copy would no
+        # longer match their checksums, and every set would be uploaded again.
+        iphone = png(self.root / "iphone-6.9" / "chat.png", 1320, 2868)
+        ipad = png(self.root / "ipad-13" / "chat.png", 2064, 2752, seed=1)
+        before = {path: path.read_bytes() for path in (iphone, ipad)}
+        staged = self.stage({"APP_IPHONE_67": [iphone], "APP_IPAD_PRO_3GEN_129": [ipad]})
+        for (display, (copy,)), source in zip(staged.items(), (iphone, ipad)):
+            with self.subTest(display=display):
+                self.assertEqual(copy.read_bytes(), before[source])
+                self.assertEqual(copy.name, source.name, "the copy keeps the file name App Store Connect shows")
+                self.assertIn(self.staging, copy.parents)
+        self.assertNotEqual(staged["APP_IPHONE_67"][0], staged["APP_IPAD_PRO_3GEN_129"][0], "same name, own copy")
+        self.assertEqual({path: path.read_bytes() for path in before}, before, "the committed files are untouched")
+
+    def test_upload_without_pillow_refuses_frames_that_store_alpha(self) -> None:
+        cases = {
+            "rgba": make_png(1290, 2796, 6),
+            "grey + alpha": make_png(1290, 2796, 4),
+            "rgb + tRNS": make_png(1290, 2796, 2, chunks=((b"tRNS", b"\x00" * 6),)),
+        }
+        path = self.root / "02-alpha.png"
+        with mock.patch.object(asc_release, "try_import_pillow", return_value=None):
+            for label, raw in cases.items():
+                path.write_bytes(raw)
+                plan = {"en-US": {"screenshots": {"APP_IPHONE_67": [path]}}}
+                stderr = io.StringIO()
+                with self.subTest(label), self.assertRaises(SystemExit), redirect_stdout(io.StringIO()), \
+                        redirect_stderr(stderr):
+                    asc_release.stage_screenshots(plan, self.staging)
+                self.assertIn("02-alpha.png", stderr.getvalue())
+                self.assertIn("install Pillow", stderr.getvalue())
+            # An RGB file is copied as it is.
+            path.write_bytes(make_png(1290, 2796, 2))
+            (copy,) = self.stage({"APP_IPHONE_67": [path]})["APP_IPHONE_67"]
+            self.assertEqual(copy.read_bytes(), path.read_bytes())
+
+
+@unittest.skipIf(PILLOW is None and not STORE_TOOLING_REQUIRED,
+                 "store tooling not installed (pip install --require-hashes -r requirements-store.txt)")
+class RgbStageTests(unittest.TestCase):
+    """With Pillow, every App Store frame is uploaded as an RGB PNG without alpha."""
+
+    OPAQUE = (10, 20, 30, 255)
+    HIDDEN_RED = (255, 0, 0, 0)  # fully transparent, with a colour that must never show
+    HALF = (200, 100, 50, 128)
+
+    def setUp(self) -> None:
+        if PILLOW is None:
+            self.fail("REQUIRE_STORE_TOOLING is set, but Pillow is not installed")
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        self.staging = self.root / "staging"
+        self.staging.mkdir()
+
+    def frame(self, name: str, size: tuple[int, int], *, icc: bytes | None = None,
+              chunks: tuple[tuple[bytes, bytes], ...] = ()) -> Path:
+        from PIL import PngImagePlugin
+
+        img = PILLOW.new("RGBA", size, self.OPAQUE)
+        width, height = size
+        # The left quarter is transparent; one translucent pixel top right.
+        img.paste(self.HIDDEN_RED, (0, 0, width // 4, height))
+        img.putpixel((width - 1, 0), self.HALF)
+        info = PngImagePlugin.PngInfo()
+        for kind, data in chunks:
+            info.add(kind, data)
+        path = self.root / "frames" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        img.save(path, pnginfo=info, **({"icc_profile": icc} if icc else {}))
+        return path
+
+    def stage(self, plan: dict[str, dict]) -> None:
+        quiet(asc_release.stage_screenshots, plan, self.staging)
+
+    def rgb(self, path: Path):
+        raw = path.read_bytes()
+        self.assertEqual(raw[25], 2, f"{path.name} is not an RGB PNG (colour type {raw[25]})")
+        self.assertNotIn(b"tRNS", [kind for kind, _ in asc_release.png_chunks(raw)])
+        img = PILLOW.open(path)
+        self.assertEqual(img.mode, "RGB")
+        return img
+
+    def test_frames_at_an_accepted_size_keep_their_pixels_over_black(self) -> None:
+        source = self.frame("01-a.png", (1290, 2796))
+        before = hashlib.sha256(source.read_bytes()).hexdigest()
+        plan = {"en-US": {"screenshots": {"APP_IPHONE_67": [source]}}}
+
+        self.stage(plan)
+
+        (staged,) = plan["en-US"]["screenshots"]["APP_IPHONE_67"]
+        img = self.rgb(staged)
+        self.assertEqual(img.size, (1290, 2796))
+        self.assertEqual(img.getpixel((1289, 2795)), self.OPAQUE[:3], "opaque pixels are kept as they are")
+        self.assertEqual(img.getpixel((0, 0)), (0, 0, 0), "transparent pixels are laid over black")
+        # Translucent pixels are blended over black exactly once.
+        for got, value in zip(img.getpixel((1289, 0)), self.HALF[:3]):
+            self.assertAlmostEqual(got, value * 128 / 255, delta=1)
+        self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), before, "the committed file is untouched")
+
+    def test_every_app_store_set_is_staged_without_alpha(self) -> None:
+        loc = self.root / "meta" / "en-US"
+        loc.mkdir(parents=True)
+        frames = {"APP_IPHONE_67": ("01-a.png", (1290, 2796)), "APP_IPAD_PRO_3GEN_129": ("01-i.png", (2064, 2752)),
+                  "APP_IPHONE_DUO": ("01-d.png", (2007, 2853)), "watch": ("01-w.png", (416, 496))}
+        for name, size in frames.values():
+            self.frame(name, size)
+        (loc / "screenshots.json").write_text(json.dumps({key: [f"frames/{name}"] for key, (name, _) in frames.items()}))
+        plan = quiet(asc_release.validate_local_inputs, upload_listing=False, upload_whats_new=False,
+                     upload_screenshots=True, metadata_dir=self.root / "meta", root=self.root)
+
+        self.stage(plan)
+
+        sets = plan["en-US"]["screenshots"]
+        self.assertEqual(list(sets), ["APP_IPHONE_67", "APP_IPAD_PRO_3GEN_129", "APP_IPHONE_DUO", "APP_WATCH_SERIES_10"])
+        for display, files in sets.items():
+            for path in files:
+                with self.subTest(set=display, name=path.name):
+                    self.rgb(path)
+
+    def test_the_colour_profile_is_kept(self) -> None:
+        from PIL import ImageCms
+
+        icc = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        gamma = (b"gAMA", (45455).to_bytes(4, "big"))
+        chroma = (b"cHRM", bytes(range(32)))
+        source = self.frame("01-a.png", (1290, 2796), icc=icc, chunks=(gamma, chroma))
+        plan = {"en-US": {"screenshots": {"APP_IPHONE_67": [source]}}}
+
+        self.stage(plan)
+
+        (staged,) = plan["en-US"]["screenshots"]["APP_IPHONE_67"]
+        self.assertEqual(self.rgb(staged).info.get("icc_profile"), icc)
+        kept = {kind: data for kind, data in asc_release.png_chunks(staged.read_bytes())}
+        self.assertEqual(kept.get(b"gAMA"), gamma[1])
+        self.assertEqual(kept.get(b"cHRM"), chroma[1])
+
+    def test_a_truncated_frame_that_stores_alpha_fails_cleanly(self) -> None:
+        # Pillow only ever gets a complete, well-formed file; a broken one stops the run with a message.
+        source = self.frame("01-a.png", (1290, 2796))
+        good = source.read_bytes()
+        for raw in (good[:-12], good[: len(good) // 2]):
+            source.write_bytes(raw)
+            plan = {"en-US": {"screenshots": {"APP_IPHONE_67": [source]}}}
+            err = io.StringIO()
+            with self.subTest(size=len(raw)), redirect_stdout(io.StringIO()), redirect_stderr(err), \
+                    self.assertRaises(SystemExit):
+                asc_release.stage_screenshots(plan, self.staging)
+            self.assertIn("01-a.png is not a readable PNG", err.getvalue())
+
+    def test_the_upload_sends_the_rgb_copy_not_the_committed_file(self) -> None:
+        loc = self.root / "meta" / "en-US"
+        loc.mkdir(parents=True)
+        source = self.frame("01-a.png", (1290, 2796))
+        committed = source.read_bytes()
+        (loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["frames/01-a.png"]}))
+        fake = FakeAsc()
+        env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+        with mock.patch.dict(os.environ, {**env, "UPLOAD_SCREENSHOTS": "true"}, clear=True), \
+                mock.patch.object(asc_release, "client_from_environment", return_value=fake), \
+                mock.patch.object(asc_release, "ROOT", self.root), redirect_stdout(io.StringIO()):
+            asc_release.main(["--version", VERSION, "--metadata-dir", str(self.root / "meta")])
+        ((set_id, name, sent),) = fake.uploaded_shots
+        self.assertEqual((set_id, name), ("NEW-APP_IPHONE_67", "01-a.png"))
+        self.assertEqual(sent[25], 2, "an RGB PNG went to App Store Connect")
+        self.assertFalse(asc_release.png_stores_alpha(asc_release.png_chunks(sent)))
+        self.assertNotEqual(sent, committed)
+        self.assertEqual(source.read_bytes(), committed, "the committed file is untouched")
+
+
+@functools.lru_cache(maxsize=None)
+def creative_png(width: int, height: int, colour_type: int = 2) -> bytes:
+    return make_png(width, height, colour_type)
+
+
+def jpeg(width: int, height: int) -> bytes:
+    """A JPEG header with a baseline start-of-frame segment (enough to read its size)."""
+    app0 = b"\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+    sof0 = b"\xff\xc0\x00\x11\x08" + height.to_bytes(2, "big") + width.to_bytes(2, "big") + b"\x03" + b"\x01\x11\x00" * 3
+    return b"\xff\xd8" + app0 + sof0 + b"\xff\xd9"
+
+
+class CreativeFake(FakeAsc):
+    """FakeAsc plus the Asset Library, image placements and any number of review drafts."""
+
+    def __init__(self, *, library: list[dict] | None = None, placements: dict[str, dict] | None = None,
+                 drafts: list[str] | None = None, draft_items: dict[str, list[dict]] | None = None,
+                 processing: dict[str, list[str]] | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.library = [json_copy(image) for image in library or []]
+        # placement id -> {"type", "image", "loc", "group", "state"}
+        self.placements = {pid: dict(p) for pid, p in (placements or {}).items()}
+        self.draft_ids = list(drafts or [])
+        self.items = {draft: list(rows) for draft, rows in (draft_items or {}).items()}
+        # image id -> the states successive GETs of the image report while Apple processes it
+        self.processing = {image_id: list(states) for image_id, states in (processing or {}).items()}
+        self.submitted: list[str] = []
+        self.placed: list[dict] = []
+        self.counter = 0
+
+    def next_id(self, prefix: str) -> str:
+        self.counter += 1
+        return f"{prefix}{self.counter}"
+
+    def image(self, image_id: str) -> dict:
+        return next(image for image in self.library if image["id"] == image_id)
+
+    def get(self, path: str) -> dict:
+        parsed = urllib.parse.urlparse(path)
+        query = urllib.parse.parse_qs(parsed.query)
+        if path == f"/apps/{APP}/assetLibrary":
+            self.calls.append(("GET", path))
+            return {"data": {"type": "appAssetLibraries", "id": "LIB"}}
+        if parsed.path == "/appAssetLibraries/LIB/images":
+            self.calls.append(("GET", path))
+            assert query.get("filter[category]") == ["CREATIVE_ASSETS"], path
+            return {"data": [json_copy(image) for image in self.library]}
+        if parsed.path.startswith("/appAssetLibraryImages/") and parsed.path.endswith("/relationships/placements"):
+            self.calls.append(("GET", path))
+            image_id = parsed.path.split("/")[2]
+            return {"data": [{"type": "appAssetLibraryPlacements", "id": pid}
+                             for pid, p in self.placements.items() if p["image"] == image_id]}
+        if parsed.path.startswith("/appAssetLibraryImages/"):
+            self.calls.append(("GET", path))
+            image = self.image(parsed.path.split("/")[2])
+            states = self.processing.get(image["id"])
+            if states:
+                image["attributes"]["state"] = states.pop(0)
+                if image["attributes"]["state"] == "PREPARE_FOR_SUBMISSION":
+                    image["attributes"]["imageAsset"] = {"width": 1, "height": 1}
+            return {"data": json_copy(image)}
+        if parsed.path == "/appStoreVersionLocalizations/LOC1/placements":
+            self.calls.append(("GET", path))
+            wanted = (query.get("filter[placementType]") or [""])[0]
+            return {"data": [{"type": "appAssetLibraryPlacements", "id": pid,
+                              "attributes": {"placementType": p["type"], "placementGroup": p.get("group", "DEFAULT_PROFILE"),
+                                             "state": p.get("state", "ACTIVE")}}
+                             for pid, p in self.placements.items() if p["loc"] == "LOC1" and p["type"] == wanted]}
+        if path.startswith(f"/apps/{APP}/reviewSubmissions"):
+            self.calls.append(("GET", path))
+            assert query.get("filter[state]") == ["READY_FOR_REVIEW"], path
+            return {"data": [{"type": "reviewSubmissions", "id": draft} for draft in self.draft_ids]}
+        if parsed.path.startswith("/reviewSubmissions/") and parsed.path.endswith("/items"):
+            self.calls.append(("GET", path))
+            assert "appAssetLibraryImage" in (query.get("include") or [""])[0], path
+            return {"data": [json_copy(item) for item in self.items.get(parsed.path.split("/")[2], [])]}
+        return super().get(path)
+
+    def post(self, path: str, body: dict) -> dict:
+        data = body["data"]
+        if path == "/appAssetLibraryImages":
+            self.calls.append(("POST", path))
+            image_id = self.next_id("IMG")
+            attributes = data["attributes"]
+            self.library.append({"id": image_id, "attributes": {**attributes, "state": "AWAITING_UPLOAD",
+                                                                 "createdDate": "2026-10-21"}})
+            ops = [{"url": f"https://upload.example/{image_id}", "offset": 0, "length": attributes["fileSize"],
+                    "method": "PUT", "requestHeaders": [{"name": "Content-Type", "value": "image/png"}]}]
+            return {"data": {"type": "appAssetLibraryImages", "id": image_id,
+                             "attributes": {"state": "AWAITING_UPLOAD", "uploadOperations": ops}}}
+        if path == "/reviewSubmissions":
+            self.calls.append(("POST", path))
+            draft = self.next_id("DRAFT")
+            self.draft_ids.append(draft)
+            self.items[draft] = []
+            return {"data": {"type": "reviewSubmissions", "id": draft}}
+        if path == "/reviewSubmissionItems":
+            self.calls.append(("POST", path))
+            rels = data["relationships"]
+            draft = rels["reviewSubmission"]["data"]["id"]
+            (name, related_row), = [(k, v) for k, v in rels.items() if k != "reviewSubmission"]
+            self.items.setdefault(draft, []).append(
+                {"id": self.next_id("ITEM"), "relationships": {name: {"data": dict(related_row["data"])}}})
+            if name == "appAssetLibraryImage":
+                self.image(related_row["data"]["id"])["attributes"]["state"] = "READY_FOR_REVIEW"
+            return {"data": {"type": "reviewSubmissionItems", "id": "ITEM"}}
+        if path == "/appAssetLibraryPlacements":
+            self.calls.append(("POST", path))
+            self.placed.append(body)
+            rels = data["relationships"]
+            swap = (rels.get("placementToSwapOut") or {}).get("data")
+            if swap:
+                del self.placements[swap["id"]]
+            self.placements[self.next_id("PL")] = {
+                "type": data["attributes"]["placementType"], "image": rels["image"]["data"]["id"],
+                "loc": rels["appStoreVersionLocalization"]["data"]["id"],
+                "group": data["attributes"]["placementGroup"]}
+            return {"data": {"type": "appAssetLibraryPlacements", "id": "PL"}}
+        return super().post(path, body)
+
+    def patch(self, path: str, body: dict) -> dict:
+        if path.startswith("/appAssetLibraryImages/"):
+            self.calls.append(("PATCH", path))
+            image = self.image(path.split("/")[2])
+            assert body["data"]["attributes"] == {"uploaded": True}
+            image["attributes"]["state"] = "UPLOAD_COMPLETE"
+            self.processing.setdefault(image["id"], ["UPLOAD_COMPLETE", "PREPARE_FOR_SUBMISSION"])
+            return {"data": body["data"]}
+        return super().patch(path, body)
+
+    def request(self, method: str, path: str, *, body: dict | None = None):
+        if method == "PATCH" and path.startswith("/reviewSubmissions/"):
+            self.calls.append((method, path))
+            draft = path.split("/")[2]
+            assert body is not None and body["data"]["attributes"] == {"submitted": True}
+            self.submitted.append(draft)
+            self.draft_ids.remove(draft)
+            for item in self.items.get(draft, []):
+                image_id = related(item, "appAssetLibraryImage")
+                if image_id:
+                    self.image(image_id)["attributes"]["state"] = "WAITING_FOR_REVIEW"
+            return None
+        return super().request(method, path, body=body)
+
+    def upload_bytes(self, url: str, data: bytes, headers: dict, *, method: str = "PUT") -> None:
+        if "/IMG" not in url:
+            return super().upload_bytes(url, data, headers, method=method)
+        self.calls.append(("UPLOAD", url))
+        image = self.image(url.rsplit("/", 1)[1])
+        assert len(data) == image["attributes"]["fileSize"] and headers == {"Content-Type": "image/png"}
+        return None
+
+
+def json_copy(value):
+    return json.loads(json.dumps(value))
+
+
+def related(item: dict, name: str):
+    return ((item.get("relationships") or {}).get(name) or {}).get("data", {}).get("id")
+
+
+def image_item(image_id: str) -> dict:
+    return {"id": f"I-{image_id}", "relationships": {"appAssetLibraryImage": {"data": {"type": "appAssetLibraryImages", "id": image_id}}}}
+
+
+def version_item(version_id: str = "V1") -> dict:
+    return {"id": f"I-{version_id}", "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": version_id}}}}
+
+
+class CreativeAssetTests(unittest.TestCase):
+    """Header and search results images: Asset Library upload, their own review, placement."""
+
+    ENV = {"UPLOAD_CREATIVE_ASSETS": "true"}
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dir = Path(tmp.name) / "creative"
+        self.header = self.dir / "header" / "header.png"
+        self.search = self.dir / "search-results" / "search.png"
+        for path, raw in ((self.header, creative_png(3840, 1646)), (self.search, creative_png(1920, 1280))):
+            path.parent.mkdir(parents=True)
+            path.write_bytes(raw)
+        sleep = mock.patch.object(asc_release.time, "sleep")
+        sleep.start()
+        self.addCleanup(sleep.stop)
+
+    def image(self, image_id: str, path: Path, state: str, created: str = "2026-10-20") -> dict:
+        return {"id": image_id, "attributes": {"fileName": path.name, "fileSize": path.stat().st_size,
+                                               "state": state, "createdDate": created,
+                                               "imageAsset": {"width": 1, "height": 1}}}
+
+    def run_main(self, fake: FakeAsc, env: dict[str, str] | None = None, *extra: str,
+                 creative_dir: Path | None = None) -> int:
+        argv = ["--version", VERSION, "--creative-dir", str(creative_dir or self.dir), *extra]
+        full_env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+        full_env.update(env if env is not None else self.ENV)
+        with mock.patch.dict(os.environ, full_env, clear=True), \
+                mock.patch.object(asc_release, "client_from_environment", return_value=fake), \
+                redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            try:
+                asc_release.main(argv)
+            except SystemExit as exc:
+                return exc.code if isinstance(exc.code, int) else 1
+        return 0
+
+    def submit(self, fake: FakeAsc) -> int:
+        return self.run_main(fake, {**self.ENV, "SUBMIT_IOS_REVIEW": "true"},
+                             "--build-id", "B9", "--build-number", "14")
+
+    def image_review_drafts(self, fake: CreativeFake) -> set[str]:
+        return {draft for draft, items in fake.items.items() if any(related(i, "appAssetLibraryImage") for i in items)}
+
+    def test_new_images_are_uploaded_once_and_reviewed_on_their_own(self) -> None:
+        fake = CreativeFake()
+        self.assertEqual(self.run_main(fake), 0)
+        posts = [c for c in writes(fake) if c == ("POST", "/appAssetLibraryImages")]
+        self.assertEqual(len(posts), 2)
+        self.assertEqual([c[0] for c in writes(fake) if c[1].startswith(("https://upload", "/appAssetLibraryImages/"))],
+                         ["UPLOAD", "PATCH", "UPLOAD", "PATCH"])
+        uploaded = {image["attributes"]["fileName"]: image["attributes"] for image in fake.library}
+        self.assertEqual(set(uploaded), {"header.png", "search.png"})
+        self.assertEqual({a["category"] for a in uploaded.values()}, {"CREATIVE_ASSETS"})
+        self.assertEqual(uploaded["header.png"]["fileSize"], self.header.stat().st_size)
+        # One submission of their own, holding exactly the two images, submitted.
+        self.assertEqual(len(fake.submitted), 1)
+        held = [related(item, "appAssetLibraryImage") for item in fake.items[fake.submitted[0]]]
+        self.assertEqual(sorted(held), sorted(image["id"] for image in fake.library))
+        self.assertEqual(fake.placed, [], "images are placed only once Apple approves them")
+        # The next run finds them in review: nothing is uploaded, reviewed or placed again.
+        before = len(writes(fake))
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertEqual(len(writes(fake)), before)
+
+    def test_approved_and_placed_images_are_recognised(self) -> None:
+        library = [self.image("HDR", self.header, "APPROVED"), self.image("SRCH", self.search, "APPROVED")]
+        placements = {"PL-H": {"type": "PRODUCT_PAGE_HEADER_ASSET", "image": "HDR", "loc": "LOC1"},
+                      "PL-S": {"type": "APP_STORE_SEARCH_RESULTS_ASSET", "image": "SRCH", "loc": "LOC1"}}
+        fake = CreativeFake(library=library, placements=placements)
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertEqual(writes(fake), [])
+        self.assertIn(("GET", "/appAssetLibraryImages/HDR/relationships/placements?limit=50"), fake.calls)
+
+    def test_approved_images_are_placed_on_the_version(self) -> None:
+        fake = CreativeFake(library=[self.image("H", self.header, "APPROVED"), self.image("S", self.search, "APPROVED")],
+                            # Placed on another version's localization only.
+                            placements={"PL-OLD": {"type": "PRODUCT_PAGE_HEADER_ASSET", "image": "H", "loc": "LOC-201"}})
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertEqual(fake.placed, [
+            {"data": {"type": "appAssetLibraryPlacements",
+                      "attributes": {"placementType": placement, "placementGroup": "DEFAULT_PROFILE"},
+                      "relationships": {"image": {"data": {"type": "appAssetLibraryImages", "id": image_id}},
+                                        "appStoreVersionLocalization": {"data": {"type": "appStoreVersionLocalizations",
+                                                                                 "id": "LOC1"}}}}}
+            for placement, image_id in (("PRODUCT_PAGE_HEADER_ASSET", "H"), ("APP_STORE_SEARCH_RESULTS_ASSET", "S"))
+        ])
+        self.assertNotIn(("POST", "/appAssetLibraryImages"), fake.calls)
+        self.assertEqual(fake.submitted, [])
+        # A second run finds both placed and writes nothing.
+        before = len(writes(fake))
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertEqual(len(writes(fake)), before)
+
+    def test_another_image_in_the_slot_is_swapped_out_in_one_request(self) -> None:
+        fake = CreativeFake(library=[self.image("H", self.header, "APPROVED"), self.image("S", self.search, "IN_REVIEW")],
+                            placements={"PL-OLD": {"type": "PRODUCT_PAGE_HEADER_ASSET", "image": "OLDIMG", "loc": "LOC1"}})
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertEqual(len(fake.placed), 1)
+        rels = fake.placed[0]["data"]["relationships"]
+        self.assertEqual(rels["placementToSwapOut"], {"data": {"type": "appAssetLibraryPlacements", "id": "PL-OLD"}})
+        self.assertEqual(rels["image"]["data"]["id"], "H")
+        self.assertNotIn("PL-OLD", fake.placements)
+
+    def test_an_interrupted_upload_is_uploaded_again(self) -> None:
+        stale = self.image("STALE", self.header, "AWAITING_UPLOAD", created="2026-10-21")
+        fake = CreativeFake(library=[stale, self.image("S", self.search, "APPROVED")])
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertEqual([c for c in writes(fake) if c == ("POST", "/appAssetLibraryImages")],
+                         [("POST", "/appAssetLibraryImages")])
+        reviewed = {related(item, "appAssetLibraryImage") for item in fake.items[fake.submitted[0]]}
+        self.assertNotIn("STALE", reviewed)
+        self.assertEqual(len(reviewed), 1)
+        # Failed and archived images do not count either.
+        for state in ("FAILED", "ARCHIVED"):
+            fake = CreativeFake(library=[self.image("OLD", self.header, state), self.image("S", self.search, "APPROVED")])
+            with self.subTest(state=state):
+                self.assertEqual(self.run_main(fake), 0)
+                self.assertIn(("POST", "/appAssetLibraryImages"), fake.calls)
+
+    def test_an_uploaded_image_still_processing_is_reviewed_once_ready(self) -> None:
+        fake = CreativeFake(library=[self.image("H", self.header, "UPLOAD_COMPLETE"), self.image("S", self.search, "APPROVED")],
+                            processing={"H": ["UPLOAD_COMPLETE", "COMPLETE", "PREPARE_FOR_SUBMISSION"]})
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertNotIn(("POST", "/appAssetLibraryImages"), fake.calls)
+        self.assertEqual(fake.processing["H"], [], "the run waits until Apple has processed the image")
+        self.assertEqual([related(i, "appAssetLibraryImage") for i in fake.items[fake.submitted[0]]], ["H"])
+
+    def test_processing_failure_or_timeout_stops_before_review(self) -> None:
+        fake = CreativeFake(library=[self.image("H", self.header, "UPLOAD_COMPLETE")], processing={"H": ["FAILED"]})
+        self.assertEqual(self.run_main(fake), 1)
+        self.assertEqual(fake.submitted, [])
+        self.assertNotIn(("POST", "/reviewSubmissionItems"), fake.calls)
+        fake = CreativeFake(library=[self.image("H", self.header, "UPLOAD_COMPLETE")],
+                            processing={"H": ["UPLOAD_COMPLETE"] * 5})
+        with mock.patch.object(asc_release, "CREATIVE_PROCESSING_TIMEOUT_SECONDS", 0):
+            self.assertEqual(self.run_main(fake), 1)
+        self.assertNotIn(("POST", "/reviewSubmissionItems"), fake.calls)
+
+    def test_images_in_review_are_neither_uploaded_nor_placed(self) -> None:
+        for state in ("WAITING_FOR_REVIEW", "IN_REVIEW", "ACCEPTED"):
+            fake = CreativeFake(library=[self.image("H", self.header, state), self.image("S", self.search, state)])
+            with self.subTest(state=state):
+                self.assertEqual(self.run_main(fake), 0)
+                self.assertEqual(writes(fake), [])
+
+    def test_a_rejected_image_stops_the_run_before_any_write(self) -> None:
+        rejected = self.image("H", self.header, "REJECTED")
+        rejected["attributes"]["stateDetails"] = [{"code": "IMAGE_QUALITY"}]
+        fake = CreativeFake(library=[rejected, self.image("S", self.search, "PREPARE_FOR_SUBMISSION")])
+        self.assertEqual(self.run_main(fake), 1)
+        self.assertEqual(writes(fake), [])
+
+    def test_a_locked_version_takes_no_new_images(self) -> None:
+        for state, attached in (("WAITING_FOR_REVIEW", "B9"), ("READY_FOR_REVIEW", "B9")):
+            for library in ([], [self.image("H", self.header, "PREPARE_FOR_SUBMISSION")]):
+                fake = CreativeFake(state=state, attached=attached, library=library)
+                with self.subTest(state=state, library=bool(library)):
+                    self.assertEqual(self.run_main(fake), 1)
+                    self.assertEqual(writes(fake), [])
+
+    def test_an_approved_image_on_a_locked_version_waits_without_failing(self) -> None:
+        # Approval can land between a submit and a re-run of the store job.
+        fake = CreativeFake(state="WAITING_FOR_REVIEW", attached="B9",
+                            library=[self.image("H", self.header, "APPROVED"), self.image("S", self.search, "IN_REVIEW")])
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertEqual(writes(fake), [])
+
+    def test_images_never_go_into_the_versions_draft(self) -> None:
+        # The version's draft is picked (and reserved) before any write; the
+        # empty draft goes to the version and the images get their own submission.
+        fake = CreativeFake(drafts=["EMPTY"], draft_items={"EMPTY": []})
+        self.assertEqual(self.submit(fake), 0)
+        self.assertEqual(len(fake.submitted), 2)
+        self.assertEqual(fake.submitted[-1], "EMPTY", "the version went out in the reserved draft")
+        self.assertEqual([related(i, "appStoreVersion") for i in fake.items["EMPTY"]], ["V1"])
+        self.assertEqual(self.image_review_drafts(fake), {fake.submitted[0]})
+        self.assertNotIn("EMPTY", self.image_review_drafts(fake))
+
+    def test_a_creative_draft_is_never_used_for_the_version(self) -> None:
+        library = [self.image("H", self.header, "WAITING_FOR_REVIEW"), self.image("S", self.search, "APPROVED")]
+        placements = {"P": {"type": "APP_STORE_SEARCH_RESULTS_ASSET", "image": "S", "loc": "LOC1"}}
+        # A draft holding an image (left by hand or another tool) is not the version's.
+        fake = CreativeFake(library=library, placements=placements, drafts=["IMAGES"],
+                            draft_items={"IMAGES": [image_item("OTHER")]})
+        self.assertEqual(self.submit(fake), 0)
+        self.assertEqual(fake.items["IMAGES"], [image_item("OTHER")])
+        self.assertEqual(len(fake.submitted), 1)
+        self.assertNotEqual(fake.submitted[0], "IMAGES")
+        self.assertIn(("POST", "/reviewSubmissions"), fake.calls)
+
+    def test_a_ready_for_review_version_its_draft_does_not_hold_stops_before_any_write(self) -> None:
+        # Images that need nothing (one placed, one in review) and images that would need a
+        # review: either way the missing draft stops the run first.
+        settled = ([self.image("H", self.header, "APPROVED"), self.image("S", self.search, "IN_REVIEW")],
+                   {"P": {"type": "PRODUCT_PAGE_HEADER_ASSET", "image": "H", "loc": "LOC1"}})
+        for library, placements in (([self.image("H", self.header, "PREPARE_FOR_SUBMISSION")], {}), settled):
+            # The only draft holding the version also holds an image, so it is not the version's draft.
+            for drafts, items in (([], {}), (["MIXED"], {"MIXED": [version_item(), image_item("X")]})):
+                fake = CreativeFake(state="READY_FOR_REVIEW", library=library, placements=placements,
+                                    drafts=drafts, draft_items=items)
+                with self.subTest(images=len(placements), drafts=drafts):
+                    self.assertEqual(self.submit(fake), 1)
+                    self.assertEqual(writes(fake), [])
+
+    def test_the_draft_holding_this_version_is_reserved_over_others(self) -> None:
+        fake = CreativeFake(state="READY_FOR_REVIEW", drafts=["EMPTY", "MINE"],
+                            draft_items={"EMPTY": [], "MINE": [version_item()]},
+                            library=[self.image("H", self.header, "APPROVED"), self.image("S", self.search, "IN_REVIEW")],
+                            placements={"P": {"type": "PRODUCT_PAGE_HEADER_ASSET", "image": "H", "loc": "LOC1"}})
+        self.assertEqual(self.submit(fake), 0)
+        self.assertEqual(fake.submitted, ["MINE"])
+        self.assertEqual(fake.items["EMPTY"], [])
+
+    def test_a_rerun_finishes_the_draft_an_interrupted_review_left(self) -> None:
+        library = [self.image("H", self.header, "READY_FOR_REVIEW"), self.image("S", self.search, "PREPARE_FOR_SUBMISSION")]
+        # A draft already holding some of the images is finished before an empty one.
+        fake = CreativeFake(library=library, drafts=["EMPTY", "PART"],
+                            draft_items={"EMPTY": [], "PART": [image_item("H")]})
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertNotIn(("POST", "/reviewSubmissions"), fake.calls)
+        self.assertEqual(fake.submitted, ["PART"])
+        self.assertEqual(sorted(related(i, "appAssetLibraryImage") for i in fake.items["PART"]), ["H", "S"])
+        self.assertEqual(fake.items["EMPTY"], [])
+        # Else an empty draft (a run stopped before it added the images) is used.
+        fake = CreativeFake(library=[self.image("S", self.search, "PREPARE_FOR_SUBMISSION")],
+                            drafts=["EMPTY"], draft_items={"EMPTY": []})
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertNotIn(("POST", "/reviewSubmissions"), fake.calls)
+        self.assertEqual(fake.submitted, ["EMPTY"])
+        # A draft holding anything else is left alone and a new one is created.
+        fake = CreativeFake(library=[self.image("S", self.search, "PREPARE_FOR_SUBMISSION")],
+                            drafts=["OTHER"], draft_items={"OTHER": [version_item("V0")]})
+        self.assertEqual(self.run_main(fake), 0)
+        self.assertIn(("POST", "/reviewSubmissions"), fake.calls)
+        self.assertEqual(fake.items["OTHER"], [version_item("V0")])
+        self.assertNotIn("OTHER", fake.submitted)
+
+    def test_a_creative_submission_holding_other_items_is_not_submitted(self) -> None:
+        class Crowded(CreativeFake):
+            def post(self, path: str, body: dict) -> dict:
+                result = super().post(path, body)
+                if path == "/reviewSubmissions":
+                    # Something else lands in the new draft before it is submitted.
+                    self.items[result["data"]["id"]].append(version_item("V0"))
+                return result
+
+        fake = Crowded(library=[self.image("S", self.search, "PREPARE_FOR_SUBMISSION")])
+        self.assertEqual(self.run_main(fake), 1)
+        self.assertEqual(fake.submitted, [])
+
+    def test_images_apple_would_refuse_fail_before_any_call(self) -> None:
+        cases = [
+            (self.header, creative_png(3840, 2160), "header.png"),
+            (self.header, creative_png(3840, 1646, 6), "header.png"),
+            (self.header, jpeg(3840, 1646), "header.jpg"),
+            (self.header, jpeg(3840, 1646), "header.png"),
+            (self.search, creative_png(3000, 2001), "search.png"),
+            (self.search, creative_png(1800, 1200), "search.png"),
+            (self.search, creative_png(3900, 2600), "search.png"),
+            (self.search, creative_png(1920, 1280, 4), "search.png"),
+            (self.search, make_png(1920, 1280, 2, chunks=((b"tRNS", b"\x00" * 6),)), "search.png"),
+            (self.search, jpeg(4000, 2666), "search.jpg"),
+            (self.search, b"GIF89a", "search.png"),
+            # Truncated or corrupt files with the right header fail too.
+            (self.header, creative_png(3840, 1646)[:-12], "header.png"),
+            (self.header, creative_png(3840, 1646)[:8 + 25], "header.png"),
+            (self.search, creative_png(1920, 1280)[: len(creative_png(1920, 1280)) // 2], "search.png"),
+        ]
+        for path, raw, name in cases:
+            original = path.read_bytes()
+            path.unlink()
+            (path.parent / name).write_bytes(raw)
+            fake = CreativeFake()
+            with self.subTest(slot=path.parent.name, name=name, raw=raw[:26]):
+                self.assertEqual(self.run_main(fake), 1)
+                self.assertEqual(fake.calls, [])
+            (path.parent / name).unlink()
+            path.write_bytes(original)
+
+    def test_sizes_and_formats_apple_takes_pass(self) -> None:
+        for name, raw in (("search.jpg", jpeg(1920, 1280)), ("search.jpeg", jpeg(3840, 2560)),
+                          ("search.png", creative_png(3840, 2560)), ("search.png", creative_png(3000, 2000))):
+            self.search.unlink()
+            (self.search.parent / name).write_bytes(raw)
+            with self.subTest(name=name, raw=raw[:26]):
+                sources = quiet(asc_release.creative_sources, self.dir)
+                self.assertEqual([(p, path.name) for p, _, path in sources],
+                                 [("PRODUCT_PAGE_HEADER_ASSET", "header.png"), ("APP_STORE_SEARCH_RESULTS_ASSET", name)])
+            (self.search.parent / name).unlink()
+            self.search.write_bytes(creative_png(1920, 1280))
+
+    def test_a_slot_takes_one_image_and_at_least_one_slot_needs_one(self) -> None:
+        (self.header.parent / "header-2.png").write_bytes(creative_png(3840, 1646))
+        fake = CreativeFake()
+        self.assertEqual(self.run_main(fake), 1)
+        self.assertEqual(fake.calls, [])
+        (self.header.parent / "header-2.png").unlink()
+        # Other files (notes, .DS_Store) do not count; an empty slot is left alone.
+        (self.header.parent / "README.md").write_text("notes")
+        self.header.unlink()
+        self.assertEqual([p for p, _, _ in quiet(asc_release.creative_sources, self.dir)],
+                         ["APP_STORE_SEARCH_RESULTS_ASSET"])
+        self.search.unlink()
+        fake = CreativeFake()
+        self.assertEqual(self.run_main(fake), 1)
+        self.assertEqual(fake.calls, [])
+
+    @committed_files_test
+    def test_the_repository_images_pass_the_local_checks(self) -> None:
+        # Each slot has its folder; no image is committed yet, so the switch has nothing to
+        # upload (and fails if turned on). An image added later must pass the local checks.
+        directory = asc_release.DEFAULT_CREATIVE_DIR
+        images = sorted(path for folder, _, _, _ in asc_release.CREATIVE_SLOTS
+                        for path in (directory / folder).iterdir()
+                        if path.suffix.lower() in asc_release.CREATIVE_EXTENSIONS)
+        self.assertTrue(all((directory / folder).is_dir() for folder, _, _, _ in asc_release.CREATIVE_SLOTS))
+        if images:
+            sources = quiet(asc_release.creative_sources, directory)
+            self.assertEqual(sorted(path for _, _, path in sources), images)
+        else:
+            with self.assertRaises(SystemExit):
+                quiet(asc_release.creative_sources, directory)
+
+    def preflight(self, fake: FakeAsc, *, submit: bool = False) -> None:
+        quiet(asc_release.preflight, fake, bundle_id=asc_release.DEFAULT_BUNDLE_ID, version_string=VERSION, plan={},
+              do_listing=False, do_whats_new=False, do_screenshots=False, do_submit=submit,
+              do_creative=True, creative_dir=self.dir)
+
+    def test_the_preflight_stops_before_the_build_when_the_version_cannot_take_the_images(self) -> None:
+        # In a review submission the version takes no new image: found before the build, not after.
+        for library in ([], [self.image("H", self.header, "PREPARE_FOR_SUBMISSION")]):
+            fake = CreativeFake(state="READY_FOR_REVIEW", library=library,
+                                drafts=["MINE"], draft_items={"MINE": [version_item()]})
+            with self.subTest(library=bool(library)), self.assertRaises(SystemExit):
+                self.preflight(fake)
+            self.assertEqual(writes(fake), [])
+        # A rejected image stops it in any state.
+        rejected = [self.image("H", self.header, "REJECTED"), self.image("S", self.search, "APPROVED")]
+        with self.assertRaises(SystemExit):
+            self.preflight(CreativeFake(library=rejected))
+
+    def test_the_preflight_passes_what_the_store_step_can_do(self) -> None:
+        cases = [
+            # An editable version takes new images (uploaded by the store step, not here).
+            ("PREPARE_FOR_SUBMISSION", []),
+            # Images in review or approved wait for a later run without failing.
+            ("READY_FOR_REVIEW", [self.image("H", self.header, "IN_REVIEW"), self.image("S", self.search, "APPROVED")]),
+        ]
+        for state, library in cases:
+            fake = CreativeFake(state=state, library=library, drafts=["MINE"], draft_items={"MINE": [version_item()]})
+            with self.subTest(state=state):
+                self.preflight(fake, submit=True)
+                self.assertEqual(writes(fake), [])
+
+    def test_the_preflight_checks_a_ready_for_review_versions_draft(self) -> None:
+        library = [self.image("H", self.header, "APPROVED"), self.image("S", self.search, "IN_REVIEW")]
+        placements = {"P": {"type": "PRODUCT_PAGE_HEADER_ASSET", "image": "H", "loc": "LOC1"}}
+        for drafts, items in (([], {}), (["MIXED"], {"MIXED": [version_item(), image_item("X")]})):
+            fake = CreativeFake(state="READY_FOR_REVIEW", library=library, placements=placements,
+                                drafts=drafts, draft_items=items)
+            with self.subTest(drafts=drafts), self.assertRaises(SystemExit):
+                self.preflight(fake, submit=True)
+            self.assertEqual(writes(fake), [])
+            # Without review submission the draft does not matter.
+            self.preflight(fake, submit=False)
+
+    def test_dry_run_checks_the_images_without_calls(self) -> None:
+        out = io.StringIO()
+        env = {k: v for k, v in os.environ.items() if k not in ASC_FLAGS}
+        with mock.patch.dict(os.environ, {**env, **self.ENV}, clear=True), \
+                mock.patch.object(asc_release, "client_from_environment") as client, \
+                redirect_stdout(out), redirect_stderr(out):
+            asc_release.main(["--dry-run", "--creative-dir", str(self.dir)])
+        client.assert_not_called()
+        self.assertIn("creative=True", out.getvalue())
+        self.header.write_bytes(creative_png(3840, 1646, 6))
+        with mock.patch.dict(os.environ, {**env, **self.ENV}, clear=True), \
+                redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            asc_release.main(["--dry-run", "--creative-dir", str(self.dir)])
 
 
 class ReleaseNotesTests(unittest.TestCase):

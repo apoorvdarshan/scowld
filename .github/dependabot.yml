@@ -11,8 +11,9 @@
 #                   validation runs, so a bump to an action used only there is
 #                   first exercised by the next validation run.
 #   pip             store-automation.yml installs requirements-store.txt with
-#                   --require-hashes on the release jobs' Python 3.13 and signs a
-#                   throwaway App Store Connect token with that PyJWT.
+#                   --require-hashes on the release jobs' Python 3.13, signs a
+#                   throwaway App Store Connect token with that PyJWT and stages
+#                   RGB screenshot copies with that Pillow.
 #   npm (/web)      web.yml runs lint, the Vitest suite, the site check and a
 #                   smoke test that serves the site in the local Workers
 #                   runtime. These are development tools only: the site is

@@ -1,13 +1,14 @@
 # Offline checks of the iOS release automation. Never calls App Store Connect,
 # never uploads, never edits the listing. Safe to run any time.
 #
-# This is where the committed listing, screenshots and release notes are fully
-# validated on every pull request and main push that touches them. A tag release
-# checks only the files its enabled switches use, so an unused file can never
-# block a release. Uses the same pinned Python as the release workflow and
-# installs the hash-locked store tooling exactly as the release jobs do, then
-# signs a throwaway App Store Connect token with it, so a Dependabot update to
-# requirements-store.* is proven here instead of in a release.
+# This is where the committed listing, screenshots, header and search results
+# images and release notes are fully validated on every pull request and main
+# push that touches them. A tag release checks only the files its enabled
+# switches use, so an unused file can never block a release. Uses the same pinned
+# Python as the release workflow and installs the hash-locked store tooling
+# exactly as the release jobs do, then signs a throwaway App Store Connect token
+# and stages RGB screenshot copies with it (PyJWT, Pillow), so a Dependabot update
+# to requirements-store.* is proven here instead of in a release.
 
 name: Store automation (offline)
 
@@ -72,6 +73,7 @@ jobs:
           IOS_UPLOAD_LISTING: ${{ vars.IOS_UPLOAD_LISTING }}
           IOS_UPLOAD_WHATS_NEW: ${{ vars.IOS_UPLOAD_WHATS_NEW }}
           IOS_UPLOAD_SCREENSHOTS: ${{ vars.IOS_UPLOAD_SCREENSHOTS }}
+          IOS_UPLOAD_CREATIVE_ASSETS: ${{ vars.IOS_UPLOAD_CREATIVE_ASSETS }}
           IOS_SUBMIT_REVIEW: ${{ vars.IOS_SUBMIT_REVIEW }}
           IOS_PUBLIC_RELEASE: ${{ vars.IOS_PUBLIC_RELEASE }}
         run: python3 scripts/store/print_gates.py
@@ -79,13 +81,17 @@ jobs:
       - name: Install the hash-locked store tooling (as the release jobs do)
         run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
 
-      - name: Test switches, tag check, build wait, token, listing, screenshots, submission, release notes and log redaction (offline)
+      - name: Test switches, tag check, build wait, token, listing, screenshots, creative assets, submission, release notes and log redaction (offline)
         env:
-          # The App Store Connect token test uses the tooling installed above and
-          # must fail, never skip, if it is missing.
+          # The App Store Connect token test and the RGB screenshot tests use the
+          # tooling installed above (PyJWT, Pillow) and must fail, never skip, if
+          # it is missing.
           REQUIRE_STORE_TOOLING: "true"
         run: python3 -m unittest -v scripts/store/test_ios_release.py
 
+      # Stages the screenshots as RGB copies, as a release does. The header and
+      # search results images in store/creative/ios are checked by the tests above
+      # (none is committed yet, so UPLOAD_CREATIVE_ASSETS=true would fail here).
       - name: Validate the committed listing and screenshots (no network)
         env:
           UPLOAD_LISTING: "true"
