@@ -17,7 +17,7 @@
     "fast-check": "4.10.2",
     "fast-xml-parser": "5.11.2",
     "globals": "^17.13.0",
-    "html-validate": "^11.16.2",
+    "html-validate": "^11.16.3",
     "vitest": "5.0.5",
     "wrangler": "^4.151.1"
   },
