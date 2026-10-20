@@ -1,0 +1,64 @@
+# Scowld's store-release configuration. Schema:
+# https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/config.md
+# Switches stay in repository variables and secrets in repository secrets.
+schema = 1
+
+[app]
+name = "Scowld"
+slug = "scowld"
+
+[release_notes]
+path = "RELEASE_NOTES.md"
+
+[checks]
+paths = [
+  "store/**",
+  "RELEASE_NOTES.md",
+  "ios/Scowld.xcodeproj/project.pbxproj",
+  ".github/workflows/ios-release.yml",
+  ".github/workflows/store-checks.yml",
+]
+
+[ios]
+# Scowld's own release scripts (scripts/store at 5283a48), ported unchanged: the listing and
+# What's New from store/metadata/ios/<locale>/, screenshots from each locale's screenshots.json
+# copied as RGB, the read-only preflight, and in-app products never submitted (a pending product
+# stops review submission).
+flow = "scowld"
+tag_prefix = "v"
+bundle_id = "com.apoorvdarshan.Scowld"
+asc_app_id = "6760672848"
+team_id = "23RV7FYH36"
+project = "ios/Scowld.xcodeproj"
+scheme = "Scowld"
+app_target = "Scowld"
+locale = "en-US"
+gate_jobs = [
+  { id = "tests", uses = "./.github/workflows/ios-tests.yml" },
+]
+gate_policy = "parallel"
+
+[ios.build]
+developer_dir = "/Applications/Xcode_27.app/Contents/Developer"
+checkout = ["/ios/"]
+package_cache_files = ["ios/**/Package.resolved"]
+
+[ios.listing]
+source = "files"
+dir = "store/metadata/ios"
+
+[ios.whats_new]
+source = "files"
+
+[ios.screenshots]
+manifest = "screenshots.json"
+
+[ios.creative]
+dir = "store/creative/ios"
+
+[ios.github_release]
+title = "Scowld {version}"
+on_existing = "upload-missing"
+latest = "always"
+# scowld-X.Y.Z-source.tar.gz, its .sha256 and a Sigstore bundle, plus build provenance.
+source_archive = true

@@ -1,76 +1,13 @@
-# iOS release — GitHub Actions builds, signs and uploads the App Store binary,
-# and creates the GitHub Release with a Sigstore-signed source archive. One v*
-# tag → this one pipeline.
+# iOS Release: a thin caller of apoorvdarshan/store-release, pinned by commit SHA.
+# Rendered by `run.py callers render --platform ios`; Store checks fails when it drifts.
 #
-# Xcode Cloud was removed for Scowld on 2026-10-14: its "Default" workflow (which
-# v* tags also started) and its Xcode Cloud product were deleted in App Store
-# Connect after this pipeline validated. Xcode Cloud triggers live in App Store
-# Connect, not in this repository, so no switch here could stop them; never
-# re-create an Xcode Cloud workflow for v* tags, or both pipelines would build
-# the same tag.
+#   push tag vX.Y       release run (the tag must equal MARKETING_VERSION)
+#   Run workflow        validation run: archive, sign, export and validate the IPA with
+#                       App Store Connect; never uploads. store-plan prints, read-only,
+#                       what a tag run would change in App Store Connect.
 #
-# Trigger
-#   push tag vX.Y[.Z]   release run; the tag must equal MARKETING_VERSION exactly
-#   workflow_dispatch   validation run: archive, sign, export and validate the IPA
-#                       with App Store Connect. Never uploads, never touches the
-#                       listing or review, never creates a GitHub Release. The
-#                       optional marketing_version input validates as a version
-#                       Apple has not approved yet, without changing the project.
-#
-# Switches (repository Variables; missing = off, invalid values fail the run even
-# when the master switch is off). Full table in store/README.md.
-#   IOS_RELEASE_AUTOMATION   master switch for every iOS store operation below
-#   IOS_CREATE_VERSION       create the tag's App Store version when it is missing
-#                            (tag runs only; never next to an unfinished version)
-#   IOS_UPLOAD_BUILD         build + upload the binary to App Store Connect
-#   IOS_UPLOAD_LISTING       name, subtitle, privacy URL, description, keywords,
-#                            promotional text, marketing/support URLs
-#   IOS_UPLOAD_WHATS_NEW     What's New text
-#   IOS_UPLOAD_SCREENSHOTS   screenshots listed in store/metadata/ios/<locale>/screenshots.json
-#                            (iPhone, iPad, iPhone Duo and Apple Watch sets), uploaded
-#                            as RGB copies (no alpha channel)
-#   IOS_UPLOAD_CREATIVE_ASSETS  product page header and search results images
-#                            (store/creative/ios): uploaded to the Asset Library
-#                            once, reviewed in a submission of their own, placed
-#                            on the version once Apple approves them
-#   IOS_SUBMIT_REVIEW        select THIS run's processed build, submit for review
-#                            (needs IOS_UPLOAD_BUILD; never uses an older build)
-#   IOS_PUBLIC_RELEASE       release automatically after approval (else manual)
-#   IOS_BUILD_POLL_SECONDS   default 30   (10–600)
-#   IOS_BUILD_WAIT_MINUTES   default 120  (10–300), counted from upload start,
-#                            covering upload + App Store Connect processing
-#
-# Before anything is built, prepare runs the release-script tests, checks that a
-# run that builds declares export compliance (ITSAppUsesNonExemptEncryption; the
-# archived app's Info.plist is checked again after the archive), and checks only
-# the store files the enabled switches use (an unused file never blocks a
-# release; pull requests and main check all of them in store-automation.yml),
-# among them the header and search results images' sizes, formats and alpha.
-# With IOS_CREATE_VERSION on, it then creates the tag's App Store version when
-# App Store Connect does not have it yet (an existing one is left alone). With
-# any listing/What's New/screenshot/creative/review switch on, a read-only
-# preflight then checks App Store Connect: the version exists in a usable state
-# with every repository locale, What's New is new, nothing would have to ship
-# with it, the draft the version goes out in is usable (IOS_SUBMIT_REVIEW), and
-# the header and search results images can go on the version now
-# (IOS_UPLOAD_CREATIVE_ASSETS).
-# The jobs that install the store tooling (prepare, wait-for-build,
-# app-store-connect) run it on Python 3.13 from setup-python, and steps that call
-# App Store Connect run unbuffered (python3 -u). build and github-release run only
-# standard-library helpers on the runner's own python3.
-#
-# A failed build keeps its logs as an artifact only after every file in them,
-# binary or text, had the App Store Connect key and issuer IDs removed.
-#
-# Secrets
-#   APP_STORE_CONNECT_API_KEY_ID / _ISSUER_ID / _API_KEY_P8
-#       Admin-role key: build numbers, cloud-managed distribution signing,
-#       upload, build readiness, listing, creative assets and review.
-#   IOS_DEV_SIGNING_P12_BASE64 / IOS_DEV_SIGNING_P12_PASSWORD
-#       Shared CI Apple Development identity ("Apple Development: Created via
-#       API", certificate NVNGDQGCKK, expires 2027-10-14) that only signs the
-#       archive; App Store distribution signing at export is cloud-managed.
-
+# Switches (repository variables), secrets, re-runs and verification:
+# https://github.com/apoorvdarshan/store-release/tree/v0.2.0/docs
 name: iOS Release
 
 on:
@@ -81,23 +18,20 @@ on:
     inputs:
       marketing_version:
         description: >-
-          Validation only: version to validate as (e.g. 2.0.2). Empty = the project
-          version. Apple rejects versions it already approved, so use the next one.
+          Validation only: version to validate as (e.g. 7.2). Empty = the project
+          version. Apple rejects versions already approved, so use the next one.
         required: false
         default: ""
 
 permissions:
   contents: read
 
-# Every tag release run shares one group, so releases run one at a time: build
-# numbers come from App Store Connect, and two tags must not race each other's
-# upload, listing or review submission. Manual validation runs get their own
-# group, so they never wait for, or cancel, a release run.
+# Build numbers come from App Store Connect, so tag release runs never overlap.
+# Manual validation runs get their own group and can never cancel a release run.
 concurrency:
   group: ios-release-${{ github.event_name == 'push' && 'release' || github.run_id }}
   cancel-in-progress: false
-  # Keep every waiting tag run queued; the default (single) would cancel an older
-  # pending run when a third run joins the group.
+  # Keep every waiting tag run queued; the default (single) would cancel an older pending run.
   queue: max
 
 jobs:
@@ -108,435 +42,70 @@ jobs:
       contents: read
 
   prepare:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      mode: ${{ steps.gates.outputs.mode }}
-      create_version: ${{ steps.gates.outputs.create_version }}
-      build: ${{ steps.gates.outputs.build }}
-      upload_build: ${{ steps.gates.outputs.upload_build }}
-      listing: ${{ steps.gates.outputs.listing }}
-      whats_new: ${{ steps.gates.outputs.whats_new }}
-      screenshots: ${{ steps.gates.outputs.screenshots }}
-      creative: ${{ steps.gates.outputs.creative }}
-      submit: ${{ steps.gates.outputs.submit }}
-      public_release: ${{ steps.gates.outputs.public_release }}
-      asc: ${{ steps.gates.outputs.asc }}
-      poll_seconds: ${{ steps.gates.outputs.poll_seconds }}
-      wait_minutes: ${{ steps.gates.outputs.wait_minutes }}
-      marketing_version: ${{ steps.gates.outputs.marketing_version }}
-      build_number: ${{ steps.number.outputs.build_number }}
-    steps:
-      # The App Store screenshots (store/metadata/screenshots/, 26 MB) are only read
-      # when a tag run may upload them, so they are left out unless
-      # IOS_UPLOAD_SCREENSHOTS is set to something other than an "off" value (the
-      # gates validate it below).
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /scripts/store/
-            /scripts/release_notes.py
-            /store/
-            !/store/metadata/screenshots/
-            /ios/Scowld.xcodeproj/
-            /requirements-store.txt
-            /RELEASE_NOTES.md
-            ${{ github.event_name == 'push' && !contains(fromJSON('["", "0", "false", "no", "off"]'), vars.IOS_UPLOAD_SCREENSHOTS) && '/store/metadata/screenshots/' || '' }}
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-
-      - name: Test the release scripts (offline)
-        env:
-          # The committed listing, screenshots and release notes are tested on every
-          # pull request and main push (store-automation.yml). A release checks only
-          # the files its switches use (next steps), so an unused one never blocks it.
-          CHECK_COMMITTED_STORE_FILES: "false"
-        run: python3 -m unittest scripts/store/test_ios_release.py
-
-      - name: Resolve iOS release switches
-        id: gates
-        env:
-          IOS_RELEASE_AUTOMATION: ${{ vars.IOS_RELEASE_AUTOMATION }}
-          IOS_CREATE_VERSION: ${{ vars.IOS_CREATE_VERSION }}
-          IOS_UPLOAD_BUILD: ${{ vars.IOS_UPLOAD_BUILD }}
-          IOS_UPLOAD_LISTING: ${{ vars.IOS_UPLOAD_LISTING }}
-          IOS_UPLOAD_WHATS_NEW: ${{ vars.IOS_UPLOAD_WHATS_NEW }}
-          IOS_UPLOAD_SCREENSHOTS: ${{ vars.IOS_UPLOAD_SCREENSHOTS }}
-          IOS_UPLOAD_CREATIVE_ASSETS: ${{ vars.IOS_UPLOAD_CREATIVE_ASSETS }}
-          IOS_SUBMIT_REVIEW: ${{ vars.IOS_SUBMIT_REVIEW }}
-          IOS_PUBLIC_RELEASE: ${{ vars.IOS_PUBLIC_RELEASE }}
-          IOS_BUILD_POLL_SECONDS: ${{ vars.IOS_BUILD_POLL_SECONDS }}
-          IOS_BUILD_WAIT_MINUTES: ${{ vars.IOS_BUILD_WAIT_MINUTES }}
-          VALIDATION_MARKETING_VERSION: ${{ inputs.marketing_version }}
-        run: python3 scripts/store/ios_release.py gates
-
-      # Before the file check below: it stages the screenshots as RGB copies the
-      # way the store step does, which takes Pillow for a file that stores alpha.
-      - name: Install store tooling
-        if: >-
-          steps.gates.outputs.build == 'true' || steps.gates.outputs.asc == 'true' ||
-          steps.gates.outputs.create_version == 'true'
-        run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
-
-      # These checks fail before anything reaches App Store Connect: local files
-      # only, among them a header that is not a 3840x1646 PNG, a search results
-      # image that is not 3:2 PNG/JPEG from 1920 to 3840 wide, an image that
-      # stores alpha, or a truncated or corrupt screenshot or image. The images'
-      # Asset Library state is checked by the read-only preflight below.
-      - name: Check listing, What's New, screenshot, header and search results image files (offline)
-        if: steps.gates.outputs.asc == 'true'
-        env:
-          UPLOAD_LISTING: ${{ steps.gates.outputs.listing }}
-          UPLOAD_WHATS_NEW: ${{ steps.gates.outputs.whats_new }}
-          UPLOAD_SCREENSHOTS: ${{ steps.gates.outputs.screenshots }}
-          UPLOAD_CREATIVE_ASSETS: ${{ steps.gates.outputs.creative }}
-        run: python3 scripts/store/asc_release.py --dry-run
-
-      - name: Check release notes
-        if: github.event_name == 'push'
-        run: |
-          status=0
-          python3 scripts/release_notes.py "$GITHUB_REF_NAME" > /dev/null || status=$?
-          # 0 = reviewed notes, 3 = no section (GitHub generates the notes); anything else fails.
-          [ "$status" -eq 0 ] || [ "$status" -eq 3 ] || exit "$status"
-
-      # Tag runs only (never validation runs). Adds the App Store version for this
-      # tag when App Store Connect does not have it yet; an existing one is left
-      # alone. Refuses, before anything is built, when another version is still
-      # on its way to the store or this version is not newer than every existing
-      # one. A version created here stays in Prepare for Submission if a later
-      # step fails, and the next run for the same tag reuses it.
-      - name: Create the App Store version if it is missing (IOS_CREATE_VERSION)
-        if: steps.gates.outputs.mode == 'release' && steps.gates.outputs.create_version == 'true'
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-          CREATE_IOS_VERSION: ${{ steps.gates.outputs.create_version }}
-          MARKETING_VERSION: ${{ steps.gates.outputs.marketing_version }}
-        run: python3 -u scripts/store/asc_release.py --create-version --version "$MARKETING_VERSION"
-
-      # Read-only: the version exists in a state that allows the enabled steps and
-      # has every repository locale, What's New is new, screenshots that can no
-      # longer change already match, no in-app product would have to ship with
-      # it, the draft the version goes out in is usable (IOS_SUBMIT_REVIEW; a
-      # READY_FOR_REVIEW version must sit in a draft without header or search
-      # results images), and the header and search results images can go on the
-      # version now (IOS_UPLOAD_CREATIVE_ASSETS). Fails before any upload. A
-      # missing version fails here unless IOS_CREATE_VERSION created it in the
-      # step above.
-      - name: Check App Store Connect before building (read-only)
-        if: steps.gates.outputs.asc == 'true'
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-          UPLOAD_LISTING: ${{ steps.gates.outputs.listing }}
-          UPLOAD_WHATS_NEW: ${{ steps.gates.outputs.whats_new }}
-          UPLOAD_SCREENSHOTS: ${{ steps.gates.outputs.screenshots }}
-          UPLOAD_CREATIVE_ASSETS: ${{ steps.gates.outputs.creative }}
-          SUBMIT_IOS_REVIEW: ${{ steps.gates.outputs.submit }}
-          PUBLIC_RELEASE: ${{ steps.gates.outputs.public_release }}
-          MARKETING_VERSION: ${{ steps.gates.outputs.marketing_version }}
-        run: python3 -u scripts/store/asc_release.py --preflight --version "$MARKETING_VERSION"
-
-      - name: Choose the build number
-        id: number
-        if: steps.gates.outputs.build == 'true'
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-        run: python3 -u scripts/store/ios_release.py build-number
+    uses: apoorvdarshan/store-release/.github/workflows/ios-prepare.yml@0b298d3e98267f8e98423b7b56c806c0c6f43f99 # v0.2.0
+    permissions:
+      contents: read
+    with:
+      marketing_version: ${{ inputs.marketing_version }}
+    secrets:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
 
   build:
     needs: [tests, prepare]
+    # Tag runs need the tests job to pass; validation runs skip it.
     if: >-
       !cancelled() && needs.prepare.result == 'success' &&
       needs.prepare.outputs.build == 'true' &&
-      (needs.tests.result == 'success' ||
-       (github.event_name == 'workflow_dispatch' && needs.tests.result == 'skipped'))
-    runs-on: xcode-27
-    timeout-minutes: 90
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_27.app/Contents/Developer
-      MODE: ${{ needs.prepare.outputs.mode }}
-      MARKETING_VERSION: ${{ needs.prepare.outputs.marketing_version }}
-      BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
-      BUNDLE_ID: com.apoorvdarshan.Scowld
-      TEAM_ID: 23RV7FYH36
-      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-    outputs:
-      upload_started_at: ${{ steps.upload.outputs.started_at }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /ios/
-            /scripts/store/ios_release.py
-            /scripts/store/redact_logs.py
+      ((needs.tests.result == 'success') ||
+       (github.event_name == 'workflow_dispatch' &&
+        needs.tests.result == 'skipped'))
+    uses: apoorvdarshan/store-release/.github/workflows/ios-build.yml@0b298d3e98267f8e98423b7b56c806c0c6f43f99 # v0.2.0
+    permissions:
+      contents: read
+    with:
+      gates: "tests=${{ needs.tests.result }}"
+      mode: ${{ needs.prepare.outputs.mode }}
+      marketing_version: ${{ needs.prepare.outputs.marketing_version }}
+      build_number: ${{ needs.prepare.outputs.build_number }}
+      tool_sha: ${{ needs.prepare.outputs.tool_sha }}
+    secrets:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+      IOS_DEV_SIGNING_P12_BASE64: ${{ secrets.IOS_DEV_SIGNING_P12_BASE64 }}
+      IOS_DEV_SIGNING_P12_PASSWORD: ${{ secrets.IOS_DEV_SIGNING_P12_PASSWORD }}
 
-      # Scowld has no Swift packages today; once a Package.resolved is committed
-      # the pinned packages are cached. The archive itself always builds from a
-      # fresh derived-data folder (no build cache for store artifacts).
-      - name: Cache pinned Swift packages
-        if: hashFiles('ios/**/Package.resolved') != ''
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .ios-release-packages
-          key: ios-release-spm-${{ runner.os }}-${{ runner.arch }}-xcode27-${{ hashFiles('ios/**/Package.resolved') }}
-
-      - name: Check toolchain and inputs
-        run: |
-          xcodebuild -version
-          [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || { echo "error: no build number from prepare job" >&2; exit 1; }
-          [[ "$MARKETING_VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]] || { echo "error: bad marketing version" >&2; exit 1; }
-          case "$DEVELOPER_DIR" in *beta*|*Beta*) echo "error: App Store builds need a released Xcode" >&2; exit 1 ;; esac
-
-      - name: Install signing identity and App Store Connect key
-        env:
-          P12_BASE64: ${{ secrets.IOS_DEV_SIGNING_P12_BASE64 }}
-          P12_PASSWORD: ${{ secrets.IOS_DEV_SIGNING_P12_PASSWORD }}
-          ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-        run: |
-          set -euo pipefail
-          for name in P12_BASE64 P12_PASSWORD ASC_KEY_P8 ASC_KEY_ID ASC_ISSUER_ID; do
-            [ -n "${!name}" ] || { echo "error: missing signing secret $name" >&2; exit 1; }
-          done
-          umask 077
-          keys="$RUNNER_TEMP/asc-keys"
-          mkdir -p "$keys"
-          python3 -c 'import os,sys; open(sys.argv[1],"w").write(os.environ["ASC_KEY_P8"].replace("\\n","\n").strip()+"\n")' \
-            "$keys/AuthKey_${ASC_KEY_ID}.p8"
-          keychain="$RUNNER_TEMP/scowld-signing.keychain-db"
-          keychain_password="$(openssl rand -hex 24)"
-          security create-keychain -p "$keychain_password" "$keychain"
-          security set-keychain-settings -lut 7200 "$keychain"
-          security unlock-keychain -p "$keychain_password" "$keychain"
-          # Apple's WWDR G3 intermediate completes the development identity's chain.
-          curl -fsSL https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer -o "$RUNNER_TEMP/wwdr-g3.cer"
-          echo "dcf21878c77f4198e4b4614f03d696d89c66c66008d4244e1b99161aac91601f  $RUNNER_TEMP/wwdr-g3.cer" | shasum -a 256 -c -
-          security import "$RUNNER_TEMP/wwdr-g3.cer" -k "$keychain" > /dev/null
-          printf '%s' "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/signing.p12"
-          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$P12_PASSWORD" \
-            -T /usr/bin/codesign -T /usr/bin/security
-          rm -f "$RUNNER_TEMP/signing.p12"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
-          read -r -a existing <<< "$(security list-keychains -d user | tr -d '"' | xargs)"
-          security list-keychains -d user -s "$keychain" "${existing[@]}"
-          security find-identity -v -p codesigning "$keychain" | tee "$RUNNER_TEMP/identities.txt"
-          grep -qE '[1-9][0-9]* valid identit' "$RUNNER_TEMP/identities.txt" || { echo "error: no valid signing identity in the CI keychain" >&2; exit 1; }
-          {
-            echo "ASC_KEY_PATH=$keys/AuthKey_${ASC_KEY_ID}.p8"
-            echo "API_PRIVATE_KEYS_DIR=$keys"
-            echo "SIGNING_KEYCHAIN=$keychain"
-          } >> "$GITHUB_ENV"
-
-      - name: Archive Release
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/logs"
-          log="$RUNNER_TEMP/logs/archive.log"
-          status=0
-          xcodebuild archive \
-            -project ios/Scowld.xcodeproj \
-            -scheme Scowld \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/Scowld.xcarchive" \
-            -derivedDataPath "$RUNNER_TEMP/derived-data" \
-            -clonedSourcePackagesDirPath .ios-release-packages \
-            -onlyUsePackageVersionsFromResolvedFile \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            MARKETING_VERSION="$MARKETING_VERSION" \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" > "$log" 2>&1 || status=$?
-          grep -E '(error|warning): |\*\* ARCHIVE' "$log" || true
-          [ "$status" -eq 0 ] || { tail -n 60 "$log"; echo "error: archive failed (full log in artifact)" >&2; exit "$status"; }
-
-      - name: Verify app identity and version in every bundle
-        run: |
-          set -euo pipefail
-          apps="$RUNNER_TEMP/Scowld.xcarchive/Products/Applications"
-          main="$(find "$apps" -maxdepth 1 -name '*.app' | head -n1)"
-          [ -n "$main" ] || { echo "error: the archive contains no app" >&2; exit 1; }
-          id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$main/Info.plist")"
-          [ "$id" = "$BUNDLE_ID" ] || { echo "error: archived $id, expected $BUNDLE_ID" >&2; exit 1; }
-          # The app and any extensions must carry the same version and build number
-          # (resource and framework bundles excluded).
-          checked=0
-          while IFS= read -r -d '' bundle; do
-            plist="$bundle/Info.plist"
-            short="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
-            build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
-            if [ "$short" != "$MARKETING_VERSION" ] || [ "$build" != "$BUILD_NUMBER" ]; then
-              echo "error: ${bundle#"$apps"/} is $short ($build), expected $MARKETING_VERSION ($BUILD_NUMBER)" >&2
-              exit 1
-            fi
-            checked=$((checked + 1))
-          done < <(printf '%s\0' "$main"; find "$main" -mindepth 1 -type d \( -name '*.app' -o -name '*.appex' \) -not -path '*/Frameworks/*' -print0)
-          echo "verified $BUNDLE_ID $MARKETING_VERSION ($BUILD_NUMBER) in $checked app/extension bundle(s)"
-          # Export compliance, as built: without ITSAppUsesNonExemptEncryption,
-          # App Store Connect asks about every build by hand and review submission
-          # fails until someone answers. YES also needs ITSEncryptionExportComplianceCode.
-          python3 scripts/store/ios_release.py export-compliance --info-plist "$main/Info.plist"
-
-      - name: Write export options
-        run: |
-          destination="export"
-          [ "$MODE" = release ] && destination="upload"
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key><string>app-store-connect</string>
-            <key>teamID</key><string>${TEAM_ID}</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>destination</key><string>${destination}</string>
-            <key>manageAppVersionAndBuildNumber</key><false/>
-            <key>uploadSymbols</key><true/>
-          </dict>
-          </plist>
-          EOF
-          plutil -lint "$RUNNER_TEMP/ExportOptions.plist"
-
-      - name: Export and validate with App Store Connect (validation run)
-        if: env.MODE == 'validate'
-        run: |
-          set -euo pipefail
-          log="$RUNNER_TEMP/logs/export.log"
-          status=0
-          xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/Scowld.xcarchive" \
-            -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" > "$log" 2>&1 || status=$?
-          grep -E '(error|warning): |\*\* EXPORT' "$log" || true
-          [ "$status" -eq 0 ] || { tail -n 60 "$log"; echo "error: export failed (full log in artifact)" >&2; exit "$status"; }
-          ipa="$(find "$RUNNER_TEMP/export" -maxdepth 1 -name '*.ipa' | head -n1)"
-          [ -n "$ipa" ] || { echo "error: export produced no IPA" >&2; exit 1; }
-          xcrun altool --validate-app -f "$ipa" -t ios \
-            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/logs/validate.log"
-          echo "validated $MARKETING_VERSION ($BUILD_NUMBER) with App Store Connect — nothing uploaded"
-
-      - name: Upload to App Store Connect (release run)
-        id: upload
-        if: env.MODE == 'release'
-        run: |
-          set -euo pipefail
-          echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
-          log="$RUNNER_TEMP/logs/upload.log"
-          status=0
-          xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/Scowld.xcarchive" \
-            -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" > "$log" 2>&1 || status=$?
-          grep -E '(error|warning): |[Uu]pload|\*\* EXPORT' "$log" || true
-          [ "$status" -eq 0 ] || { tail -n 60 "$log"; echo "error: upload failed (full log in artifact)" >&2; exit "$status"; }
-          echo "uploaded $MARKETING_VERSION ($BUILD_NUMBER); App Store Connect processing is checked next"
-
-      - name: Collect logs
-        id: collect
-        if: failure()
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/logs"
-          find "${TMPDIR:-/tmp}" -maxdepth 1 -name '*.xcdistributionlogs' -exec cp -R {} "$RUNNER_TEMP/logs/" \; 2>/dev/null || true
-          # xcodebuild and altool echo the key and issuer IDs into these logs, and the
-          # distribution logs can hold binary or UTF-16 files. Artifacts are not masked
-          # like the console, so every file is redacted; a file that cannot be is
-          # dropped, and if that fails too nothing is uploaded (next step).
-          python3 scripts/store/redact_logs.py "$RUNNER_TEMP/logs"
-          echo "redacted=true" >> "$GITHUB_OUTPUT"
-
-      - name: Keep build logs
-        if: failure() && steps.collect.outputs.redacted == 'true'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ios-release-logs-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/logs
-          retention-days: 7
-          if-no-files-found: ignore
-
-      - name: Remove signing material
-        if: always()
-        run: |
-          [ -n "${SIGNING_KEYCHAIN:-}" ] && security delete-keychain "$SIGNING_KEYCHAIN" 2>/dev/null || true
-          rm -rf "$RUNNER_TEMP/asc-keys" "$RUNNER_TEMP/signing.p12" "$RUNNER_TEMP/export" "$RUNNER_TEMP/wwdr-g3.cer"
-
-  # Its own job, so "Re-run failed jobs" after a later store-step failure keeps
-  # this result instead of waiting again against the original deadline.
+  # Its own job, so "Re-run failed jobs" after a later store-step failure keeps this
+  # result (and build_id) instead of waiting again against the original upload deadline.
   wait-for-build:
     needs: [tests, prepare, build]
     if: >-
       !cancelled() && needs.prepare.result == 'success' &&
       needs.prepare.outputs.mode == 'release' &&
       needs.prepare.outputs.upload_build == 'true' &&
-      needs.tests.result == 'success' && needs.build.result == 'success'
-    runs-on: ubuntu-latest
-    # Covers IOS_BUILD_WAIT_MINUTES (max 300), counted from upload start.
-    timeout-minutes: 310
-    outputs:
-      build_id: ${{ steps.wait.outputs.build_id }}
-    env:
-      MARKETING_VERSION: ${{ needs.prepare.outputs.marketing_version }}
+      needs.tests.result == 'success' &&
+      needs.build.result == 'success'
+    uses: apoorvdarshan/store-release/.github/workflows/ios-wait-for-build.yml@0b298d3e98267f8e98423b7b56c806c0c6f43f99 # v0.2.0
+    permissions:
+      contents: read
+    with:
+      marketing_version: ${{ needs.prepare.outputs.marketing_version }}
+      build_number: ${{ needs.prepare.outputs.build_number }}
+      upload_started_at: ${{ needs.build.outputs.upload_started_at }}
+      wait_minutes: ${{ needs.prepare.outputs.wait_minutes }}
+      poll_seconds: ${{ needs.prepare.outputs.poll_seconds }}
+      tool_sha: ${{ needs.prepare.outputs.tool_sha }}
+    secrets:
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /scripts/store/
-            /requirements-store.txt
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-
-      - name: Install store tooling
-        run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
-
-      # Unbuffered (-u), so each poll shows in the live log as it happens.
-      - name: Wait for App Store Connect to process this build
-        id: wait
-        env:
-          BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
-          UPLOAD_STARTED_AT: ${{ needs.build.outputs.upload_started_at }}
-          WAIT_MINUTES: ${{ needs.prepare.outputs.wait_minutes }}
-          POLL_SECONDS: ${{ needs.prepare.outputs.poll_seconds }}
-        run: |
-          set -euo pipefail
-          python3 -u scripts/store/ios_release.py wait-build \
-            --version "$MARKETING_VERSION" \
-            --build "$BUILD_NUMBER" \
-            --started-at "$UPLOAD_STARTED_AT" \
-            --wait-minutes "$WAIT_MINUTES" \
-            --poll-seconds "$POLL_SECONDS"
 
   app-store-connect:
     needs: [tests, prepare, build, wait-for-build]
+    # With IOS_UPLOAD_BUILD on, only after this run's build is processed; with it off,
+    # listing/What's New/screenshots/creative assets run without a build.
     if: >-
       !cancelled() && needs.prepare.result == 'success' &&
       needs.prepare.outputs.mode == 'release' &&
@@ -545,56 +114,29 @@ jobs:
       ((needs.build.result == 'success' && needs.wait-for-build.result == 'success') ||
        (needs.prepare.outputs.upload_build != 'true' &&
         needs.build.result == 'skipped' && needs.wait-for-build.result == 'skipped'))
-    runs-on: ubuntu-latest
-    # Listing, screenshots (each set waits up to 5 min for processing), creative
-    # assets (each new image waits up to 10 min for processing) and submission.
-    timeout-minutes: 60
-    env:
-      MARKETING_VERSION: ${{ needs.prepare.outputs.marketing_version }}
+    uses: apoorvdarshan/store-release/.github/workflows/ios-app-store-connect.yml@0b298d3e98267f8e98423b7b56c806c0c6f43f99 # v0.2.0
+    permissions:
+      contents: read
+    with:
+      gates: "tests=${{ needs.tests.result }}"
+      marketing_version: ${{ needs.prepare.outputs.marketing_version }}
+      build_number: ${{ needs.prepare.outputs.build_number }}
+      build_id: ${{ needs.wait-for-build.outputs.build_id }}
+      upload_build: ${{ needs.prepare.outputs.upload_build }}
+      listing: ${{ needs.prepare.outputs.listing }}
+      whats_new: ${{ needs.prepare.outputs.whats_new }}
+      screenshots: ${{ needs.prepare.outputs.screenshots }}
+      creative: ${{ needs.prepare.outputs.creative }}
+      submit: ${{ needs.prepare.outputs.submit }}
+      public_release: ${{ needs.prepare.outputs.public_release }}
+      tool_sha: ${{ needs.prepare.outputs.tool_sha }}
+    secrets:
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-    steps:
-      # The screenshot images are checked out only when this run uploads them; the
-      # header and search results images in store/creative/ always are.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /scripts/store/
-            /store/
-            !/store/metadata/screenshots/
-            /requirements-store.txt
-            ${{ needs.prepare.outputs.screenshots == 'true' && '/store/metadata/screenshots/' || '' }}
 
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-
-      - name: Install store tooling
-        run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
-
-      - name: Listing / What's New / screenshots / creative assets / review (gated)
-        env:
-          UPLOAD_LISTING: ${{ needs.prepare.outputs.listing }}
-          UPLOAD_WHATS_NEW: ${{ needs.prepare.outputs.whats_new }}
-          UPLOAD_SCREENSHOTS: ${{ needs.prepare.outputs.screenshots }}
-          UPLOAD_CREATIVE_ASSETS: ${{ needs.prepare.outputs.creative }}
-          SUBMIT_IOS_REVIEW: ${{ needs.prepare.outputs.submit }}
-          PUBLIC_RELEASE: ${{ needs.prepare.outputs.public_release }}
-          BUILD_ID: ${{ needs.wait-for-build.outputs.build_id }}
-          BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
-        run: |
-          set -euo pipefail
-          args=(--version "$MARKETING_VERSION")
-          if [ -n "$BUILD_ID" ]; then
-            args+=(--build-id "$BUILD_ID" --build-number "$BUILD_NUMBER")
-          fi
-          python3 -u scripts/store/asc_release.py "${args[@]}"
-
-  github-release:
+  # The tagged source as an archive, signed with Sigstore and attested (it alone needs id-token).
+  source-archive:
     needs: [tests, prepare, build, wait-for-build, app-store-connect]
     if: >-
       !cancelled() && github.event_name == 'push' &&
@@ -602,97 +144,46 @@ jobs:
       (needs.build.result == 'success' || needs.build.result == 'skipped') &&
       (needs.wait-for-build.result == 'success' || needs.wait-for-build.result == 'skipped') &&
       (needs.app-store-connect.result == 'success' || needs.app-store-connect.result == 'skipped')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    uses: apoorvdarshan/store-release/.github/workflows/ios-source-archive.yml@0b298d3e98267f8e98423b7b56c806c0c6f43f99 # v0.2.0
     permissions:
-      contents: write # create the GitHub Release and attach the signed source
-      id-token: write # Sigstore keyless signing + build provenance (OIDC token)
-      attestations: write # store the build-provenance attestation
-    steps:
-      # The whole tagged tree: the release attaches it as a source archive.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+      contents: read
+      id-token: write
+      attestations: write
+    with:
+      gates: "tests=${{ needs.tests.result }}"
+      marketing_version: ${{ needs.prepare.outputs.marketing_version }}
+      uploaded_build: ${{ needs.build.result == 'success' && needs.prepare.outputs.build_number || '' }}
+      tool_sha: ${{ needs.prepare.outputs.tool_sha }}
 
-      - name: Print store switches
-        env:
-          IOS_RELEASE_AUTOMATION: ${{ vars.IOS_RELEASE_AUTOMATION }}
-          IOS_CREATE_VERSION: ${{ vars.IOS_CREATE_VERSION }}
-          IOS_UPLOAD_BUILD: ${{ vars.IOS_UPLOAD_BUILD }}
-          IOS_UPLOAD_LISTING: ${{ vars.IOS_UPLOAD_LISTING }}
-          IOS_UPLOAD_WHATS_NEW: ${{ vars.IOS_UPLOAD_WHATS_NEW }}
-          IOS_UPLOAD_SCREENSHOTS: ${{ vars.IOS_UPLOAD_SCREENSHOTS }}
-          IOS_UPLOAD_CREATIVE_ASSETS: ${{ vars.IOS_UPLOAD_CREATIVE_ASSETS }}
-          IOS_SUBMIT_REVIEW: ${{ vars.IOS_SUBMIT_REVIEW }}
-          IOS_PUBLIC_RELEASE: ${{ vars.IOS_PUBLIC_RELEASE }}
-        run: python3 scripts/store/print_gates.py
+  github-release:
+    needs: [tests, prepare, build, wait-for-build, app-store-connect, source-archive]
+    if: >-
+      !cancelled() && github.event_name == 'push' &&
+      needs.tests.result == 'success' && needs.prepare.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.wait-for-build.result == 'success' || needs.wait-for-build.result == 'skipped') &&
+      (needs.app-store-connect.result == 'success' || needs.app-store-connect.result == 'skipped') &&
+      needs.source-archive.result == 'success'
+    uses: apoorvdarshan/store-release/.github/workflows/ios-github-release.yml@0b298d3e98267f8e98423b7b56c806c0c6f43f99 # v0.2.0
+    permissions:
+      contents: write
+    with:
+      gates: "tests=${{ needs.tests.result }}"
+      marketing_version: ${{ needs.prepare.outputs.marketing_version }}
+      uploaded_build: ${{ needs.build.result == 'success' && needs.prepare.outputs.build_number || '' }}
+      tool_sha: ${{ needs.prepare.outputs.tool_sha }}
 
-      # Scowld ships no public binary (the app goes to the App Store), so the
-      # release carries the tagged source as one archive, signed with Sigstore
-      # (keyless, bound to this workflow run) and attested with GitHub build
-      # provenance. Verify a download with:
-      #   cosign verify-blob scowld-X.Y.Z-source.tar.gz \
-      #     --bundle scowld-X.Y.Z-source.tar.gz.sigstore.json \
-      #     --certificate-identity-regexp '^https://github.com/apoorvdarshan/scowld/\.github/workflows/ios-release\.yml@refs/tags/v' \
-      #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
-      #   gh attestation verify scowld-X.Y.Z-source.tar.gz --repo apoorvdarshan/scowld
-      - name: Archive the tagged source
-        env:
-          VERSION: ${{ needs.prepare.outputs.marketing_version }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/dist"
-          cd "$RUNNER_TEMP/dist"
-          archive="scowld-${VERSION}-source.tar.gz"
-          git -C "$GITHUB_WORKSPACE" archive --format=tar.gz --prefix="scowld-${VERSION}/" \
-            -o "$RUNNER_TEMP/dist/$archive" "$GITHUB_SHA"
-          sha256sum "$archive" > "$archive.sha256"
-          cat "$archive.sha256"
-
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-
-      - name: Sign the source archive (Sigstore keyless)
-        env:
-          VERSION: ${{ needs.prepare.outputs.marketing_version }}
-        run: |
-          set -euo pipefail
-          archive="$RUNNER_TEMP/dist/scowld-${VERSION}-source.tar.gz"
-          cosign sign-blob --yes --bundle "$archive.sigstore.json" "$archive"
-
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-path: ${{ runner.temp }}/dist/scowld-*-source.tar.gz
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          VERSION: ${{ needs.prepare.outputs.marketing_version }}
-        run: |
-          set -euo pipefail
-          archive="$RUNNER_TEMP/dist/scowld-${VERSION}-source.tar.gz"
-          assets=("$archive" "$archive.sigstore.json" "$archive.sha256")
-          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
-            echo "GitHub Release $GITHUB_REF_NAME already exists; leaving its notes unchanged"
-            # The archive, its signature and its checksum are attached as one set:
-            # a rerun replaces all three unless every one is already there.
-            attached="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
-            for asset in "${assets[@]}"; do
-              if ! grep -qxF "$(basename "$asset")" <<< "$attached"; then
-                gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
-                exit 0
-              fi
-            done
-            echo "The signed source archive is already attached"
-            exit 0
-          fi
-          status=0
-          python3 scripts/release_notes.py "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md" || status=$?
-          case "$status" in
-            0) notes=(--notes-file "$RUNNER_TEMP/release-notes.md") ;;
-            3) notes=(--generate-notes) ;;
-            *) exit "$status" ;;
-          esac
-          gh release create "$GITHUB_REF_NAME" --verify-tag --latest \
-            --title "Scowld ${VERSION}" "${notes[@]}" "${assets[@]}"
+  # Validation runs only: a read-only, report-only plan of what a tag run would change.
+  store-plan:
+    needs: prepare
+    if: github.event_name == 'workflow_dispatch' && needs.prepare.result == 'success'
+    uses: apoorvdarshan/store-release/.github/workflows/ios-store-plan.yml@0b298d3e98267f8e98423b7b56c806c0c6f43f99 # v0.2.0
+    permissions:
+      contents: read
+    with:
+      marketing_version: ${{ needs.prepare.outputs.marketing_version }}
+      tool_sha: ${{ needs.prepare.outputs.tool_sha }}
+    secrets:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}

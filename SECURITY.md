@@ -50,9 +50,9 @@ Please include:
 ## How the project is checked
 
 - CodeQL static analysis on every pull request and weekly, dependency review on pull requests, and OpenSSF Scorecard on `main`.
-- Dependabot alerts and security updates, with GitHub Actions pinned to commit SHAs and store tooling hash-locked.
+- Dependabot alerts and security updates, with GitHub Actions pinned to commit SHAs (the release workflows pin [store-release](https://github.com/apoorvdarshan/store-release), whose store tooling is hash-locked).
 - Secret scanning with push protection.
-- Each GitHub Release attaches a Sigstore-signed source archive with a build-provenance attestation (see [store/README.md](store/README.md)).
+- Each GitHub Release attaches a Sigstore-signed source archive with a build-provenance attestation; for releases after v2.1.0 it is signed by store-release's `ios-source-archive.yml` called from this repository (verification commands in [store/README.md](store/README.md#verifying-a-release)).
 
 ## Out of scope
 

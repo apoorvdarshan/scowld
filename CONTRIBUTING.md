@@ -20,7 +20,7 @@ ios/ScowldUITests/ - UI tests
 web/             - scowld.xyz: static HTML/CSS/JS pages and a Cloudflare Worker
 assets/          - README assets
 store/           - App Store listing and release switches (see store/README.md)
-scripts/         - Test and release scripts
+scripts/         - Test scripts
 APPSTORE.md      - App Store Connect reference copy
 ```
 

@@ -91,7 +91,7 @@ ios/ScowldUITests/ - UI tests
 web/             - scowld.xyz: static HTML/CSS/JS pages and a Cloudflare Worker
 assets/          - README assets
 store/           - App Store listing (source of truth) and release switches
-scripts/         - Test and release scripts
+scripts/         - Test scripts
 APPSTORE.md      - App Store Connect reference copy
 ```
 
@@ -191,7 +191,7 @@ Every pull request also runs [CodeQL](.github/workflows/codeql.yml) (JavaScript,
 
 ### Releases
 
-Pushing a `v<version>` tag equal to `MARKETING_VERSION` runs the **iOS Release** workflow: the tests, then only the App Store steps switched on with repository variables (upload, listing, What's New, screenshots, product page header and search results images, App Review submission), then the GitHub Release with a Sigstore-signed source archive. A manual **Run workflow** only validates the signed build with App Store Connect. Every switch is off by default; see [store/README.md](store/README.md). Xcode Cloud was removed for Scowld on 2026-10-14 and must not be re-created.
+Pushing a `v<version>` tag equal to `MARKETING_VERSION` runs the **iOS Release** workflow, a thin caller of the shared [store-release](https://github.com/apoorvdarshan/store-release) workflows: the tests, then only the App Store steps switched on with repository variables (upload, listing, What's New, screenshots, product page header and search results images, App Review submission), then the GitHub Release with a Sigstore-signed source archive. A manual **Run workflow** only validates the signed build with App Store Connect and prints a read-only plan of what a tag run would change. Every switch is off by default; see [store/README.md](store/README.md). Xcode Cloud was removed for Scowld on 2026-10-14 and must not be re-created.
 
 ### Website Environment Variables
 
