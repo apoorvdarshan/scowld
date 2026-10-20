@@ -1,19 +1,18 @@
 # Dependabot version updates. Dependabot alerts are enabled separately in the
 # repository settings; this file adds routine version bumps so pinned versions
-# (the commit-SHA-pinned GitHub Actions, the hash-locked store tooling that runs
-# next to the App Store Connect key, and the scowld.xyz website's npm packages)
-# do not go stale.
+# (the commit-SHA-pinned GitHub Actions, the store-release pin of the release
+# workflows, and the scowld.xyz website's npm packages) do not go stale.
 #
 # What checks each weekly PR before it is merged:
 #   github-actions  CodeQL, dependency review and web.yml run on every PR;
-#                   ios-tests.yml and store-automation.yml run on the bumped
+#                   ios-tests.yml and store-checks.yml run on the bumped
 #                   workflow files they own. ios-release.yml runs only on tags and manual
 #                   validation runs, so a bump to an action used only there is
 #                   first exercised by the next validation run.
-#   pip             store-automation.yml installs requirements-store.txt with
-#                   --require-hashes on the release jobs' Python 3.13, signs a
-#                   throwaway App Store Connect token with that PyJWT and stages
-#                   RGB screenshot copies with that Pillow.
+#   store-release   the pin in ios-release.yml and store-checks.yml (one SHA, with
+#                   its "# vX.Y.Z" comment) gets a PR of its own; Store checks runs
+#                   on it and fails unless both callers pin the same release.
+#                   Before merging, run iOS Release -> Run workflow on its branch.
 #   npm (/web)      web.yml runs lint, the Vitest suite, the site check and a
 #                   smoke test that serves the site in the local Workers
 #                   runtime. These are development tools only: the site is
@@ -37,24 +36,25 @@ updates:
       time: "06:00"
       timezone: Asia/Kolkata
     groups:
+      # The release callers' pins (one SHA in both files, with its "# vX.Y.Z"
+      # comment). Declared before the catch-all: a dependency joins the first group
+      # it matches, so a store-release bump always gets its own PR.
+      store-release:
+        patterns: ["apoorvdarshan/store-release*"]
       github-actions:
         patterns: ["*"]
+    # store-release pins run with the app's signing and App Store Connect
+    # credentials: a new release waits seven days before Dependabot proposes it.
+    # Security updates are never delayed by a cooldown.
+    cooldown:
+      default-days: 7
+      include: ["apoorvdarshan/store-release*"]
     commit-message:
       prefix: "CI"
 
-  # requirements-store.in → hash-locked requirements-store.txt (uv pip compile).
-  - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-      timezone: Asia/Kolkata
-    groups:
-      store-tooling:
-        patterns: ["*"]
-    commit-message:
-      prefix: "Store"
+  # The store release tooling and its hash-locked Python dependencies live in
+  # apoorvdarshan/store-release, which keeps them up to date; the store-release
+  # group above moves this repository to each new release.
 
   # web/: the scowld.xyz website's development tools (Wrangler, ESLint,
   # html-validate, Vitest). Minor and patch updates share one weekly PR; a major
