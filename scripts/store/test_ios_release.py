@@ -454,13 +454,20 @@ def pre_row(pre_id: str = "P1", version: str = VERSION, platform: str = "IOS") -
     return {"type": "preReleaseVersions", "id": pre_id, "attributes": {"version": version, "platform": platform}}
 
 
-def png_header(color_type: int, *, trns: bool = False) -> bytes:
-    """A PNG signature and IHDR (plus an optional tRNS chunk) with the given colour type."""
+def png_header(color_type: int = 2, *, trns: bool = False, width: int = 16, height: int = 16) -> bytes:
+    """A PNG signature and IHDR (plus an optional tRNS chunk) with the given colour type and size."""
     def chunk(kind: bytes, body: bytes) -> bytes:
         return len(body).to_bytes(4, "big") + kind + body + zlib.crc32(kind + body).to_bytes(4, "big")
 
-    ihdr = (16).to_bytes(4, "big") + (16).to_bytes(4, "big") + bytes([8, color_type, 0, 0, 0])
+    ihdr = width.to_bytes(4, "big") + height.to_bytes(4, "big") + bytes([8, color_type, 0, 0, 0])
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + (chunk(b"tRNS", b"\x00\x00") if trns else b"") + chunk(b"IDAT", b"x")
+
+
+def jpeg_header(width: int, height: int) -> bytes:
+    """A JPEG with an APP0 segment and a baseline SOF0 frame header of the given size."""
+    app0 = b"\xff\xe0" + (16).to_bytes(2, "big") + b"JFIF\x00" + bytes(9)
+    sof0 = b"\xff\xc0" + (17).to_bytes(2, "big") + b"\x08" + height.to_bytes(2, "big") + width.to_bytes(2, "big") + bytes(12)
+    return b"\xff\xd8" + app0 + sof0 + b"\xff\xd9"
 
 
 def asc_error(code: int) -> asc_cli.AscError:
@@ -692,6 +699,16 @@ class CmdWaitBuildTests(unittest.TestCase):
         self.assertEqual(captured["build_number"], "14")
         self.assertIs(captured["is_transient"], ios_release.is_transient_error)
         self.assertIn("build_id=B9", written)
+
+    def test_asc_errors_end_with_an_error_line_not_a_traceback(self) -> None:
+        err = io.StringIO()
+        with mock.patch.object(ios_release, "asc_client", side_effect=asc_cli.AscError(("apps", "view"), 3, "unauthorized")), \
+                mock.patch.dict(os.environ, {}, clear=True), redirect_stderr(err), redirect_stdout(io.StringIO()), \
+                self.assertRaises(SystemExit) as caught:
+            ios_release.main(["wait-build", "--version", VERSION, "--build", "14", "--started-at", str(STARTED),
+                              "--wait-minutes", "120", "--poll-seconds", "30"])
+        self.assertEqual(caught.exception.code, 1)
+        self.assertIn("error: asc apps view failed (exit 3)", err.getvalue())
 
     def test_another_app_record_stops_the_wait(self) -> None:
         class Other:
@@ -1251,6 +1268,32 @@ class LocalInputTests(unittest.TestCase):
         manifest.write_text("{not json")
         self.assert_fails("not valid JSON", upload_screenshots=True)
 
+    def test_screenshot_sizes_are_what_the_pinned_asc_accepts(self) -> None:
+        # From `asc screenshots sizes --display-type TYPE` (asc 5.15.0); asc refuses
+        # any other size, so the check before the build must not let one through.
+        self.assertEqual(asc_release.SCREENSHOT_SIZES, {
+            "APP_IPHONE_67": {(1260, 2736), (1290, 2796), (1320, 2868)},
+            "APP_IPHONE_65": {(1242, 2688), (1284, 2778)},
+            "APP_IPAD_PRO_3GEN_129": {(2048, 2732), (2064, 2752)},
+        })
+        # 1284x2778 is a 6.5-inch size: refused for the 6.7-inch set, fine for 6.5-inch.
+        png(self.root / "store" / "metadata" / "screenshots" / "65.png", 1284, 2778)
+        manifest = self.loc / "screenshots.json"
+        manifest.write_text(json.dumps({"APP_IPHONE_67": ["store/metadata/screenshots/65.png"]}))
+        self.assert_fails("65.png is 1284x2778; APP_IPHONE_67 accepts 1260x2736, 1290x2796, 1320x2868",
+                          upload_screenshots=True)
+        manifest.write_text(json.dumps({"APP_IPHONE_65": ["store/metadata/screenshots/65.png"]}))
+        self.assertEqual(len(self.validate(upload_screenshots=True)["en-US"]["screenshots"]["APP_IPHONE_65"]), 1)
+
+    def test_jpeg_screenshots_are_measured_from_their_frame_header(self) -> None:
+        jpeg = self.root / "store" / "metadata" / "screenshots" / "shot.jpg"
+        jpeg.parent.mkdir(parents=True, exist_ok=True)
+        jpeg.write_bytes(jpeg_header(1320, 2868))
+        (self.loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["store/metadata/screenshots/shot.jpg"]}))
+        self.assertEqual(len(self.validate(upload_screenshots=True)["en-US"]["screenshots"]["APP_IPHONE_67"]), 1)
+        jpeg.write_bytes(b"not an image")
+        self.assert_fails("shot.jpg is not a PNG or JPEG image", upload_screenshots=True)
+
     def test_landscape_screenshots_are_accepted(self) -> None:
         png(self.root / "store" / "metadata" / "screenshots" / "wide.png", 2796, 1290)
         (self.loc / "screenshots.json").write_text(json.dumps({"APP_IPHONE_67": ["store/metadata/screenshots/wide.png"]}))
@@ -1276,6 +1319,9 @@ class LocalInputTests(unittest.TestCase):
         self.assert_fails("the product page header image a.png has an alpha channel", upload_creative=True,
                           creative_dir=creative)
         (creative / "header" / "a.png").write_bytes(png_header(2))
+        self.assert_fails("the product page header image a.png is a 16x16 PNG; the header must be a 3840x1646 PNG",
+                          upload_creative=True, creative_dir=creative)
+        (creative / "header" / "a.png").write_bytes(png_header(width=3840, height=1646))
         (creative / "header" / "notes.txt").write_text("not an image")
         (self.meta / "de-DE").mkdir()
         self.assertEqual(self.validate(upload_creative=True, creative_dir=creative), {"de-DE": {}, "en-US": {}})
@@ -1506,7 +1552,7 @@ class CreativeAssetTests(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name)
         self.dir = self.root / "creative"
-        for folder, content in (("header", b"header-image"), ("search-results", b"search-image")):
+        for folder, content in (("header", png_header(width=3840, height=1646)), ("search-results", png_header(width=3840, height=2560) + b"search")):
             (self.dir / folder).mkdir(parents=True)
             (self.dir / folder / f"{folder}.png").write_bytes(content)
         self.meta = write_listing(self.root)
@@ -1580,6 +1626,34 @@ class CreativeAssetTests(unittest.TestCase):
                 self.assertEqual(self.run_creative(fake), 1)
                 self.assertEqual(fake.calls, [])
 
+    def test_images_apple_would_refuse_fail_before_any_call(self) -> None:
+        cases = {
+            "header": [png_header(width=3840, height=2160), jpeg_header(3840, 1646)],
+            "search-results": [png_header(width=3000, height=2000 + 1), png_header(width=1800, height=1200),
+                               jpeg_header(4000, 2666)],
+        }
+        for folder, contents in cases.items():
+            original = (self.dir / folder / f"{folder}.png").read_bytes()
+            for content in contents:
+                (self.dir / folder / f"{folder}.png").write_bytes(content)
+                fake = FakeAsc()
+                with self.subTest(folder=folder, content=content[:24]):
+                    self.assertEqual(self.run_creative(fake), 1)
+                    self.assertEqual(fake.calls, [])
+            (self.dir / folder / f"{folder}.png").write_bytes(original)
+
+    def test_sizes_apple_accepts_pass(self) -> None:
+        good = [("PRODUCT_PAGE_HEADER_ASSET", png_header(width=3840, height=1646)),
+                ("PRODUCT_PAGE_HEADER_ASSET", png_header(width=5244, height=2950)),
+                ("APP_STORE_SEARCH_RESULTS_ASSET", png_header(width=3840, height=2560)),
+                ("APP_STORE_SEARCH_RESULTS_ASSET", jpeg_header(1920, 1280)),
+                ("APP_STORE_SEARCH_RESULTS_ASSET", png_header(width=5244, height=2950))]
+        for placement, content in good:
+            path = self.dir / "probe"
+            path.write_bytes(content)
+            with self.subTest(placement=placement, content=content[:24]):
+                self.assertIsNone(asc_release.creative_size_problem(placement, path))
+
     def test_a_rejected_image_stops_the_run(self) -> None:
         fake = FakeAsc(library=[self.image("H", "header", "REJECTED")])
         self.assertEqual(self.run_creative(fake), 1)
@@ -1607,10 +1681,21 @@ class CreativeAssetTests(unittest.TestCase):
             with self.subTest(state=state):
                 self.assertEqual(self.run_creative(fake), 0)
                 self.assertEqual(fake.writes(), [])
-            fake = FakeAsc(state=state, attached="B9", library=[self.image("H", "header", "APPROVED")])
-            with self.subTest(state=state, placed=False):
-                self.assertEqual(self.run_creative(fake), 1, "placing an image is a change")
+
+    def test_an_approved_image_on_a_locked_version_waits_without_failing(self) -> None:
+        # Approval can land between the submit and a rerun of the store job: not a
+        # mismatch, so the rerun passes and the image is placed once the version can be edited.
+        for state in ("WAITING_FOR_REVIEW", "READY_FOR_REVIEW"):
+            library = [self.image("H", "header", "APPROVED"), self.image("S", "search-results", "IN_REVIEW")]
+            fake = FakeAsc(state=state, attached="B9", library=library)
+            with self.subTest(state=state):
+                self.assertEqual(self.run_creative(fake), 0)
                 self.assertEqual(fake.writes(), [])
+        library = [self.image("H", "header", "APPROVED"), self.image("S", "search-results", "IN_REVIEW")]
+        outcomes = quiet(asc_release.sync_creative_assets, FakeAsc(library=library),
+                         app_id=APP, version_id="V1", locales=["en-US"], creative_dir=self.dir, editable=False)
+        self.assertEqual(outcomes["PRODUCT_PAGE_HEADER_ASSET"], "approved; placed once the version can be edited")
+        self.assertEqual(outcomes["APP_STORE_SEARCH_RESULTS_ASSET"], "in App Review (IN_REVIEW); placed on a later run")
 
     def test_a_retry_finishes_the_creative_draft_it_left_behind(self) -> None:
         library = [self.image("H", "header", "PREPARE_FOR_SUBMISSION"), self.image("S", "search-results", "PREPARE_FOR_SUBMISSION")]
@@ -2073,7 +2158,7 @@ class PreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             creative = Path(tmp)
             (creative / "header").mkdir()
-            (creative / "header" / "header.png").write_bytes(b"header-image")
+            (creative / "header" / "header.png").write_bytes(png_header(width=3840, height=1646))
             args = ("--creative-dir", str(creative))
             # An editable version: images are uploaded and placed by the live run only.
             fake = self.fake()
@@ -2084,7 +2169,7 @@ class PreflightTests(unittest.TestCase):
             code, output = self.run_preflight(self.fake(state="READY_FOR_REVIEW"), *args, UPLOAD_CREATIVE_ASSETS="true")
             self.assertEqual(code, 1)
             self.assertIn("cannot upload the product page header image", output)
-            in_review = {"id": "H", "attributes": {"fileName": "header.png", "fileSize": len(b"header-image"),
+            in_review = {"id": "H", "attributes": {"fileName": "header.png", "fileSize": len(png_header(width=3840, height=1646)),
                                                    "state": "IN_REVIEW", "createdDate": "z"}}
             code, output = self.run_preflight(self.fake(state="READY_FOR_REVIEW", library=[in_review]), *args,
                                               UPLOAD_CREATIVE_ASSETS="true")
@@ -2253,7 +2338,7 @@ class MainArgumentTests(unittest.TestCase):
             png(root / "shots" / "a.png", 1260, 2736)
             meta = write_listing(root, screenshots={"APP_IPHONE_67": ["shots/a.png"]})
             (root / "creative" / "header").mkdir(parents=True)
-            (root / "creative" / "header" / "header.png").write_bytes(b"header-image")
+            (root / "creative" / "header" / "header.png").write_bytes(png_header(width=3840, height=1646))
             with mock.patch.object(asc_release, "asc_from_environment", side_effect=AssertionError("network")), \
                     mock.patch.object(asc_release, "ROOT", root):
                 code, output = self.run_cli({"UPLOAD_LISTING": "true", "UPLOAD_SCREENSHOTS": "true",
@@ -2272,7 +2357,12 @@ class MainArgumentTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertIn("no header or search results image", output)
             (creative / "search-results").mkdir(parents=True)
-            (creative / "search-results" / "search.png").write_bytes(b"x")
+            (creative / "search-results" / "search.png").write_bytes(png_header(width=1800, height=1200))
+            code, output = self.run_cli({"UPLOAD_CREATIVE_ASSETS": "true"}, "--metadata-dir", str(meta),
+                                        "--creative-dir", str(creative))
+            self.assertEqual(code, 1)
+            self.assertIn("search results images are 3:2, from 1920x1280 to 3840x2560", output)
+            (creative / "search-results" / "search.png").write_bytes(jpeg_header(1920, 1280))
             code, output = self.run_cli({"UPLOAD_CREATIVE_ASSETS": "true"}, "--metadata-dir", str(meta),
                                         "--creative-dir", str(creative))
             self.assertEqual(code, 0, output)

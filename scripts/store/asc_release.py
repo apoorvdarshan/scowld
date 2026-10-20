@@ -57,7 +57,6 @@ import hashlib
 import json
 import os
 import re
-import struct
 import sys
 import time
 from pathlib import Path
@@ -113,9 +112,10 @@ MARKDOWN_SYNTAX = (
 )
 SCREENSHOT_MANIFEST = "screenshots.json"
 
-# Accepted portrait sizes per App Store Connect display type (landscape = swapped).
+# Accepted portrait sizes per App Store Connect display type (landscape = swapped),
+# exactly what the pinned asc accepts (`asc screenshots sizes --display-type TYPE`).
 SCREENSHOT_SIZES = {
-    "APP_IPHONE_67": {(1260, 2736), (1290, 2796), (1320, 2868), (1284, 2778)},
+    "APP_IPHONE_67": {(1260, 2736), (1290, 2796), (1320, 2868)},
     "APP_IPHONE_65": {(1242, 2688), (1284, 2778)},
     "APP_IPAD_PRO_3GEN_129": {(2048, 2732), (2064, 2752)},
 }
@@ -128,6 +128,10 @@ CREATIVE_SLOTS = (
     ("header", "PRODUCT_PAGE_HEADER_ASSET", "product page header"),
     ("search-results", "APP_STORE_SEARCH_RESULTS_ASSET", "search results"),
 )
+# Apple's image specs per slot (asc asset-library specs): the header is a 21:9
+# 3840x1646 PNG; search results are 3:2 PNG or JPEG from 1920x1280 to 3840x2560.
+# A 5244x2950 16:9 PNG is a universal image that fits either.
+UNIVERSAL_CREATIVE_SIZE = (5244, 2950)
 CREATIVE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 # Library image states: still being reviewed, or finished without approval.
 CREATIVE_PENDING_STATES = {"WAITING_FOR_REVIEW", "IN_REVIEW", "ACCEPTED"}
@@ -301,26 +305,33 @@ def load_fields(loc_dir: Path, fields: tuple[tuple[str, str, int | None], ...]) 
     return values
 
 
+def image_dimensions(path: Path) -> tuple[str | None, int, int]:
+    """(format, width, height) of a PNG or JPEG, read from its headers."""
+    raw = Path(path).read_bytes()
+    if raw.startswith(asc_cli.PNG_SIGNATURE) and len(raw) >= 24:
+        return "png", int.from_bytes(raw[16:20], "big"), int.from_bytes(raw[20:24], "big")
+    if raw[:2] == b"\xff\xd8":
+        i = 2
+        while i + 9 < len(raw):
+            if raw[i] != 0xFF:
+                i += 1
+                continue
+            marker = raw[i + 1]
+            if marker == 0xFF or marker in (0x01, 0xD8) or 0xD0 <= marker <= 0xD7:
+                i += 1 if marker == 0xFF else 2
+                continue
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                return "jpeg", int.from_bytes(raw[i + 7:i + 9], "big"), int.from_bytes(raw[i + 5:i + 7], "big")
+            i += 2 + int.from_bytes(raw[i + 2:i + 4], "big")
+    return None, 0, 0
+
+
 def image_size(path: Path) -> tuple[int, int]:
     """(width, height) of a PNG or JPEG file, read from its header."""
-    raw = path.read_bytes()
-    if raw[:8] == b"\x89PNG\r\n\x1a\n" and raw[12:16] == b"IHDR":
-        width, height = struct.unpack(">II", raw[16:24])
-        return width, height
-    if raw[:2] == b"\xff\xd8":
-        index = 2
-        while index + 9 < len(raw):
-            if raw[index] != 0xFF:
-                index += 1
-                continue
-            marker = raw[index + 1]
-            length = struct.unpack(">H", raw[index + 2:index + 4])[0]
-            if marker in (0xC0, 0xC1, 0xC2):
-                height, width = struct.unpack(">HH", raw[index + 5:index + 9])
-                return width, height
-            index += 2 + length
-    fail(f"{path} is not a PNG or JPEG image")
-    raise AssertionError("unreachable")
+    kind, width, height = image_dimensions(path)
+    if kind is None:
+        fail(f"{path} is not a PNG or JPEG image")
+    return width, height
 
 
 def load_screenshot_manifest(loc_dir: Path, root: Path = ROOT) -> dict[str, list[Path]]:
@@ -367,8 +378,28 @@ def load_screenshot_manifest(loc_dir: Path, root: Path = ROOT) -> dict[str, list
     return plan
 
 
+def creative_size_problem(placement_type: str, path: Path) -> str | None:
+    """Why Apple would refuse this image for the slot, or None when it fits."""
+    kind, width, height = image_dimensions(path)
+    if kind is None:
+        return "is not a PNG or JPEG"
+    if kind == "png" and (width, height) == UNIVERSAL_CREATIVE_SIZE:
+        return None
+    if placement_type == "PRODUCT_PAGE_HEADER_ASSET":
+        if kind != "png" or (width, height) != (3840, 1646):
+            return f"is a {width}x{height} {kind.upper()}; the header must be a 3840x1646 PNG"
+        return None
+    if not (1920 <= width <= 3840 and width * 2 == height * 3):
+        return f"is {width}x{height}; search results images are 3:2, from 1920x1280 to 3840x2560"
+    return None
+
+
 def creative_sources(creative_dir: Path) -> list[tuple[str, str, Path]]:
-    """(placement type, label, image) for every creative slot that has an image."""
+    """(placement type, label, image) for every creative slot that has an image.
+
+    Each image is checked like Apple checks it (alpha, format and size) before
+    anything is built or uploaded.
+    """
     found = []
     for folder, placement_type, label in CREATIVE_SLOTS:
         slot_dir = creative_dir / folder
@@ -379,6 +410,9 @@ def creative_sources(creative_dir: Path) -> list[tuple[str, str, Path]]:
             fail(f"the {label} slot takes one image; {slot_dir} has {len(images)}")
         if images and asc_cli.image_has_alpha(images[0]):
             fail(f"the {label} image {images[0].name} has an alpha channel, which App Store Connect refuses; re-export it as RGB")
+        problem = creative_size_problem(placement_type, images[0]) if images else None
+        if problem:
+            fail(f"the {label} image {images[0].name} {problem}")
         if images:
             found.append((placement_type, label, images[0]))
     if not found:
@@ -739,9 +773,10 @@ def sync_creative_assets(
     and reviewed on its own. Only approved images are placed, because a version
     that is already approved only takes approved assets; one that is still in
     review or not yet submitted is placed on a later run. With editable=False
-    (the version is in a review submission) nothing is written: the step fails
-    unless every image is already placed or still in review. Returns placement
-    type -> outcome.
+    (the version is in a review submission) nothing is written: an image that
+    still has to be uploaded or sent to App Review fails the step, and an
+    approved image that is not placed yet waits for a later run. Returns
+    placement type -> outcome.
     """
     sources = creative_sources(creative_dir)
     library_id = (data(call(asc, "asset-library", "view", "--app", app_id)) or {}).get("id")
@@ -785,6 +820,7 @@ def sync_creative_assets(
         if state != "APPROVED":
             fail(f"the {label} image {path.name} is {state}; resolve it in App Store Connect")
         placed = []
+        waiting = []
         for locale, loc in version_locs:
             current = rows(
                 call(
@@ -796,7 +832,10 @@ def sync_creative_assets(
                 print(f"  {label} ({locale}): {path.name} is already on the product page")
                 continue
             if not editable:
-                fail(f"cannot change the {label} ({locale}) while the version waits for review")
+                # Approval can land between a submit and a rerun; that is not a
+                # mismatch, so the rerun passes and placement waits for an editable version.
+                waiting.append(locale)
+                continue
             if current:
                 call(
                     asc, "localizations", "placements", "swap", "--localization-id", loc["id"],
@@ -810,7 +849,12 @@ def sync_creative_assets(
                 )
             placed.append(locale)
             print(f"  {label} ({locale}): placed {path.name} on the product page")
-        outcomes[placement_type] = "placed" if placed else "already placed"
+        if waiting:
+            outcomes[placement_type] = "approved; placed once the version can be edited"
+            print(f"  {label} ({', '.join(waiting)}): {path.name} is approved; it is placed on a later run, "
+                  "once the version can be edited")
+        else:
+            outcomes[placement_type] = "placed" if placed else "already placed"
     if to_review:
         submit_creative_review(asc, app_id, to_review)
     return outcomes

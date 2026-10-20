@@ -36,6 +36,9 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import asc_cli  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
 PBXPROJ = ROOT / "ios" / "Scowld.xcodeproj" / "project.pbxproj"
 BUNDLE_ID = "com.apoorvdarshan.Scowld"
@@ -555,7 +558,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     try:
         args.func(args)
-    except ReleaseError as exc:
+    except (ReleaseError, asc_cli.AscError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
 

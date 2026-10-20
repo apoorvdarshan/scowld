@@ -277,9 +277,12 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout-cone-mode: false
+          # ios_release.py imports asc_cli.py (standard library only); the asc
+          # binary itself is never installed in this job.
           sparse-checkout: |
             /ios/
             /scripts/store/ios_release.py
+            /scripts/store/asc_cli.py
             /scripts/store/redact_logs.py
 
       # Scowld has no Swift packages today; once a Package.resolved is committed

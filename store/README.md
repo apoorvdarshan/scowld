@@ -258,8 +258,9 @@ An empty or missing text file leaves that field unchanged. `screenshots.json`
 points at App Store-ready images already in the repository — today exactly the
 live ones: [`store/metadata/screenshots/ios/iphone-6.9/`](metadata/screenshots/ios/iphone-6.9) (iPhone 6.9", 1320×2868,
 `APP_IPHONE_67`) and [`store/metadata/screenshots/ios/ipad-13/`](metadata/screenshots/ios/ipad-13)
-(iPad 13", 2064×2752, `APP_IPAD_PRO_3GEN_129`). Sizes, opacity and the 10-image
-limit are checked before any upload; with the screenshot switch on and no
+(iPad 13", 2064×2752, `APP_IPAD_PRO_3GEN_129`). Sizes (exactly the ones the
+pinned asc accepts for the display type, from `asc screenshots sizes`), opacity
+and the 10-image limit are checked before any upload; with the screenshot switch on and no
 `screenshots.json`, the run fails with that message. The pipeline uploads these
 files as they are, and `asc` refuses a PNG that stores an alpha channel or a
 transparency chunk even when every pixel is opaque, so such a file stops the run
@@ -285,6 +286,7 @@ results images in the repository:
 store/creative/ios/
   header/           # one product page header image: 3840×1646 PNG
   search-results/   # one search results image: 3:2, 1920×1280 to 3840×2560, PNG or JPEG
+                    # (a 5244×2950 PNG is a universal image that fits either slot)
 ```
 
 No image is committed yet, so the switch stays off; with it on and no image in
@@ -292,8 +294,9 @@ either folder, the run fails before anything reaches App Store Connect. Each
 folder takes at most one image, and a slot without one is left alone. Apple's
 current sizes are listed by `asc asset-library specs`; Apple's rules for these
 images: no prices, website addresses, other platforms or Apple badges, and no
-transparency. An image that stores an alpha channel is refused before anything
-reaches App Store Connect; re-export it as RGB.
+transparency. Sizes, formats and alpha are checked with the other local inputs,
+before anything is built, so a wrong file (or one that stores an alpha channel;
+re-export it as RGB) stops the run before anything reaches App Store Connect.
 
 An image is matched in the Asset Library by file name and size, so give a
 changed image a new file name. Apple reviews each new image on its own (Scowld
@@ -302,8 +305,10 @@ locale's version once it is approved, or swaps it in for the image placed there;
 a rejected image stops the run with Apple's reason. A retry finishes the image
 review submission an earlier attempt left behind instead of starting another.
 While the version is in a review submission (Ready for Review or Waiting for
-Review) nothing is uploaded, sent to App Review or placed: the run only confirms
-that every image is already placed or still in review.
+Review) nothing is uploaded, sent to App Review or placed: an image that still
+has to be uploaded or sent to App Review stops the run. An image Apple approved
+in the meantime is not a mismatch, so the rerun passes and the image is placed
+once the version can be edited.
 
 ## Secrets
 
