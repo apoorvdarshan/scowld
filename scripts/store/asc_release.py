@@ -136,7 +136,9 @@ CREATIVE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 # Library image states: still being reviewed, or finished without approval.
 CREATIVE_PENDING_STATES = {"WAITING_FOR_REVIEW", "IN_REVIEW", "ACCEPTED"}
 CREATIVE_UNSUBMITTED_STATES = {"PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW", "COMPLETE", "UPLOAD_COMPLETE"}
-CREATIVE_DEAD_STATES = {"REJECTED", "FAILED", "ARCHIVED"}
+# AWAITING_UPLOAD is a reservation an interrupted upload left behind; it is
+# ignored like a failed one, so the next run uploads the image again.
+CREATIVE_DEAD_STATES = {"REJECTED", "FAILED", "ARCHIVED", "AWAITING_UPLOAD"}
 
 # Everything (text, screenshots and creative assets) can change in these version states.
 EDITABLE_VERSION_STATES = {
