@@ -768,6 +768,7 @@ def sync_creative_assets(
     locales: list[str],
     creative_dir: Path,
     editable: bool,
+    reserved_draft: str | None = None,
 ) -> dict[str, str]:
     """Put the repository's header and search results images on every locale's version.
 
@@ -777,8 +778,9 @@ def sync_creative_assets(
     review or not yet submitted is placed on a later run. With editable=False
     (the version is in a review submission) nothing is written: an image that
     still has to be uploaded or sent to App Review fails the step, and an
-    approved image that is not placed yet waits for a later run. Returns
-    placement type -> outcome.
+    approved image that is not placed yet waits for a later run. The image
+    review never takes reserved_draft, the draft this run chose for the version.
+    Returns placement type -> outcome.
     """
     sources = creative_sources(creative_dir)
     library_id = (data(call(asc, "asset-library", "view", "--app", app_id)) or {}).get("id")
@@ -858,25 +860,36 @@ def sync_creative_assets(
         else:
             outcomes[placement_type] = "placed" if placed else "already placed"
     if to_review:
-        submit_creative_review(asc, app_id, to_review)
+        submit_creative_review(asc, app_id, to_review, reserved_draft=reserved_draft)
     return outcomes
 
 
-def submit_creative_review(asc: asc_cli.Asc, app_id: str, images: list[tuple[str, dict[str, Any]]]) -> str:
+def submit_creative_review(
+    asc: asc_cli.Asc, app_id: str, images: list[tuple[str, dict[str, Any]]], *, reserved_draft: str | None = None
+) -> str:
     """Send not-yet-reviewed creative images to App Review in a submission of their own.
 
-    A draft an earlier attempt left behind holding only some of these images
-    (or nothing yet) is finished instead of starting another one.
+    A draft an earlier attempt left behind holding only some of these images is
+    finished first, else an empty one, instead of starting another, so reruns
+    leave no extra drafts. The draft this run chose for the version and its
+    products (reserved_draft) is never taken.
     """
     wanted = {image["id"] for _, image in images}
-    submission_id = None
+    partial = empty = None
     for draft in draft_submission_ids(asc, app_id):
+        if draft == reserved_draft:
+            continue
+        # A version or product item adds None, which is never wanted.
         held = {related_id(item, "appAssetLibraryImage") for item in submission_items(asc, draft)}
-        if held <= wanted:
-            submission_id = draft
-            print(f"  finishing creative review submission {draft} from an earlier attempt")
+        if not held:
+            empty = empty or draft
+        elif held <= wanted:
+            partial = draft
             break
-    if submission_id is None:
+    submission_id = partial or empty
+    if submission_id:
+        print(f"  finishing creative review submission {submission_id} from an earlier attempt")
+    else:
         submission = data(call(asc, "review", "submissions-create", "--app", app_id, "--platform", PLATFORM)) or {}
         submission_id = submission.get("id")
     if not submission_id:
@@ -910,6 +923,7 @@ def sync_metadata(
     creative: bool = False,
     creative_dir: Path = CREATIVE_DIR,
     check_only: bool = False,
+    reserved_draft: str | None = None,
 ) -> None:
     """Listing, What's New and screenshots for every locale, then the creative assets.
 
@@ -917,7 +931,8 @@ def sync_metadata(
     the reason) only checks that App Store Connect already matches the repository,
     which keeps reruns idempotent. Those checks run first, so a change that cannot be
     made fails before anything is written. `check_only` runs just those checks.
-    Creative assets change only when screenshots can.
+    Creative assets change only when screenshots can; their review never takes
+    reserved_draft, the draft chosen for the version.
     """
     for locked_pass in ((True,) if check_only else (True, False)):
         for locale, entry in plan.items():
@@ -931,7 +946,7 @@ def sync_metadata(
         if creative and (screenshots_locked is not None) is locked_pass:
             sync_creative_assets(
                 asc, app_id=app_id, version_id=version_id, locales=list(plan), creative_dir=creative_dir,
-                editable=screenshots_locked is None,
+                editable=screenshots_locked is None, reserved_draft=reserved_draft,
             )
 
 
@@ -1108,6 +1123,17 @@ def preflight(
     )
     if do_submit:
         refuse_pending_in_app_products(asc, app_id)
+    if do_submit and state == "READY_FOR_REVIEW":
+        # The store step needs the draft holding this version; finding out after
+        # the build and upload would be too late.
+        draft = find_draft_submission(asc, app_id, version["id"])
+        if draft is None or not any(
+            related_id(item, "appStoreVersion") == version["id"] for item in submission_items(asc, draft)
+        ):
+            fail(
+                f"App Store version {version_string} is READY_FOR_REVIEW, but no draft review submission holds it; "
+                "remove the version from its submission in App Store Connect and rerun"
+            )
     print(f"ASC preflight passed: version {version_string} ({state}) is ready for the enabled steps")
 
 
@@ -1396,11 +1422,26 @@ def main(argv: list[str] | None = None) -> None:
     # enabled steps only confirm App Store Connect matches, and review must hold this
     # run's build.
     already_submitted = state == SUBMITTED_VERSION_STATE
+    submission_id: str | None = None
+    already_added = False
     if not already_submitted:
         require_version_state(args.version, state, edits_metadata=edits_metadata, submit=do_submit)
         if do_submit:
             # Checked before any change, so a blocked submission leaves the listing untouched.
             refuse_pending_in_app_products(asc, app_id)
+            # The version's draft is picked and checked with the other decisions
+            # before text, screenshots, creative images or the build are touched,
+            # so a run that has to stop here changes nothing. A draft is created
+            # only when the version has to be added to one.
+            submission_id = find_draft_submission(asc, app_id, version_id)
+            already_added = draft_holds_version(asc, submission_id, version_id) if submission_id else False
+            if state == "READY_FOR_REVIEW" and not already_added:
+                # READY_FOR_REVIEW means a draft already holds the version; adding it
+                # to another one is never right.
+                fail(
+                    f"version {args.version} is READY_FOR_REVIEW, but no draft review submission this release can "
+                    "use holds it; check its draft in App Store Connect (or remove the version from it) and rerun"
+                )
 
     text_locked, screenshots_locked = metadata_locks(args.version, state)
     sync_metadata(
@@ -1415,6 +1456,7 @@ def main(argv: list[str] | None = None) -> None:
         screenshots_locked=screenshots_locked,
         creative=do_creative,
         creative_dir=args.creative_dir,
+        reserved_draft=submission_id,
     )
 
     if already_submitted:
@@ -1425,17 +1467,6 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if do_submit:
-        # The draft is looked up and checked before anything else is changed; it
-        # is created only when the version has to be added to one.
-        submission_id = find_draft_submission(asc, app_id, version_id)
-        already_added = draft_holds_version(asc, submission_id, version_id) if submission_id else False
-        if state == "READY_FOR_REVIEW" and not already_added:
-            # READY_FOR_REVIEW means a draft already holds the version; adding it to
-            # another one is never right, so stop before anything is written.
-            fail(
-                f"version {args.version} is READY_FOR_REVIEW, but no draft review submission this release can "
-                "use holds it; check its draft in App Store Connect (or remove the version from it) and rerun"
-            )
         print("selecting this run's build…")
         select_build(asc, version_id, args.build_id, args.version, args.build_number)
         set_release_type(asc, version_id, public_release=do_public)
