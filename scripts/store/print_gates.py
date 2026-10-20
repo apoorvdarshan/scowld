@@ -16,7 +16,6 @@ GATES = (
     "IOS_UPLOAD_LISTING",
     "IOS_UPLOAD_WHATS_NEW",
     "IOS_UPLOAD_SCREENSHOTS",
-    "IOS_UPLOAD_CREATIVE_ASSETS",
     "IOS_SUBMIT_REVIEW",
     "IOS_PUBLIC_RELEASE",
 )
@@ -52,10 +51,7 @@ def main() -> None:
         )
     live = master and any(states[name][1] is True for name in GATES[1:])
     if not master:
-        print(
-            "IOS_RELEASE_AUTOMATION is off — no version creation, upload, listing or creative asset change, "
-            "or review submission runs"
-        )
+        print("IOS_RELEASE_AUTOMATION is off — no version creation, upload, listing change or review submission runs")
     elif live:
         print("WARNING: one or more live switches are on")
     else:

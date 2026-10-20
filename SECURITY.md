@@ -50,7 +50,7 @@ Please include:
 ## How the project is checked
 
 - CodeQL static analysis on every pull request and weekly, dependency review on pull requests, and OpenSSF Scorecard on `main`.
-- Dependabot alerts and security updates, with GitHub Actions pinned to commit SHAs and the App Store Connect CLI pinned to an exact release whose SHA-256 is checked before use.
+- Dependabot alerts and security updates, with GitHub Actions pinned to commit SHAs and store tooling hash-locked.
 - Secret scanning with push protection.
 - Each GitHub Release attaches a Sigstore-signed source archive with a build-provenance attestation (see [store/README.md](store/README.md)).
 
