@@ -1732,9 +1732,9 @@ class LiveSubmitFlowTests(unittest.TestCase):
                 self.assertEqual(fake.submitted, [])
                 self.assertNotIn(("review", "items-add"), [c[:2] for c in fake.writes()])
 
-    def test_an_item_added_to_the_draft_meanwhile_is_not_submitted(self) -> None:
-        # Someone adds an item by hand after the draft was checked: the final read
-        # right before submitting refuses it.
+    def test_a_reused_draft_with_items_this_release_did_not_choose_is_not_submitted(self) -> None:
+        # Scowld submits nothing but the version. An item added by hand after the
+        # draft was picked up is caught by the read right before submitting.
         fake = FakeAsc(drafts=["SUB1"], draft_items={"SUB1": []})
         original = fake.run
 
