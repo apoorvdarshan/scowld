@@ -5,9 +5,10 @@
 # validated on every pull request and main push that touches them. A tag release
 # checks only the files its enabled switches use, so an unused file can never
 # block a release. Uses the same pinned Python as the release workflow and
-# installs the hash-locked store tooling exactly as the release jobs do, then
-# signs a throwaway App Store Connect token with it, so a Dependabot update to
-# requirements-store.* is proven here instead of in a release.
+# installs the pinned App Store Connect CLI (asc) exactly as the release jobs do,
+# so a pin whose download or SHA-256 no longer matches fails on the pull request
+# instead of in a release. asc only reports its version here; nothing calls App
+# Store Connect.
 
 name: Store automation (offline)
 
@@ -18,7 +19,6 @@ on:
       - 'scripts/store/**'
       - 'scripts/release_notes.py'
       - 'RELEASE_NOTES.md'
-      - 'requirements-store.*'
       - 'ios/Scowld.xcodeproj/project.pbxproj'
       - '.github/workflows/ios-release.yml'
       - '.github/workflows/store-automation.yml'
@@ -29,7 +29,6 @@ on:
       - 'scripts/store/**'
       - 'scripts/release_notes.py'
       - 'RELEASE_NOTES.md'
-      - 'requirements-store.*'
       - 'ios/Scowld.xcodeproj/project.pbxproj'
       - '.github/workflows/ios-release.yml'
       - '.github/workflows/store-automation.yml'
@@ -56,7 +55,6 @@ jobs:
             /scripts/
             /store/
             /RELEASE_NOTES.md
-            /requirements-store.*
             /ios/Scowld.xcodeproj/
 
       - name: Set up Python
@@ -72,18 +70,18 @@ jobs:
           IOS_UPLOAD_LISTING: ${{ vars.IOS_UPLOAD_LISTING }}
           IOS_UPLOAD_WHATS_NEW: ${{ vars.IOS_UPLOAD_WHATS_NEW }}
           IOS_UPLOAD_SCREENSHOTS: ${{ vars.IOS_UPLOAD_SCREENSHOTS }}
+          IOS_UPLOAD_CREATIVE_ASSETS: ${{ vars.IOS_UPLOAD_CREATIVE_ASSETS }}
           IOS_SUBMIT_REVIEW: ${{ vars.IOS_SUBMIT_REVIEW }}
           IOS_PUBLIC_RELEASE: ${{ vars.IOS_PUBLIC_RELEASE }}
         run: python3 scripts/store/print_gates.py
 
-      - name: Install the hash-locked store tooling (as the release jobs do)
-        run: python3 -m pip install --disable-pip-version-check --require-hashes -r requirements-store.txt
+      # Proves the pinned release still downloads and matches its checksum.
+      - name: Install and check the pinned App Store Connect CLI (no store calls)
+        run: |
+          python3 scripts/store/asc_cli.py install --dest "$RUNNER_TEMP/asc-bin"
+          PATH="$RUNNER_TEMP/asc-bin:$PATH" python3 scripts/store/asc_cli.py check
 
-      - name: Test switches, tag check, build wait, token, listing, screenshots, submission, release notes and log redaction (offline)
-        env:
-          # The App Store Connect token test uses the tooling installed above and
-          # must fail, never skip, if it is missing.
-          REQUIRE_STORE_TOOLING: "true"
+      - name: Test switches, tag check, build wait, asc runner, listing, screenshots, creative assets, submission, release notes and log redaction (offline)
         run: python3 -m unittest -v scripts/store/test_ios_release.py
 
       - name: Validate the committed listing and screenshots (no network)
