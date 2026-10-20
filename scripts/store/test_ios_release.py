@@ -1365,6 +1365,8 @@ class LiveSubmitFlowTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("EVENT1", err)
         self.assertNotIn(("PATCH", "/reviewSubmissions/SUB1"), fake.calls)
+        # The draft is checked before anything is written: this run's build is not even selected.
+        self.assertEqual(writes(fake), [])
 
     def test_draft_already_holding_this_version_is_reused(self) -> None:
         fake = FakeAsc(draft_items=[{"id": "I1", "relationships": {"appStoreVersion": {"data": {"id": "V1"}}}}])
@@ -1493,6 +1495,22 @@ class RerunTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("screenshots can no longer change", err)
         self.assertEqual(client.writes(), [])
+
+    def test_a_draft_that_cannot_take_the_version_stops_before_the_listing_changes(self) -> None:
+        # What's New would change (allowed in a draft), but the version's draft is picked and
+        # checked before any write: one that also holds another item, or none that holds the
+        # version, stops the run with nothing written.
+        unrelated = [{"id": "I1", "relationships": {"appStoreVersion": {"data": {"id": "V1"}}}},
+                     {"id": "EVENT1", "relationships": {"appStoreVersion": {"data": None}}}]
+        for items, message in ((unrelated, "EVENT1"), ([], "no draft review submission")):
+            routes = self.routes(state="READY_FOR_REVIEW", info_state="READY_FOR_REVIEW", whats_new="")
+            routes["/reviewSubmissions/SUB1/items?*"] = {"data": items}
+            client = RouteClient(routes)
+            with self.subTest(message=message):
+                code, err = self.run_main(client)
+                self.assertEqual(code, 1)
+                self.assertIn(message, err)
+                self.assertEqual(client.writes(), [])
 
     def test_unchanged_screenshots_pass_in_a_draft_submission(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1630,6 +1648,24 @@ class PreflightTests(unittest.TestCase):
     def test_preflight_does_not_need_a_build(self) -> None:
         code, err = self.run_preflight(RouteClient(self.routes()), SUBMIT_IOS_REVIEW="true", PUBLIC_RELEASE="true")
         self.assertEqual(code, 0, err)
+
+    def test_the_versions_draft_is_checked_before_the_build_in_any_state(self) -> None:
+        # Not only a READY_FOR_REVIEW version's draft: with review submission on, a draft the
+        # store step could not use stops a Prepare for Submission release before the build too
+        # (several drafts holding no version are ambiguous; the draft may hold only this version).
+        unrelated = [{"id": "EVENT1", "relationships": {"appStoreVersion": {"data": None}}}]
+        for drafts, items, message in (([{"id": "D1"}, {"id": "D2"}], [], "ambiguous"),
+                                       ([{"id": "D1"}], unrelated, "EVENT1")):
+            routes = self.routes()
+            routes[f"/apps/{APP}/reviewSubmissions?*"] = {"data": drafts}
+            routes["/reviewSubmissions/D1/items?*"] = {"data": items}
+            routes["/reviewSubmissions/D2/items?*"] = {"data": []}
+            client = RouteClient(routes)
+            with self.subTest(message=message):
+                code, err = self.run_preflight(client, SUBMIT_IOS_REVIEW="true")
+                self.assertEqual(code, 1)
+                self.assertIn(message, err)
+                self.assertEqual(client.writes(), [])
 
 
 class VersionsClient(RouteClient):
