@@ -301,12 +301,12 @@ def load_fields(loc_dir: Path, fields: tuple[tuple[str, str, int | None], ...]) 
     return values
 
 
-def image_size(path: Path) -> tuple[int, int, bool]:
-    """(width, height, has_alpha) for a PNG or JPEG file, read from its header."""
+def image_size(path: Path) -> tuple[int, int]:
+    """(width, height) of a PNG or JPEG file, read from its header."""
     raw = path.read_bytes()
     if raw[:8] == b"\x89PNG\r\n\x1a\n" and raw[12:16] == b"IHDR":
         width, height = struct.unpack(">II", raw[16:24])
-        return width, height, raw[25] in (4, 6)
+        return width, height
     if raw[:2] == b"\xff\xd8":
         index = 2
         while index + 9 < len(raw):
@@ -317,7 +317,7 @@ def image_size(path: Path) -> tuple[int, int, bool]:
             length = struct.unpack(">H", raw[index + 2:index + 4])[0]
             if marker in (0xC0, 0xC1, 0xC2):
                 height, width = struct.unpack(">HH", raw[index + 5:index + 9])
-                return width, height, False
+                return width, height
             index += 2 + length
     fail(f"{path} is not a PNG or JPEG image")
     raise AssertionError("unreachable")
@@ -351,12 +351,17 @@ def load_screenshot_manifest(loc_dir: Path, root: Path = ROOT) -> dict[str, list
             path = (root / entry).resolve()
             if root.resolve() not in path.parents or not path.is_file():
                 fail(f"{manifest_path}: {entry} is not an image file in this repository")
-            width, height, has_alpha = image_size(path)
+            width, height = image_size(path)
             if (width, height) not in accepted and (height, width) not in accepted:
                 sizes = ", ".join(f"{w}x{h}" for w, h in sorted(accepted))
                 fail(f"{entry} is {width}x{height}; {display_type} accepts {sizes} (or landscape)")
-            if has_alpha:
-                fail(f"{entry} has an alpha channel; App Store screenshots must be opaque")
+            # asc refuses a PNG that stores alpha (colour type 4 or 6, or a tRNS
+            # chunk) even when every pixel is opaque, so the file must have none.
+            if asc_cli.image_has_alpha(path):
+                fail(
+                    f"{entry} stores an alpha channel or transparency; App Store screenshots must be opaque, "
+                    "and asc refuses such a PNG even when every pixel is opaque. Re-export it as an RGB PNG"
+                )
             files.append(path)
         plan[display_type] = files
     return plan
@@ -372,6 +377,8 @@ def creative_sources(creative_dir: Path) -> list[tuple[str, str, Path]]:
         ) if slot_dir.is_dir() else []
         if len(images) > 1:
             fail(f"the {label} slot takes one image; {slot_dir} has {len(images)}")
+        if images and asc_cli.image_has_alpha(images[0]):
+            fail(f"the {label} image {images[0].name} has an alpha channel, which App Store Connect refuses; re-export it as RGB")
         if images:
             found.append((placement_type, label, images[0]))
     if not found:
@@ -1140,10 +1147,12 @@ def draft_submission_ids(asc: asc_cli.Asc, app_id: str) -> list[str]:
     return [row["id"] for row in rows(payload)]
 
 
-def get_or_create_draft_submission(asc: asc_cli.Asc, app_id: str) -> str:
-    """Return the app's draft (READY_FOR_REVIEW) iOS review submission for the version, creating one.
+def find_draft_submission(asc: asc_cli.Asc, app_id: str) -> str | None:
+    """The app's draft (READY_FOR_REVIEW) iOS review submission for the version, if there is one.
 
     A draft holding creative images belongs to their own review and is skipped.
+    Nothing is created here: a draft is created only when the version is about
+    to be added, so a run that stops earlier leaves no empty draft behind.
     """
     drafts = [
         submission_id
@@ -1152,8 +1161,10 @@ def get_or_create_draft_submission(asc: asc_cli.Asc, app_id: str) -> str:
     ]
     if len(drafts) > 1:
         fail(f"ambiguous: {len(drafts)} draft review submissions; remove the extras in App Store Connect")
-    if drafts:
-        return drafts[0]
+    return drafts[0] if drafts else None
+
+
+def create_draft_submission(asc: asc_cli.Asc, app_id: str) -> str:
     created = data(call(asc, "review", "submissions-create", "--app", app_id, "--platform", PLATFORM)) or {}
     if not created.get("id"):
         fail("asc did not report the new review submission's id")
@@ -1182,25 +1193,32 @@ def check_draft_items(asc: asc_cli.Asc, submission_id: str, *, version_id: str) 
 
     A reused draft can gain items added by hand or by another tool, and Scowld's
     release submits nothing but the version, so they must not ride along into
-    App Review.
+    App Review. A draft without the version is never submitted.
     """
     items = submission_items(asc, submission_id)
+    if not any(related_id(item, "appStoreVersion") == version_id for item in items):
+        fail(f"review submission {submission_id} does not hold App Store version {version_id}; not submitting it")
     unexpected = [item.get("id") for item in items if related_id(item, "appStoreVersion") != version_id]
     if unexpected:
         fail(
             f"review submission {submission_id} holds items this release did not choose "
             f"({', '.join(map(str, unexpected))}); remove them in App Store Connect and rerun"
         )
-    if not items:
-        fail(f"review submission {submission_id} does not hold App Store version {version_id}; not submitting it")
 
 
-def submit_for_review(asc: asc_cli.Asc, submission_id: str, version_id: str, *, already_added: bool) -> None:
+def submit_for_review(
+    asc: asc_cli.Asc, app_id: str, submission_id: str | None, version_id: str, *, already_added: bool
+) -> None:
+    """Add the version to the draft unless it already holds it, re-check the draft, submit it."""
     if not already_added:
+        if submission_id is None:
+            # Created only now, right before the version is added to it.
+            submission_id = create_draft_submission(asc, app_id)
         call(
             asc, "review", "items-add", "--submission", submission_id, "--item-type", "appStoreVersions",
             "--item-id", version_id, "--if-exists", "skip",
         )
+    assert submission_id is not None
     check_draft_items(asc, submission_id, version_id=version_id)
     call(asc, "review", "submissions-submit", "--id", submission_id, "--confirm")
     print(f"  submitted App Store version {version_id} for review (submission {submission_id})")
@@ -1353,16 +1371,25 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if do_submit:
+        # The draft is looked up and checked before anything else is changed; it
+        # is created only when the version has to be added to one.
+        submission_id = find_draft_submission(asc, app_id)
+        already_added = draft_holds_version(asc, submission_id, version_id) if submission_id else False
+        if state == "READY_FOR_REVIEW" and not already_added:
+            # READY_FOR_REVIEW means a draft already holds the version; adding it to
+            # another one is never right.
+            fail(
+                f"version {args.version} is READY_FOR_REVIEW, but no draft review submission this release can "
+                "use holds it; check its draft in App Store Connect (or remove the version from it) and rerun"
+            )
         print("selecting this run's build…")
         select_build(asc, version_id, args.build_id, args.version, args.build_number)
         set_release_type(asc, version_id, public_release=do_public)
-        submission_id = get_or_create_draft_submission(asc, app_id)
-        already_added = draft_holds_version(asc, submission_id, version_id)
         # Recheck immediately before submitting: the selection must still be this run's build.
         verify_build(asc, args.build_id, args.version, args.build_number)
         confirm_selected_build(asc, version_id, args.build_id)
         print("submitting for App Store review…")
-        submit_for_review(asc, submission_id, version_id, already_added=already_added)
+        submit_for_review(asc, app_id, submission_id, version_id, already_added=already_added)
 
     print("ASC release step finished")
 

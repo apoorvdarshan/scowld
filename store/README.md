@@ -98,8 +98,11 @@ that runs it:
   `prepare` job on validation runs. asc refuses a write in that mode before
   sending it (exit 6).
 - On failure the error keeps asc's exit code and drops the key and issuer IDs.
-  The build wait retries only asc's server-side exit codes (HTTP 5xx, 408, 429)
-  and asc calls that time out; auth, usage and not-found errors stop at once.
+  The build wait retries asc's server-side exit codes (HTTP 5xx, 408, 429),
+  asc calls that time out, and network drops, which asc reports as a generic
+  exit 1 with a connection error; auth, usage and not-found errors stop at
+  once. asc itself retries GET requests that hit 429 or 503
+  (`ASC_MAX_RETRIES=5`).
 - The pinned App Store Connect app is `6760672848`: every run first checks that
   it carries the bundle id `com.apoorvdarshan.Scowld`, and the scripts refuse
   any other bundle id.
@@ -186,10 +189,14 @@ step). Submit those products in App Store Connect, or add a product catalog and
 the Fud AI product-submission step, then rerun.
 
 A draft review submission is submitted only while it holds this version and
-nothing else: it is checked when the run picks it up and read again right
-before it is submitted, so an item added by hand (or by another tool) stops the
-run instead of riding along. Drafts holding creative images belong to those
-images' own review and are never used for the version.
+nothing else: it is checked before the run changes anything and read again
+right before it is submitted, so an item added by hand (or by another tool)
+stops the run instead of riding along. Drafts holding creative images belong to
+those images' own review and are never used for the version. A draft is created
+only right before the version is added to it, so a run that stops earlier, or a
+rerun with nothing to send, leaves no empty draft behind. In Ready for Review a
+draft already holds the version, so when no usable draft does, the run stops
+before changing anything instead of adding the version to another one.
 
 ## Export compliance
 
@@ -246,11 +253,15 @@ App Store Connect with [`asc_export_listing.py`](../scripts/store/asc_export_lis
 
 An empty or missing text file leaves that field unchanged. `screenshots.json`
 points at App Store-ready images already in the repository — today exactly the
-live ones: [`store/metadata/screenshots/ios/iphone-6.9/`](metadata/screenshots/ios/iphone-6.9) (iPhone 6.9", 1260×2736,
+live ones: [`store/metadata/screenshots/ios/iphone-6.9/`](metadata/screenshots/ios/iphone-6.9) (iPhone 6.9", 1320×2868,
 `APP_IPHONE_67`) and [`store/metadata/screenshots/ios/ipad-13/`](metadata/screenshots/ios/ipad-13)
 (iPad 13", 2064×2752, `APP_IPAD_PRO_3GEN_129`). Sizes, opacity and the 10-image
 limit are checked before any upload; with the screenshot switch on and no
-`screenshots.json`, the run fails with that message.
+`screenshots.json`, the run fails with that message. The pipeline uploads these
+files as they are, and `asc` refuses a PNG that stores an alpha channel or a
+transparency chunk even when every pixel is opaque, so such a file stops the run
+(in the dry run and the preflight, before anything is uploaded) with a request to
+re-export it as an RGB PNG.
 
 `APPSTORE.md` is reference copy; the pipeline reads only `store/metadata/ios/`.
 After editing the listing directly in App Store Connect, re-export it. The
@@ -278,7 +289,8 @@ either folder, the run fails before anything reaches App Store Connect. Each
 folder takes at most one image, and a slot without one is left alone. Apple's
 current sizes are listed by `asc asset-library specs`; Apple's rules for these
 images: no prices, website addresses, other platforms or Apple badges, and no
-transparency.
+transparency. An image that stores an alpha channel is refused before anything
+reaches App Store Connect; re-export it as RGB.
 
 An image is matched in the Asset Library by file name and size, so give a
 changed image a new file name. Apple reviews each new image on its own (Scowld
@@ -318,7 +330,7 @@ create a new one (`certificateType: DEVELOPMENT`), and replace both
 | [`scripts/store/asc_cli.py`](../scripts/store/asc_cli.py) | Installs the pinned, checksum-verified `asc` and runs it (credentials, read-only mode, telemetry off, redacted errors) |
 | [`scripts/store/asc_release.py`](../scripts/store/asc_release.py) | Version creation (`--create-version`), listing, What's New, screenshots, creative assets, build selection, review submission (`--dry-run` = local checks only, `--preflight` = read-only App Store Connect checks); every call through `asc` |
 | [`scripts/store/asc_export_listing.py`](../scripts/store/asc_export_listing.py) | Export of the live listing into `store/metadata/ios/` (asc read-only) |
-| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests against a fake App Store Connect behind `asc`: disabled/invalid switches, tag mismatch, validation mode, export compliance (missing, unknown, `YES` without a code, archived `Info.plist`), version creation (missing, existing, unfinished or newer version, other app), build wait timeout/failure/ambiguity/mismatch/old build/missing upload time, selection read-back, preflight, listing, plain-text What's New, screenshots (manifest order, processing), creative assets, submission and the draft's items, reruns in review, the asc runner (credentials, read-only, redaction, pinned checksum), the listing export, printed switches, release notes, log redaction |
+| [`scripts/store/test_ios_release.py`](../scripts/store/test_ios_release.py) | Offline tests against a fake App Store Connect behind `asc`: disabled/invalid switches, tag mismatch, validation mode, export compliance (missing, unknown, `YES` without a code, archived `Info.plist`), version creation (missing, existing, unfinished or newer version, other app), build wait timeout/failure/ambiguity/mismatch/old build/missing upload time, selection read-back, preflight, listing, plain-text What's New, screenshots (manifest order, processing, alpha), creative assets, submission and the draft's items (no empty draft, never a draft without the version), reruns in review, the asc runner (credentials, read-only, redaction, pinned checksum, alpha detection), network drops in the build wait, the listing export, printed switches, release notes, log redaction |
 | [`scripts/store/print_gates.py`](../scripts/store/print_gates.py) | Prints the switches in the run log; an invalid value shows as `INVALID` |
 | [`scripts/store/redact_logs.py`](../scripts/store/redact_logs.py) | Removes the App Store Connect key and issuer IDs from failed-build logs before they become an artifact |
 | [`scripts/release_notes.py`](../scripts/release_notes.py) | GitHub Release notes from the matching `RELEASE_NOTES.md` section (else GitHub's generated notes; two sections for one tag fail the release) |
