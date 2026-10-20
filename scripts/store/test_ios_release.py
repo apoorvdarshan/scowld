@@ -1821,9 +1821,12 @@ class LiveSubmitFlowTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("does not hold App Store version V1", output)
         self.assertEqual(fake.submitted, [])
+
+    def test_a_ready_for_review_version_with_no_draft_holding_it_stops_before_writing_to_review(self) -> None:
         # READY_FOR_REVIEW says a draft already holds the version; when no usable
         # draft does, nothing is added, created, selected or submitted.
         for drafts, items in (([], {}), (["D1"], {"D1": []}),
+                              (["THEIRS"], {"THEIRS": [item("V", "appStoreVersion", "V0")]}),
                               (["IMAGES"], {"IMAGES": [item("I", "appAssetLibraryImage", "H"),
                                                        item("V", "appStoreVersion", "V1")]})):
             fake = FakeAsc(state="READY_FOR_REVIEW", drafts=drafts, draft_items=items)
@@ -1832,6 +1835,26 @@ class LiveSubmitFlowTests(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertIn("READY_FOR_REVIEW, but no draft review submission", output)
                 self.assertEqual(fake.writes(), [])
+
+    def test_the_draft_holding_this_version_is_chosen_over_others(self) -> None:
+        drafts = {"OTHER": [item("P", "subscriptionVersion", "S1v2")], "EMPTY": [],
+                  "MINE": [item("V", "appStoreVersion", "V1")]}
+        fake = FakeAsc(state="READY_FOR_REVIEW", drafts=list(drafts), draft_items=drafts)
+        code, output = self.run_main(fake)
+        self.assertEqual(code, 0, output)
+        self.assertEqual(fake.submitted, ["MINE"])
+        self.assertNotIn(("review", "items-add"), [c[:2] for c in fake.writes()], "MINE already holds it")
+        self.assertEqual(fake.items["OTHER"], drafts["OTHER"])
+
+    def test_another_versions_draft_is_never_reused(self) -> None:
+        theirs = [item("V", "appStoreVersion", "V0")]
+        fake = FakeAsc(drafts=["THEIRS"], draft_items={"THEIRS": theirs})
+        code, output = self.run_main(fake)
+        self.assertEqual(code, 0, output)
+        self.assertIn(("review", "submissions-create"), [c[:2] for c in fake.writes()])
+        self.assertEqual(fake.submitted, ["SUB2"])
+        self.assertNotIn("THEIRS", [arg for c in fake.writes() for arg in c])
+        self.assertEqual(fake.items["THEIRS"], theirs)
 
     def test_a_reused_draft_with_items_this_release_did_not_choose_is_not_submitted(self) -> None:
         # Scowld submits nothing but the version. An item added by hand after the

@@ -1147,21 +1147,29 @@ def draft_submission_ids(asc: asc_cli.Asc, app_id: str) -> list[str]:
     return [row["id"] for row in rows(payload)]
 
 
-def find_draft_submission(asc: asc_cli.Asc, app_id: str) -> str | None:
-    """The app's draft (READY_FOR_REVIEW) iOS review submission for the version, if there is one.
+def find_draft_submission(asc: asc_cli.Asc, app_id: str, version_id: str | None = None) -> str | None:
+    """The app's draft (READY_FOR_REVIEW) iOS review submission to use for the version, if there is one.
 
-    A draft holding creative images belongs to their own review and is skipped.
-    Nothing is created here: a draft is created only when the version is about
-    to be added, so a run that stops earlier leaves no empty draft behind.
+    The draft already holding version_id wins. Otherwise only a draft holding no
+    app version is reused (more than one is ambiguous), so another version's
+    draft is never touched. A draft holding creative images belongs to their own
+    review and is skipped. Nothing is created here: a draft is created only when
+    the version is about to be added, so a run that stops earlier leaves no
+    empty draft behind.
     """
-    drafts = [
-        submission_id
-        for submission_id in draft_submission_ids(asc, app_id)
-        if not any(related_id(item, "appAssetLibraryImage") for item in submission_items(asc, submission_id))
-    ]
-    if len(drafts) > 1:
-        fail(f"ambiguous: {len(drafts)} draft review submissions; remove the extras in App Store Connect")
-    return drafts[0] if drafts else None
+    drafts = []
+    for submission_id in draft_submission_ids(asc, app_id):
+        items = submission_items(asc, submission_id)
+        if not any(related_id(item, "appAssetLibraryImage") for item in items):
+            drafts.append((submission_id, {related_id(item, "appStoreVersion") for item in items} - {None, ""}))
+    if version_id:
+        for submission_id, versions in drafts:
+            if version_id in versions:
+                return submission_id
+    reusable = [submission_id for submission_id, versions in drafts if not versions]
+    if len(reusable) > 1:
+        fail(f"ambiguous: {len(reusable)} draft review submissions; remove the extras in App Store Connect")
+    return reusable[0] if reusable else None
 
 
 def create_draft_submission(asc: asc_cli.Asc, app_id: str) -> str:
@@ -1373,11 +1381,11 @@ def main(argv: list[str] | None = None) -> None:
     if do_submit:
         # The draft is looked up and checked before anything else is changed; it
         # is created only when the version has to be added to one.
-        submission_id = find_draft_submission(asc, app_id)
+        submission_id = find_draft_submission(asc, app_id, version_id)
         already_added = draft_holds_version(asc, submission_id, version_id) if submission_id else False
         if state == "READY_FOR_REVIEW" and not already_added:
             # READY_FOR_REVIEW means a draft already holds the version; adding it to
-            # another one is never right.
+            # another one is never right, so stop before anything is written.
             fail(
                 f"version {args.version} is READY_FOR_REVIEW, but no draft review submission this release can "
                 "use holds it; check its draft in App Store Connect (or remove the version from it) and rerun"

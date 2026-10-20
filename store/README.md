@@ -192,9 +192,12 @@ A draft review submission is submitted only while it holds this version and
 nothing else: it is checked before the run changes anything and read again
 right before it is submitted, so an item added by hand (or by another tool)
 stops the run instead of riding along. Drafts holding creative images belong to
-those images' own review and are never used for the version. A draft is created
-only right before the version is added to it, so a run that stops earlier, or a
-rerun with nothing to send, leaves no empty draft behind. In Ready for Review a
+those images' own review and are never used for the version. The draft that
+already holds this version is used; otherwise only a draft holding no app
+version is reused (two such drafts are ambiguous and stop the run), so another
+version's draft is never touched. A draft is created only right before the
+version is added to it, so a run that stops earlier, or a rerun with nothing to
+send, leaves no empty draft behind. In Ready for Review a
 draft already holds the version, so when no usable draft does, the run stops
 before changing anything instead of adding the version to another one.
 
