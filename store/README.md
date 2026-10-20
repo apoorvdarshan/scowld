@@ -299,13 +299,11 @@ before anything is built, so a wrong file (or one that stores an alpha channel;
 re-export it as RGB) stops the run before anything reaches App Store Connect.
 
 An image is matched in the Asset Library by file name and size, so give a
-changed image a new file name. A reservation left by an interrupted upload
-(`AWAITING_UPLOAD`) is ignored and the image is uploaded again. Apple reviews
-each new image on its own (Scowld already has an approved version), and a later
-run places it on every repository locale's version once it is approved, or swaps
-it in for the image placed there; a rejected image stops the run with Apple's
-reason. A retry finishes the image review submission an earlier attempt left
-behind instead of starting another.
+changed image a new file name. Apple reviews each new image on its own (Scowld
+already has an approved version), and a later run places it on every repository
+locale's version once it is approved, or swaps it in for the image placed there;
+a rejected image stops the run with Apple's reason. A retry finishes the image
+review submission an earlier attempt left behind instead of starting another.
 While the version is in a review submission (Ready for Review or Waiting for
 Review) nothing is uploaded, sent to App Review or placed: an image that still
 has to be uploaded or sent to App Review stops the run. An image Apple approved
