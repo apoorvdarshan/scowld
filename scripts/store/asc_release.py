@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""App Store Connect listing, What's New, screenshots and review submission.
+"""App Store Connect listing, What's New, screenshots, creative assets and review submission.
 
-Every operation has its own switch. ios-release.yml sets these environment
-flags from the resolved IOS_* repository variables:
+Every App Store Connect call goes through the pinned App Store Connect CLI
+(`asc`, see asc_cli.py); this script decides what may change and checks the
+results. Every operation has its own switch. ios-release.yml sets these
+environment flags from the resolved IOS_* repository variables:
 
-  UPLOAD_LISTING      name, subtitle, privacy policy URL, description, keywords,
-                      promotional text, marketing and support URLs
-  UPLOAD_WHATS_NEW    What's New
-  UPLOAD_SCREENSHOTS  the screenshots listed in each locale's screenshots.json
-  SUBMIT_IOS_REVIEW   select THIS run's processed build and submit for review
-  PUBLIC_RELEASE      release automatically after approval (otherwise manual)
-  CREATE_IOS_VERSION  with --create-version: create the tag's App Store version
-                      when it is missing
+  UPLOAD_LISTING          name, subtitle, privacy policy URL, description, keywords,
+                          promotional text, marketing and support URLs
+  UPLOAD_WHATS_NEW        What's New
+  UPLOAD_SCREENSHOTS      the screenshots listed in each locale's screenshots.json
+  UPLOAD_CREATIVE_ASSETS  the product page header and search results images in
+                          store/creative/ios: a new image is uploaded to the Asset
+                          Library and reviewed on its own, and once Apple approves
+                          it a later run places it on the version
+  SUBMIT_IOS_REVIEW       select THIS run's processed build and submit for review
+  PUBLIC_RELEASE          release automatically after approval (otherwise manual)
+  CREATE_IOS_VERSION      with --create-version: create the tag's App Store version
+                          when it is missing
 
 The listing lives in store/metadata/ios/<locale>/ (exported from the live App
 Store listing by asc_export_listing.py), so the repository is its source of
@@ -20,26 +26,29 @@ New must be plain text: App Store Connect shows Markdown literally, so it is
 refused.
 
 Reruns are idempotent. In READY_FOR_REVIEW (the version already sits in a draft
-review submission) text can still change but screenshots cannot; in
-WAITING_FOR_REVIEW (already submitted) nothing can. A step that can no longer
-change only checks that App Store Connect already matches the repository, and
-those checks run before anything is written.
+review submission) text can still change but screenshots and creative assets
+cannot; in WAITING_FOR_REVIEW (already submitted) nothing can. A step that can no
+longer change only checks that App Store Connect already matches the repository,
+and those checks run before anything is written.
 
 Scowld's in-app products (tips, and Scowld Premium's subscriptions and minute
 packs) are not submitted by this script: submission stops instead if App Store
 Connect holds products that would have to go to review with the version, so
 new products are added to the version's submission in App Store Connect by hand.
+A draft review submission is submitted only while it holds this version and
+nothing else.
 
 `--create-version` (IOS_CREATE_VERSION) runs first on a release run: it adds the
 App Store version for the tag when App Store Connect does not have it yet, and
 leaves an existing one alone. It refuses when another version is still on its
 way to the store or the tag's version is not newer than every existing one.
 
-`--dry-run` validates the switches and local files only (no network).
-`--preflight` uses GET requests only, before the build is uploaded: the version
-exists in a state that allows the enabled steps and has every repository
-locale, What's New differs from the live version, screenshots that can no
-longer change already match, and no in-app product would have to ship with it.
+`--dry-run` validates the switches and local files only (no asc calls).
+`--preflight` runs asc read-only (ASC_READ_ONLY), before the build is uploaded:
+the version exists in a state that allows the enabled steps and has every
+repository locale, What's New differs from the live version, screenshots and
+creative assets that can no longer change already match, and no in-app product
+would have to ship with it.
 """
 from __future__ import annotations
 
@@ -51,18 +60,21 @@ import re
 import struct
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import asc_cli  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
-ASC_BASE = "https://api.appstoreconnect.apple.com/v1"
 DEFAULT_BUNDLE_ID = "com.apoorvdarshan.Scowld"
-# Scowld's App Store Connect app (apps.apple.com/app/id6760672848).
-DEFAULT_APP_ID = "6760672848"
+# Scowld's App Store Connect app record (apps.apple.com/app/id6760672848). Every
+# run checks that this record carries exactly DEFAULT_BUNDLE_ID before touching
+# anything.
+ASC_APP_ID = "6760672848"
+PLATFORM = "IOS"
 METADATA_DIR = ROOT / "store" / "metadata" / "ios"
+CREATIVE_DIR = ROOT / "store" / "creative" / "ios"
 
 # (App Store Connect attribute, file in store/metadata/ios/<locale>/, max length)
 VERSION_FIELDS = (
@@ -79,6 +91,18 @@ APP_INFO_FIELDS = (
 )
 WHATS_NEW_FIELD = ("whatsNew", "whats_new.txt", 4000)
 URL_FIELDS = {"marketingUrl", "supportUrl", "privacyPolicyUrl"}
+# The `asc localizations update` flag for each field.
+FIELD_FLAGS = {
+    "description": "--description",
+    "keywords": "--keywords",
+    "promotionalText": "--promotional-text",
+    "marketingUrl": "--marketing-url",
+    "supportUrl": "--support-url",
+    "whatsNew": "--whats-new",
+    "name": "--name",
+    "subtitle": "--subtitle",
+    "privacyPolicyUrl": "--privacy-policy-url",
+}
 # App Store Connect shows What's New as plain text, so Markdown would appear
 # literally on the App Store. "- " bullets are plain text and fine.
 MARKDOWN_SYNTAX = (
@@ -98,7 +122,19 @@ SCREENSHOT_SIZES = {
 SCREENSHOT_SET_MAX = 10
 SCREENSHOT_PROCESSING_SECONDS = 300
 
-# Everything (text and screenshots) can change in these version states.
+# Product page creative assets: the folder under --creative-dir, the placement
+# type, and a label for logs. Each folder holds at most one image.
+CREATIVE_SLOTS = (
+    ("header", "PRODUCT_PAGE_HEADER_ASSET", "product page header"),
+    ("search-results", "APP_STORE_SEARCH_RESULTS_ASSET", "search results"),
+)
+CREATIVE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
+# Library image states: still being reviewed, or finished without approval.
+CREATIVE_PENDING_STATES = {"WAITING_FOR_REVIEW", "IN_REVIEW", "ACCEPTED"}
+CREATIVE_UNSUBMITTED_STATES = {"PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW", "COMPLETE", "UPLOAD_COMPLETE"}
+CREATIVE_DEAD_STATES = {"REJECTED", "FAILED", "ARCHIVED"}
+
+# Everything (text, screenshots and creative assets) can change in these version states.
 EDITABLE_VERSION_STATES = {
     "PREPARE_FOR_SUBMISSION",
     "DEVELOPER_REJECTED",
@@ -108,8 +144,8 @@ EDITABLE_VERSION_STATES = {
 }
 # READY_FOR_REVIEW means the version already sits in a draft review submission
 # (for example after a failed submit). Its listing and What's New text can still
-# change and it can still be submitted, but its screenshots can no longer be
-# replaced, so they are only checked against the repository.
+# change and it can still be submitted, but its screenshots and creative assets
+# can no longer change, so they are only checked against the repository.
 TEXT_EDITABLE_VERSION_STATES = EDITABLE_VERSION_STATES | {"READY_FOR_REVIEW"}
 SUBMITTABLE_VERSION_STATES = TEXT_EDITABLE_VERSION_STATES
 # WAITING_FOR_REVIEW after this pipeline's own submit (a rerun): nothing can change,
@@ -146,14 +182,6 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
-class AscHttpError(SystemExit):
-    """An App Store Connect HTTP error; exits like fail() unless a caller retries."""
-
-    def __init__(self, status: int, message: str) -> None:
-        super().__init__(f"error: {message}")
-        self.status = status
-
-
 def truthy(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -170,78 +198,29 @@ def markdown_syntax(text: str) -> list[str]:
     return [label for pattern, label in MARKDOWN_SYNTAX if pattern.search(text)]
 
 
-# MARK: - HTTP client
+# MARK: - asc
 
 
-class AscClient:
-    # JWTs are minted for 20 minutes; refresh well before that during long waits.
-    TOKEN_MAX_AGE_SECONDS = 600
-
-    def __init__(self, token: str | None = None, *, token_factory: Any | None = None) -> None:
-        if token is None and token_factory is None:
-            raise ValueError("AscClient needs a token or a token_factory")
-        self._token_factory = token_factory
-        self._token = token if token is not None else token_factory()
-        self._token_minted = time.monotonic()
-
-    def _authorization(self) -> str:
-        if (
-            self._token_factory is not None
-            and time.monotonic() - self._token_minted > self.TOKEN_MAX_AGE_SECONDS
-        ):
-            self._token = self._token_factory()
-            self._token_minted = time.monotonic()
-        return f"Bearer {self._token}"
-
-    def request(self, method: str, path: str, *, body: dict[str, Any] | None = None) -> dict[str, Any] | None:
-        url = path if path.startswith("http") else f"{ASC_BASE}{path}"
-        headers = {"Authorization": self._authorization(), "Accept": "application/json"}
-        data: bytes | None = None
-        if body is not None:
-            data = json.dumps(body).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-        req = urllib.request.Request(url, data=data, method=method, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                payload = resp.read()
-                return json.loads(payload.decode("utf-8")) if payload else None
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            print(f"error: ASC {method} {path} → HTTP {exc.code}: {detail[:2000]}", file=sys.stderr)
-            raise AscHttpError(exc.code, f"ASC {method} {path} → HTTP {exc.code}") from None
-
-    def get(self, path: str) -> dict[str, Any]:
-        result = self.request("GET", path)
-        assert result is not None
-        return result
-
-    def patch(self, path: str, body: dict[str, Any]) -> dict[str, Any] | None:
-        return self.request("PATCH", path, body=body)
-
-    def post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
-        result = self.request("POST", path, body=body)
-        assert result is not None
-        return result
-
-    def delete(self, path: str) -> None:
-        self.request("DELETE", path)
-
-    def upload_bytes(self, url: str, data: bytes, headers: dict[str, str], *, method: str = "PUT") -> None:
-        req = urllib.request.Request(url, data=data, method=method.upper(), headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=300):
-                return
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            fail(f"ASC asset upload → HTTP {exc.code}: {detail[:1000]}")
+def data(payload: Any) -> Any:
+    return (payload or {}).get("data") if isinstance(payload, dict) else None
 
 
-def make_asc_token(key_id: str, issuer_id: str, private_key: str) -> str:
-    import jwt  # noqa: PLC0415 - only live runs need PyJWT
+def rows(payload: Any) -> list[dict[str, Any]]:
+    value = data(payload)
+    return value if isinstance(value, list) else []
 
-    now = int(time.time())
-    payload = {"iss": issuer_id, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
-    return jwt.encode(payload, private_key, algorithm="ES256", headers={"kid": key_id, "typ": "JWT"})
+
+def attrs(row: dict[str, Any] | None) -> dict[str, Any]:
+    return (row or {}).get("attributes") or {}
+
+
+def related_id(row: dict[str, Any], name: str) -> str | None:
+    return (((row.get("relationships") or {}).get(name) or {}).get("data") or {}).get("id")
+
+
+def asc_value(text: str) -> str:
+    """A flag value for asc, which reads a leading @ as @file:/@env: (escaped as @@)."""
+    return "@" + text if text.startswith("@") else text
 
 
 def load_credentials() -> tuple[str, str, str]:
@@ -253,49 +232,40 @@ def load_credentials() -> tuple[str, str, str]:
             "missing ASC credentials — set APP_STORE_CONNECT_API_KEY_ID, "
             "APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_API_KEY_P8"
         )
-    return key_id, issuer_id, key_p8.replace("\\n", "\n")
+    return key_id, issuer_id, key_p8
 
 
-def client_from_environment() -> AscClient:
-    """Client whose JWT is re-minted automatically during long-running steps."""
-    key_id, issuer_id, key_p8 = load_credentials()
-    return AscClient(token_factory=lambda: make_asc_token(key_id, issuer_id, key_p8))
+def asc_from_environment(*, read_only: bool = False) -> asc_cli.Asc:
+    """asc with the release credentials; read_only makes asc refuse every write."""
+    load_credentials()
+    return asc_cli.Asc(read_only=read_only)
 
 
-def iter_collection(client: Any, path: str) -> list[dict[str, Any]]:
-    """Return every record in an ASC collection, following links.next."""
-    rows: list[dict[str, Any]] = []
-    next_path: str | None = path
-    while next_path:
-        payload = client.get(next_path)
-        rows.extend(payload.get("data") or [])
-        next_path = (payload.get("links") or {}).get("next")
-    return rows
+def call(asc: asc_cli.Asc, *args: str) -> Any:
+    """Run asc and stop the release with a readable error when it fails."""
+    try:
+        return asc.run(*args)
+    except asc_cli.AscError as exc:
+        fail(str(exc))
 
 
-def find_app(client: Any, bundle_id: str) -> str:
-    payload = client.get("/apps?" + urllib.parse.urlencode({"filter[bundleId]": bundle_id}))
-    matches = [row for row in payload.get("data") or [] if (row.get("attributes") or {}).get("bundleId") == bundle_id]
-    if not matches:
-        fail(f"no App Store Connect app for bundle id {bundle_id}")
-    if len(matches) > 1:
-        fail(f"ambiguous: {len(matches)} App Store Connect apps use bundle id {bundle_id}")
-    return matches[0]["id"]
+def find_app(asc: asc_cli.Asc, bundle_id: str, app_id: str = ASC_APP_ID) -> str:
+    """The pinned App Store Connect app, after checking it carries exactly bundle_id."""
+    record = data(call(asc, "apps", "view", "--id", app_id)) or {}
+    if record.get("id") != app_id:
+        fail(f"App Store Connect returned app {record.get('id')!r}, expected {app_id}")
+    found = attrs(record).get("bundleId")
+    if found != bundle_id:
+        fail(f"App Store Connect app {app_id} has bundle id {found!r}, expected {bundle_id}")
+    return app_id
 
 
-def ios_versions(client: Any, app_id: str) -> list[dict[str, Any]]:
-    # The app relationship listing works for keys that cannot list /appStoreVersions.
-    return iter_collection(
-        client,
-        f"/apps/{app_id}/appStoreVersions?" + urllib.parse.urlencode({"limit": "50", "filter[platform]": "IOS"}),
-    )
+def ios_versions(asc: asc_cli.Asc, app_id: str) -> list[dict[str, Any]]:
+    return rows(call(asc, "versions", "list", "--app", app_id, "--platform", PLATFORM, "--paginate"))
 
 
-def get_ios_app_store_version(client: Any, app_id: str, version_string: str) -> dict[str, Any]:
-    matches = [
-        row for row in ios_versions(client, app_id)
-        if (row.get("attributes") or {}).get("versionString") == version_string
-    ]
+def get_ios_app_store_version(asc: asc_cli.Asc, app_id: str, version_string: str) -> dict[str, Any]:
+    matches = [row for row in ios_versions(asc, app_id) if attrs(row).get("versionString") == version_string]
     if not matches:
         fail(
             f"no iOS App Store version {version_string!r} in App Store Connect — create version "
@@ -333,20 +303,20 @@ def load_fields(loc_dir: Path, fields: tuple[tuple[str, str, int | None], ...]) 
 
 def image_size(path: Path) -> tuple[int, int, bool]:
     """(width, height, has_alpha) for a PNG or JPEG file, read from its header."""
-    data = path.read_bytes()
-    if data[:8] == b"\x89PNG\r\n\x1a\n" and data[12:16] == b"IHDR":
-        width, height = struct.unpack(">II", data[16:24])
-        return width, height, data[25] in (4, 6)
-    if data[:2] == b"\xff\xd8":
+    raw = path.read_bytes()
+    if raw[:8] == b"\x89PNG\r\n\x1a\n" and raw[12:16] == b"IHDR":
+        width, height = struct.unpack(">II", raw[16:24])
+        return width, height, raw[25] in (4, 6)
+    if raw[:2] == b"\xff\xd8":
         index = 2
-        while index + 9 < len(data):
-            if data[index] != 0xFF:
+        while index + 9 < len(raw):
+            if raw[index] != 0xFF:
                 index += 1
                 continue
-            marker = data[index + 1]
-            length = struct.unpack(">H", data[index + 2:index + 4])[0]
+            marker = raw[index + 1]
+            length = struct.unpack(">H", raw[index + 2:index + 4])[0]
             if marker in (0xC0, 0xC1, 0xC2):
-                height, width = struct.unpack(">HH", data[index + 5:index + 9])
+                height, width = struct.unpack(">HH", raw[index + 5:index + 9])
                 return width, height, False
             index += 2 + length
     fail(f"{path} is not a PNG or JPEG image")
@@ -392,6 +362,23 @@ def load_screenshot_manifest(loc_dir: Path, root: Path = ROOT) -> dict[str, list
     return plan
 
 
+def creative_sources(creative_dir: Path) -> list[tuple[str, str, Path]]:
+    """(placement type, label, image) for every creative slot that has an image."""
+    found = []
+    for folder, placement_type, label in CREATIVE_SLOTS:
+        slot_dir = creative_dir / folder
+        images = sorted(
+            p for p in slot_dir.glob("*") if p.is_file() and p.suffix.lower() in CREATIVE_EXTENSIONS
+        ) if slot_dir.is_dir() else []
+        if len(images) > 1:
+            fail(f"the {label} slot takes one image; {slot_dir} has {len(images)}")
+        if images:
+            found.append((placement_type, label, images[0]))
+    if not found:
+        fail(f"creative asset upload is on, but {creative_dir} has no header or search results image")
+    return found
+
+
 def validate_local_inputs(
     *,
     upload_listing: bool,
@@ -399,10 +386,16 @@ def validate_local_inputs(
     upload_screenshots: bool,
     metadata_dir: Path,
     root: Path = ROOT,
+    upload_creative: bool = False,
+    creative_dir: Path = CREATIVE_DIR,
 ) -> dict[str, dict[str, Any]]:
-    """Check every enabled operation's local files before any network call."""
+    """Check every enabled operation's local files before any asc call.
+
+    Returns locale → what that locale uploads. Creative assets go on every
+    locale's version, so they need the locale folders too.
+    """
     plan: dict[str, dict[str, Any]] = {}
-    if not (upload_listing or upload_whats_new or upload_screenshots):
+    if not (upload_listing or upload_whats_new or upload_screenshots or upload_creative):
         return plan
     locales = metadata_locales(metadata_dir)
     if not locales:
@@ -429,15 +422,27 @@ def validate_local_inputs(
         if upload_screenshots:
             entry["screenshots"] = load_screenshot_manifest(loc_dir, root)
         plan[locale] = entry
+    if upload_creative:
+        creative_sources(creative_dir)
     return plan
 
 
 # MARK: - Listing and What's New
 
 
-def localization_for_locale(client: Any, collection_path: str, locale: str) -> dict[str, Any] | None:
-    for row in iter_collection(client, f"{collection_path}?limit=50"):
-        if (row.get("attributes") or {}).get("locale") == locale:
+def version_localizations(asc: asc_cli.Asc, version_id: str) -> list[dict[str, Any]]:
+    return rows(call(asc, "localizations", "list", "--version", version_id, "--paginate"))
+
+
+def app_info_localizations(asc: asc_cli.Asc, app_id: str, info_id: str) -> list[dict[str, Any]]:
+    return rows(
+        call(asc, "localizations", "list", "--type", "app-info", "--app", app_id, "--app-info", info_id, "--paginate")
+    )
+
+
+def localization_for_locale(localizations: list[dict[str, Any]], locale: str) -> dict[str, Any] | None:
+    for row in localizations:
+        if attrs(row).get("locale") == locale:
             return row
     return None
 
@@ -449,6 +454,16 @@ def changed_fields(current: dict[str, Any], wanted: dict[str, str]) -> dict[str,
     }
 
 
+def update_localization(
+    asc: asc_cli.Asc, localization_id: str, changes: dict[str, str], *, app_info: bool = False
+) -> None:
+    """Send the changed fields of one version (or app info) localization in one asc call."""
+    args = ["localizations", "update"] + (["--type", "app-info"] if app_info else []) + ["--id", localization_id]
+    for field in sorted(changes):
+        args += [FIELD_FLAGS[field], asc_value(changes[field])]
+    call(asc, *args)
+
+
 def refuse_locked_change(label: str, locale: str, changes: Any, locked: str) -> None:
     """A change is needed, but App Store Connect no longer allows it (see `locked`)."""
     fail(
@@ -458,39 +473,35 @@ def refuse_locked_change(label: str, locale: str, changes: Any, locked: str) -> 
 
 
 def app_info_state(info: dict[str, Any]) -> str:
-    attrs = info.get("attributes") or {}
-    return attrs.get("state") or attrs.get("appStoreState") or ""
+    return attrs(info).get("state") or attrs(info).get("appStoreState") or ""
 
 
 def upload_version_fields(
-    client: Any, version_id: str, locale: str, wanted: dict[str, str], label: str, *, locked: str | None = None
+    asc: asc_cli.Asc, version_id: str, locale: str, wanted: dict[str, str], label: str, *, locked: str | None = None
 ) -> None:
     """Send only the fields that differ. With `locked` (the reason edits are no longer
     allowed), nothing is written: matching fields pass, differing fields fail."""
-    loc = localization_for_locale(client, f"/appStoreVersions/{version_id}/appStoreVersionLocalizations", locale)
+    loc = localization_for_locale(version_localizations(asc, version_id), locale)
     if loc is None:
         fail(f"version has no {locale} localization in App Store Connect; add the language there first")
-    changes = changed_fields(loc.get("attributes") or {}, wanted)
+    changes = changed_fields(attrs(loc), wanted)
     if not changes:
         print(f"  {label} ({locale}): already up to date")
         return
     if locked:
         refuse_locked_change(label, locale, changes, locked)
-    client.patch(
-        f"/appStoreVersionLocalizations/{loc['id']}",
-        {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": changes}},
-    )
+    update_localization(asc, loc["id"], changes)
     print(f"  {label} ({locale}): updated {', '.join(sorted(changes))}")
 
 
-def app_info_for_listing(client: Any, app_id: str) -> tuple[dict[str, Any], bool]:
+def app_info_for_listing(asc: asc_cli.Asc, app_id: str) -> tuple[dict[str, Any], bool]:
     """(app info record the listing is compared with, whether it is editable).
 
     The editable record (it ships with the new version) wins. Without one, the record
     already submitted with a version (a rerun after submitting) is compared, and
     otherwise the live one.
     """
-    infos = iter_collection(client, f"/apps/{app_id}/appInfos")
+    infos = rows(call(asc, "apps", "info", "list", "--app", app_id))
     editable = [info for info in infos if app_info_state(info) in EDITABLE_APP_INFO_STATES]
     if len(editable) > 1:
         fail(f"ambiguous: {len(editable)} editable app infos")
@@ -506,16 +517,16 @@ def app_info_for_listing(client: Any, app_id: str) -> tuple[dict[str, Any], bool
 
 
 def upload_app_info_fields(
-    client: Any, app_id: str, locale: str, wanted: dict[str, str], *, locked: str | None = None
+    asc: asc_cli.Asc, app_id: str, locale: str, wanted: dict[str, str], *, locked: str | None = None
 ) -> None:
     """Name, subtitle and privacy URL live on the app info that ships with the version."""
     if not wanted:
         return
-    info, editable = app_info_for_listing(client, app_id)
-    loc = localization_for_locale(client, f"/appInfos/{info['id']}/appInfoLocalizations", locale)
+    info, editable = app_info_for_listing(asc, app_id)
+    loc = localization_for_locale(app_info_localizations(asc, app_id, info["id"]), locale)
     if loc is None:
         fail(f"app info has no {locale} localization in App Store Connect; add the language there first")
-    changes = changed_fields(loc.get("attributes") or {}, wanted)
+    changes = changed_fields(attrs(loc), wanted)
     if not changes:
         print(f"  app name/subtitle/privacy URL ({locale}): already up to date")
         return
@@ -526,30 +537,26 @@ def upload_app_info_fields(
             f"{', '.join(sorted(changes))} ({locale}) changed, but App Store Connect has no editable "
             "app info; they can only change together with a new version"
         )
-    client.patch(
-        f"/appInfoLocalizations/{loc['id']}",
-        {"data": {"type": "appInfoLocalizations", "id": loc["id"], "attributes": changes}},
-    )
+    update_localization(asc, loc["id"], changes, app_info=True)
     print(f"  app name/subtitle/privacy URL ({locale}): updated {', '.join(sorted(changes))}")
 
 
-def live_whats_new(client: Any, app_id: str, exclude_version_id: str, locale: str) -> tuple[str, str] | None:
+def live_whats_new(asc: asc_cli.Asc, app_id: str, exclude_version_id: str, locale: str) -> tuple[str, str] | None:
     """(version, What's New) of the newest live version, if any."""
     live = [
-        row for row in ios_versions(client, app_id)
-        if row.get("id") != exclude_version_id
-        and (row.get("attributes") or {}).get("appStoreState") in LIVE_VERSION_STATES
+        row for row in ios_versions(asc, app_id)
+        if row.get("id") != exclude_version_id and attrs(row).get("appStoreState") in LIVE_VERSION_STATES
     ]
     if not live:
         return None
-    newest = max(live, key=lambda row: (row.get("attributes") or {}).get("createdDate") or "")
-    loc = localization_for_locale(client, f"/appStoreVersions/{newest['id']}/appStoreVersionLocalizations", locale)
-    text = ((loc or {}).get("attributes") or {}).get("whatsNew") or ""
-    return (newest.get("attributes") or {}).get("versionString", "?"), text.strip()
+    newest = max(live, key=lambda row: attrs(row).get("createdDate") or "")
+    loc = localization_for_locale(version_localizations(asc, newest["id"]), locale)
+    text = attrs(loc).get("whatsNew") or ""
+    return attrs(newest).get("versionString", "?"), text.strip()
 
 
-def refuse_stale_whats_new(client: Any, app_id: str, version_id: str, locale: str, text: str) -> None:
-    previous = live_whats_new(client, app_id, version_id, locale)
+def refuse_stale_whats_new(asc: asc_cli.Asc, app_id: str, version_id: str, locale: str, text: str) -> None:
+    previous = live_whats_new(asc, app_id, version_id, locale)
     if previous and previous[1] == text:
         fail(
             f"What's New ({locale}) is identical to live version {previous[0]}; update "
@@ -558,10 +565,10 @@ def refuse_stale_whats_new(client: Any, app_id: str, version_id: str, locale: st
 
 
 def upload_whats_new(
-    client: Any, app_id: str, version_id: str, locale: str, text: str, *, locked: str | None = None
+    asc: asc_cli.Asc, app_id: str, version_id: str, locale: str, text: str, *, locked: str | None = None
 ) -> None:
-    refuse_stale_whats_new(client, app_id, version_id, locale, text)
-    upload_version_fields(client, version_id, locale, {WHATS_NEW_FIELD[0]: text}, "What's New", locked=locked)
+    refuse_stale_whats_new(asc, app_id, version_id, locale, text)
+    upload_version_fields(asc, version_id, locale, {WHATS_NEW_FIELD[0]: text}, "What's New", locked=locked)
 
 
 # MARK: - Screenshots
@@ -571,98 +578,74 @@ def md5_hex(path: Path) -> str:
     return hashlib.md5(path.read_bytes()).hexdigest()  # noqa: S324 - App Store Connect's checksum
 
 
-def find_screenshot_set(client: Any, version_loc_id: str, display_type: str) -> str | None:
-    for item in iter_collection(client, f"/appStoreVersionLocalizations/{version_loc_id}/appScreenshotSets?limit=50"):
-        if (item.get("attributes") or {}).get("screenshotDisplayType") == display_type:
-            return item["id"]
-    return None
+def screenshot_sets(asc: asc_cli.Asc, version_loc_id: str) -> dict[str, list[dict[str, Any]]]:
+    """Display type → the screenshots App Store Connect holds in that set, in order."""
+    payload = call(asc, "screenshots", "list", "--version-localization", version_loc_id)
+    sets: dict[str, list[dict[str, Any]]] = {}
+    for entry in (payload or {}).get("sets") or []:
+        sets[attrs(entry.get("set")).get("screenshotDisplayType")] = list(entry.get("screenshots") or [])
+    return sets
 
 
-def ensure_screenshot_set(client: Any, version_loc_id: str, display_type: str) -> str:
-    existing = find_screenshot_set(client, version_loc_id, display_type)
-    if existing is not None:
-        return existing
-    created = client.post(
-        "/appScreenshotSets",
-        {
-            "data": {
-                "type": "appScreenshotSets",
-                "attributes": {"screenshotDisplayType": display_type},
-                "relationships": {
-                    "appStoreVersionLocalization": {
-                        "data": {"type": "appStoreVersionLocalizations", "id": version_loc_id}
-                    }
-                },
-            }
-        },
-    )
-    return created["data"]["id"]
+def checksums(shots: list[dict[str, Any]]) -> list[Any]:
+    return [attrs(shot).get("sourceFileChecksum") for shot in shots]
 
 
-def upload_screenshot_file(client: Any, set_id: str, path: Path, checksum: str) -> str:
-    raw = path.read_bytes()
-    reserved = client.post(
-        "/appScreenshots",
-        {
-            "data": {
-                "type": "appScreenshots",
-                "attributes": {"fileName": path.name, "fileSize": len(raw)},
-                "relationships": {"appScreenshotSet": {"data": {"type": "appScreenshotSets", "id": set_id}}},
-            }
-        },
-    )["data"]
-    operations = (reserved.get("attributes") or {}).get("uploadOperations") or []
-    if not operations:
-        fail(f"App Store Connect returned no upload operations for {path.name}")
-    for op in operations:
-        offset = int(op.get("offset", 0))
-        chunk = raw[offset:offset + int(op["length"])]
-        headers = {h["name"]: h["value"] for h in op.get("requestHeaders") or []}
-        client.upload_bytes(op["url"], chunk, headers, method=op.get("method") or "PUT")
-    client.patch(
-        f"/appScreenshots/{reserved['id']}",
-        {
-            "data": {
-                "type": "appScreenshots",
-                "id": reserved["id"],
-                "attributes": {"uploaded": True, "sourceFileChecksum": checksum},
-            }
-        },
-    )
-    return reserved["id"]
+def upload_screenshot_files(asc: asc_cli.Asc, version_loc_id: str, display_type: str, files: list[Path]) -> None:
+    """Replace the set with `files`, in the manifest's order.
+
+    asc uploads a folder in file-name order, so each file goes up on its own: the
+    first replaces the whole set (--replace), and every later one is appended.
+    asc creates a missing set and waits until Apple has processed each image.
+    """
+    device_type = display_type.removeprefix("APP_")
+    for index, path in enumerate(files):
+        args = ["screenshots", "upload", "--version-localization", version_loc_id, "--path", str(path),
+                "--device-type", device_type]
+        if index == 0:
+            args += ["--replace", "--confirm"]
+        call(asc, *args)
 
 
 def wait_for_screenshots(
-    client: Any,
-    screenshot_ids: list[str],
+    asc: asc_cli.Asc,
+    version_loc_id: str,
+    display_type: str,
     *,
     timeout: float = SCREENSHOT_PROCESSING_SECONDS,
-    now: Callable[[], float] = time.monotonic,
-    sleep: Callable[[float], None] = time.sleep,
-) -> None:
+    now: Callable[[], float] | None = None,
+    sleep: Callable[[float], None] | None = None,
+) -> list[dict[str, Any]]:
+    """Poll the set until App Store Connect has processed every screenshot in it.
+
+    asc already waits for each image it uploads; this re-reads the whole set, so a
+    screenshot Apple failed to process stops the run with Apple's reason.
+    """
+    now = now or time.monotonic
+    sleep = sleep or time.sleep
     deadline = now() + timeout
-    pending = list(screenshot_ids)
-    while pending:
-        still: list[str] = []
-        for shot_id in pending:
-            attrs = (client.get(f"/appScreenshots/{shot_id}").get("data") or {}).get("attributes") or {}
-            delivery = attrs.get("assetDeliveryState") or {}
+    while True:
+        shots = screenshot_sets(asc, version_loc_id).get(display_type) or []
+        pending = 0
+        for shot in shots:
+            delivery = attrs(shot).get("assetDeliveryState") or {}
             state = delivery.get("state")
             if state == "COMPLETE":
                 continue
             if state == "FAILED":
                 errors = "; ".join(e.get("description") or e.get("code") or "" for e in delivery.get("errors") or [])
-                fail(f"App Store Connect rejected screenshot {attrs.get('fileName') or shot_id}: {errors or 'FAILED'}")
-            still.append(shot_id)
-        pending = still
-        if pending:
-            if now() > deadline:
-                fail(f"{len(pending)} screenshot(s) were still processing after {int(timeout)} s")
-            sleep(3)
+                name = attrs(shot).get("fileName") or shot.get("id")
+                fail(f"App Store Connect rejected screenshot {name}: {errors or 'FAILED'}")
+            pending += 1
+        if not pending:
+            return shots
+        if now() > deadline:
+            fail(f"{pending} screenshot(s) were still processing after {int(timeout)} s")
+        sleep(3)
 
 
 def sync_screenshot_set(
-    client: Any,
+    asc: asc_cli.Asc,
     version_loc_id: str,
     locale: str,
     display_type: str,
@@ -671,41 +654,197 @@ def sync_screenshot_set(
     locked: str | None = None,
 ) -> None:
     """Replace the set when its images differ. With `locked`, nothing is written:
-    an identical set passes and a differing one fails."""
-    set_id = find_screenshot_set(client, version_loc_id, display_type)
-    current = iter_collection(client, f"/appScreenshotSets/{set_id}/appScreenshots?limit=50") if set_id else []
+    an identical set passes and a differing (or missing) one fails."""
+    current = screenshot_sets(asc, version_loc_id).get(display_type) or []
     wanted = [md5_hex(path) for path in files]
-    if [(row.get("attributes") or {}).get("sourceFileChecksum") for row in current] == wanted:
+    if checksums(current) == wanted:
         print(f"  screenshots {display_type} ({locale}): already up to date")
         return
     if locked:
         refuse_locked_change(f"screenshots {display_type}", locale, ["images"], locked)
-    if set_id is None:
-        set_id = ensure_screenshot_set(client, version_loc_id, display_type)
     # The version is not live yet, so replacing the whole set is safe; rerun on failure.
-    for row in current:
-        client.delete(f"/appScreenshots/{row['id']}")
-    new_ids = [upload_screenshot_file(client, set_id, path, checksum) for path, checksum in zip(files, wanted)]
-    wait_for_screenshots(client, new_ids)
-    client.patch(
-        f"/appScreenshotSets/{set_id}/relationships/appScreenshots",
-        {"data": [{"type": "appScreenshots", "id": shot_id} for shot_id in new_ids]},
-    )
-    print(f"  screenshots {display_type} ({locale}): uploaded {len(new_ids)} in order")
+    upload_screenshot_files(asc, version_loc_id, display_type, files)
+    shots = wait_for_screenshots(asc, version_loc_id, display_type)
+    if checksums(shots) != wanted:
+        fail(
+            f"after uploading, App Store Connect's screenshots {display_type} ({locale}) do not match "
+            f"{SCREENSHOT_MANIFEST} (same images in the same order); rerun to replace the set again"
+        )
+    print(f"  screenshots {display_type} ({locale}): uploaded {len(files)} in order")
 
 
 def upload_screenshots(
-    client: Any, version_id: str, locale: str, plan: dict[str, list[Path]], *, locked: str | None = None
+    asc: asc_cli.Asc, version_id: str, locale: str, plan: dict[str, list[Path]], *, locked: str | None = None
 ) -> None:
-    loc = localization_for_locale(client, f"/appStoreVersions/{version_id}/appStoreVersionLocalizations", locale)
+    loc = localization_for_locale(version_localizations(asc, version_id), locale)
     if loc is None:
         fail(f"version has no {locale} localization in App Store Connect; add the language there first")
     for display_type, files in plan.items():
-        sync_screenshot_set(client, loc["id"], locale, display_type, files, locked=locked)
+        sync_screenshot_set(asc, loc["id"], locale, display_type, files, locked=locked)
+
+
+# MARK: - Creative assets
+
+
+def library_images(asc: asc_cli.Asc, library_id: str) -> list[dict[str, Any]]:
+    return rows(
+        call(asc, "asset-library", "images", "list", "--library-id", library_id, "--category", "CREATIVE_ASSETS", "--paginate")
+    )
+
+
+def library_image_for(images: list[dict[str, Any]], path: Path) -> dict[str, Any] | None:
+    """The newest usable library image uploaded from this exact file (name and size)."""
+    size = path.stat().st_size
+    matches = [
+        image
+        for image in images
+        if attrs(image).get("fileName") == path.name
+        and attrs(image).get("fileSize") == size
+        and attrs(image).get("state") not in CREATIVE_DEAD_STATES
+    ]
+    rejected = [
+        image
+        for image in images
+        if attrs(image).get("fileName") == path.name
+        and attrs(image).get("fileSize") == size
+        and attrs(image).get("state") == "REJECTED"
+    ]
+    if not matches and rejected:
+        fail(
+            f"App Review rejected {path.name}; replace the image (a new file name) and re-run. "
+            f"Details: {json.dumps(attrs(rejected[0]).get('stateDetails'))}"
+        )
+    return max(matches, key=lambda image: attrs(image).get("createdDate") or "") if matches else None
+
+
+def sync_creative_assets(
+    asc: asc_cli.Asc,
+    *,
+    app_id: str,
+    version_id: str,
+    locales: list[str],
+    creative_dir: Path,
+    editable: bool,
+) -> dict[str, str]:
+    """Put the repository's header and search results images on every locale's version.
+
+    An image is uploaded to the Asset Library once (matched by file name and size)
+    and reviewed on its own. Only approved images are placed, because a version
+    that is already approved only takes approved assets; one that is still in
+    review or not yet submitted is placed on a later run. With editable=False
+    (the version is in a review submission) nothing is written: the step fails
+    unless every image is already placed or still in review. Returns placement
+    type -> outcome.
+    """
+    sources = creative_sources(creative_dir)
+    library_id = (data(call(asc, "asset-library", "view", "--app", app_id)) or {}).get("id")
+    if not library_id:
+        fail(f"App Store Connect returned no Asset Library for app {app_id}")
+    images = library_images(asc, library_id)
+    localizations = version_localizations(asc, version_id)
+    version_locs = []
+    for locale in locales:
+        loc = localization_for_locale(localizations, locale)
+        if loc is None:
+            fail(f"version has no {locale} localization in App Store Connect; add the language there first")
+        version_locs.append((locale, loc))
+    outcomes: dict[str, str] = {}
+    to_review: list[tuple[str, dict[str, Any]]] = []
+    for placement_type, label, path in sources:
+        image = library_image_for(images, path)
+        if image is None:
+            if not editable:
+                fail(f"cannot upload the {label} image while the version waits for review")
+            # asc waits for processing and prints a receipt (imageId, ready, state).
+            receipt = call(asc, "asset-library", "images", "upload", "--library-id", library_id, "--file", str(path))
+            if not receipt.get("imageId") or not receipt.get("ready"):
+                fail(f"Apple did not finish processing the {label} image {path.name}: {json.dumps(receipt)}")
+            image = {"id": receipt["imageId"], "attributes": {"fileName": path.name, "state": receipt.get("state")}}
+            print(f"  uploaded {path.name} to the Asset Library ({image['id']})")
+        state = attrs(image).get("state") or ""
+        if state in CREATIVE_UNSUBMITTED_STATES or not state:
+            if not editable:
+                fail(
+                    f"cannot send the {label} image {path.name} to App Review while the version waits for "
+                    "review; re-run once the version can be edited, or submit it in App Store Connect"
+                )
+            to_review.append((label, image))
+            outcomes[placement_type] = "submitted for review"
+            continue
+        if state in CREATIVE_PENDING_STATES:
+            outcomes[placement_type] = f"in App Review ({state}); placed on a later run"
+            print(f"  {label}: {path.name} is {state}; it is placed once App Review approves it")
+            continue
+        if state != "APPROVED":
+            fail(f"the {label} image {path.name} is {state}; resolve it in App Store Connect")
+        placed = []
+        for locale, loc in version_locs:
+            current = rows(
+                call(
+                    asc, "localizations", "placements", "list", "--localization-id", loc["id"],
+                    "--placement-type", placement_type, "--include", "image",
+                )
+            )
+            if any(related_id(row, "image") == image["id"] for row in current):
+                print(f"  {label} ({locale}): {path.name} is already on the product page")
+                continue
+            if not editable:
+                fail(f"cannot change the {label} ({locale}) while the version waits for review")
+            if current:
+                call(
+                    asc, "localizations", "placements", "swap", "--localization-id", loc["id"],
+                    "--image-id", image["id"], "--placement-type", placement_type, "--placement-id", current[0]["id"],
+                    "--confirm",
+                )
+            else:
+                call(
+                    asc, "localizations", "placements", "create", "--localization-id", loc["id"],
+                    "--image-id", image["id"], "--placement-type", placement_type, "--placement-group", "DEFAULT_PROFILE",
+                )
+            placed.append(locale)
+            print(f"  {label} ({locale}): placed {path.name} on the product page")
+        outcomes[placement_type] = "placed" if placed else "already placed"
+    if to_review:
+        submit_creative_review(asc, app_id, to_review)
+    return outcomes
+
+
+def submit_creative_review(asc: asc_cli.Asc, app_id: str, images: list[tuple[str, dict[str, Any]]]) -> str:
+    """Send not-yet-reviewed creative images to App Review in a submission of their own.
+
+    A draft an earlier attempt left behind holding only some of these images
+    (or nothing yet) is finished instead of starting another one.
+    """
+    wanted = {image["id"] for _, image in images}
+    submission_id = None
+    for draft in draft_submission_ids(asc, app_id):
+        held = {related_id(item, "appAssetLibraryImage") for item in submission_items(asc, draft)}
+        if held <= wanted:
+            submission_id = draft
+            print(f"  finishing creative review submission {draft} from an earlier attempt")
+            break
+    if submission_id is None:
+        submission = data(call(asc, "review", "submissions-create", "--app", app_id, "--platform", PLATFORM)) or {}
+        submission_id = submission.get("id")
+    if not submission_id:
+        fail("asc did not report the new review submission's id")
+    for label, image in images:
+        call(
+            asc, "review", "items-add", "--submission", submission_id, "--item-type", "appAssetLibraryImages",
+            "--item-id", image["id"], "--if-exists", "skip",
+        )
+        print(f"  {label}: {attrs(image).get('fileName')} added to creative review submission {submission_id}")
+    items = submission_items(asc, submission_id)
+    unexpected = [item["id"] for item in items if related_id(item, "appAssetLibraryImage") not in wanted]
+    if unexpected or len(items) != len(images):
+        fail(f"review submission {submission_id} holds unexpected items {unexpected}; not submitting it")
+    call(asc, "review", "submissions-submit", "--id", submission_id, "--confirm")
+    print(f"  submitted {len(images)} creative image(s) for App Review ({submission_id})")
+    return submission_id
 
 
 def sync_metadata(
-    client: Any,
+    asc: asc_cli.Asc,
     *,
     app_id: str,
     version_id: str,
@@ -715,24 +854,32 @@ def sync_metadata(
     screenshots: bool,
     text_locked: str | None,
     screenshots_locked: str | None,
+    creative: bool = False,
+    creative_dir: Path = CREATIVE_DIR,
     check_only: bool = False,
 ) -> None:
-    """Listing, What's New and screenshots for every locale.
+    """Listing, What's New and screenshots for every locale, then the creative assets.
 
     An operation App Store Connect no longer allows for this version (`*_locked` holds
     the reason) only checks that App Store Connect already matches the repository,
     which keeps reruns idempotent. Those checks run first, so a change that cannot be
     made fails before anything is written. `check_only` runs just those checks.
+    Creative assets change only when screenshots can.
     """
     for locked_pass in ((True,) if check_only else (True, False)):
         for locale, entry in plan.items():
             if listing and (text_locked is not None) is locked_pass:
-                upload_app_info_fields(client, app_id, locale, entry["app_info"], locked=text_locked)
-                upload_version_fields(client, version_id, locale, entry["version"], "listing", locked=text_locked)
+                upload_app_info_fields(asc, app_id, locale, entry["app_info"], locked=text_locked)
+                upload_version_fields(asc, version_id, locale, entry["version"], "listing", locked=text_locked)
             if whats_new and (text_locked is not None) is locked_pass:
-                upload_whats_new(client, app_id, version_id, locale, entry["whats_new"], locked=text_locked)
+                upload_whats_new(asc, app_id, version_id, locale, entry["whats_new"], locked=text_locked)
             if screenshots and (screenshots_locked is not None) is locked_pass:
-                upload_screenshots(client, version_id, locale, entry["screenshots"], locked=screenshots_locked)
+                upload_screenshots(asc, version_id, locale, entry["screenshots"], locked=screenshots_locked)
+        if creative and (screenshots_locked is not None) is locked_pass:
+            sync_creative_assets(
+                asc, app_id=app_id, version_id=version_id, locales=list(plan), creative_dir=creative_dir,
+                editable=screenshots_locked is None,
+            )
 
 
 def metadata_locks(version_string: str, state: str) -> tuple[str | None, str | None]:
@@ -749,8 +896,22 @@ def metadata_locks(version_string: str, state: str) -> tuple[str | None, str | N
 # MARK: - Build selection and review
 
 
-def refuse_pending_in_app_products(client: Any, app_id: str) -> None:
-    pending = pending_in_app_products(client, app_id)
+def pending_in_app_products(asc: asc_cli.Asc, app_id: str) -> list[str]:
+    """Products that App Review would expect with this version (Scowld has none)."""
+    pending: list[str] = []
+    for sub in rows(call(asc, "subscriptions", "list", "--app", app_id, "--paginate")):
+        a = attrs(sub)
+        if a.get("state") in PENDING_PRODUCT_STATES:
+            pending.append(f"subscription {a.get('productId') or sub['id']} ({a.get('state')})")
+    for iap in rows(call(asc, "iap", "list", "--app", app_id, "--paginate")):
+        a = attrs(iap)
+        if a.get("state") in PENDING_PRODUCT_STATES:
+            pending.append(f"in-app purchase {a.get('productId') or iap['id']} ({a.get('state')})")
+    return pending
+
+
+def refuse_pending_in_app_products(asc: asc_cli.Asc, app_id: str) -> None:
+    pending = pending_in_app_products(asc, app_id)
     if pending:
         fail(
             "App Store Connect has in-app products that would have to go to review with this "
@@ -769,25 +930,19 @@ def require_version_state(version_string: str, state: str, *, edits_metadata: bo
         fail(f"version {version_string} cannot be submitted for review (state={state})")
 
 
-def locales_of(client: Any, collection_path: str) -> set[str]:
-    return {
-        (row.get("attributes") or {}).get("locale") or ""
-        for row in iter_collection(client, f"{collection_path}?limit=50")
-    }
-
-
 def require_localizations(
-    client: Any, app_id: str, version_id: str, plan: dict[str, dict[str, Any]], *, listing: bool
+    asc: asc_cli.Asc, app_id: str, version_id: str, plan: dict[str, dict[str, Any]], *, listing: bool
 ) -> None:
     """Every repository locale must already exist on the version (and, for the listing,
     on its app info): the pipeline never adds a language."""
-    missing = sorted(set(plan) - locales_of(client, f"/appStoreVersions/{version_id}/appStoreVersionLocalizations"))
+    present = {attrs(row).get("locale") for row in version_localizations(asc, version_id)}
+    missing = sorted(set(plan) - present)
     if missing:
         fail(f"version has no {', '.join(missing)} localization in App Store Connect; add the language there first")
     needs_app_info = sorted(locale for locale, entry in plan.items() if listing and entry.get("app_info"))
     if needs_app_info:
-        info, _ = app_info_for_listing(client, app_id)
-        present = locales_of(client, f"/appInfos/{info['id']}/appInfoLocalizations")
+        info, _ = app_info_for_listing(asc, app_id)
+        present = {attrs(row).get("locale") for row in app_info_localizations(asc, app_id, info["id"])}
         missing = [locale for locale in needs_app_info if locale not in present]
         if missing:
             fail(f"app info has no {', '.join(missing)} localization in App Store Connect; add the language there first")
@@ -802,7 +957,7 @@ def version_key(version_string: str) -> tuple[int, ...] | None:
 
 
 def ensure_ios_app_store_version(
-    client: Any, *, bundle_id: str, expected_app_id: str, version_string: str
+    asc: asc_cli.Asc, *, bundle_id: str, expected_app_id: str, version_string: str
 ) -> None:
     """Create the App Store version for this release when it does not exist yet.
 
@@ -814,24 +969,19 @@ def ensure_ios_app_store_version(
     wanted = version_key(version_string)
     if wanted is None:
         fail(f"version {version_string!r} must look like 2.1 or 2.0.2")
-    app_id = find_app(client, bundle_id)
-    if app_id != expected_app_id:
-        fail(f"{bundle_id} resolved to App Store Connect app {app_id}, expected {expected_app_id}")
-    versions = ios_versions(client, app_id)
-    existing = [
-        row for row in versions if (row.get("attributes") or {}).get("versionString") == version_string
-    ]
+    app_id = find_app(asc, bundle_id, expected_app_id)
+    versions = ios_versions(asc, app_id)
+    existing = [row for row in versions if attrs(row).get("versionString") == version_string]
     if len(existing) > 1:
         fail(f"ambiguous: {len(existing)} iOS App Store versions are named {version_string!r}")
     if existing:
-        state = (existing[0].get("attributes") or {}).get("appStoreState") or ""
+        state = attrs(existing[0]).get("appStoreState") or ""
         print(f"App Store version {version_string} already exists ({state}); nothing to create")
         return
     problems: list[str] = []
     for row in versions:
-        attrs = row.get("attributes") or {}
-        other = attrs.get("versionString") or ""
-        state = attrs.get("appStoreState") or ""
+        other = attrs(row).get("versionString") or ""
+        state = attrs(row).get("appStoreState") or ""
         if state not in FINISHED_VERSION_STATES:
             problems.append(
                 f"version {other!r} is still {state or 'in an unknown state'}; release or remove it "
@@ -845,31 +995,19 @@ def ensure_ios_app_store_version(
             f"not creating App Store version {version_string} (nothing was changed):\n  "
             + "\n  ".join(problems)
         )
-    client.post(
-        "/appStoreVersions",
-        {
-            "data": {
-                "type": "appStoreVersions",
-                "attributes": {"platform": "IOS", "versionString": version_string},
-                "relationships": {"app": {"data": {"type": "apps", "id": app_id}}},
-            }
-        },
-    )
-    created = [
-        row for row in ios_versions(client, app_id)
-        if (row.get("attributes") or {}).get("versionString") == version_string
-    ]
+    call(asc, "versions", "create", "--app", app_id, "--version", version_string, "--platform", PLATFORM)
+    created = [row for row in ios_versions(asc, app_id) if attrs(row).get("versionString") == version_string]
     if len(created) != 1:
         fail(
             f"created App Store version {version_string}, but reading it back found "
             f"{len(created)} records; check it in App Store Connect before rerunning"
         )
-    state = (created[0].get("attributes") or {}).get("appStoreState") or ""
+    state = attrs(created[0]).get("appStoreState") or ""
     print(f"created App Store version {version_string} ({state or 'state not reported yet'})")
 
 
 def preflight(
-    client: Any,
+    asc: asc_cli.Asc,
     *,
     bundle_id: str,
     version_string: str,
@@ -878,29 +1016,31 @@ def preflight(
     do_whats_new: bool,
     do_screenshots: bool,
     do_submit: bool,
+    do_creative: bool = False,
+    creative_dir: Path = CREATIVE_DIR,
 ) -> None:
     """Read-only checks run before a build is uploaded, so a release fails early.
 
     The version must exist (IOS_CREATE_VERSION's step, which runs before this,
     creates a missing one) in a state that allows the enabled steps, with every
     repository locale; What's New must differ from the live version's; screenshots
-    that can no longer change must already match; no in-app product may have to ship
-    with it. The live run repeats every check, because App Store Connect can change
-    in between.
+    and creative assets that can no longer change must already match; no in-app
+    product may have to ship with it. The live run repeats every check, because
+    App Store Connect can change in between. The caller passes a read-only asc.
     """
-    app_id = find_app(client, bundle_id)
-    version = get_ios_app_store_version(client, app_id, version_string)
-    state = (version.get("attributes") or {}).get("appStoreState") or ""
-    edits_metadata = do_listing or do_whats_new or do_screenshots
+    app_id = find_app(asc, bundle_id)
+    version = get_ios_app_store_version(asc, app_id, version_string)
+    state = attrs(version).get("appStoreState") or ""
+    edits_metadata = do_listing or do_whats_new or do_screenshots or do_creative
     require_version_state(version_string, state, edits_metadata=edits_metadata, submit=do_submit)
     if edits_metadata:
-        require_localizations(client, app_id, version["id"], plan, listing=do_listing)
+        require_localizations(asc, app_id, version["id"], plan, listing=do_listing)
     if do_whats_new:
         for locale, entry in plan.items():
-            refuse_stale_whats_new(client, app_id, version["id"], locale, entry["whats_new"])
+            refuse_stale_whats_new(asc, app_id, version["id"], locale, entry["whats_new"])
     text_locked, screenshots_locked = metadata_locks(version_string, state)
     sync_metadata(
-        client,
+        asc,
         app_id=app_id,
         version_id=version["id"],
         plan=plan,
@@ -909,55 +1049,37 @@ def preflight(
         screenshots=do_screenshots,
         text_locked=text_locked,
         screenshots_locked=screenshots_locked,
+        creative=do_creative,
+        creative_dir=creative_dir,
         check_only=True,
     )
     if do_submit:
-        refuse_pending_in_app_products(client, app_id)
+        refuse_pending_in_app_products(asc, app_id)
     print(f"ASC preflight passed: version {version_string} ({state}) is ready for the enabled steps")
 
 
-def pending_in_app_products(client: Any, app_id: str) -> list[str]:
-    """Products that App Review would expect with this version (Scowld has none)."""
-    pending: list[str] = []
-    for group in iter_collection(client, f"/apps/{app_id}/subscriptionGroups?limit=200"):
-        for sub in iter_collection(client, f"/subscriptionGroups/{group['id']}/subscriptions?limit=200"):
-            attrs = sub.get("attributes") or {}
-            if attrs.get("state") in PENDING_PRODUCT_STATES:
-                pending.append(f"subscription {attrs.get('productId') or sub['id']} ({attrs.get('state')})")
-    for iap in iter_collection(client, f"/apps/{app_id}/inAppPurchasesV2?limit=200"):
-        attrs = iap.get("attributes") or {}
-        if attrs.get("state") in PENDING_PRODUCT_STATES:
-            pending.append(f"in-app purchase {attrs.get('productId') or iap['id']} ({attrs.get('state')})")
-    return pending
-
-
-def verify_build(client: Any, build_id: str, version_string: str, build_number: str) -> None:
+def verify_build(asc: asc_cli.Asc, build_id: str, version_string: str, build_number: str) -> None:
     """Re-read the build and refuse anything but this run's processed build."""
-    payload = client.get(
-        f"/builds/{build_id}?"
-        + urllib.parse.urlencode(
-            {
-                "include": "preReleaseVersion",
-                "fields[builds]": "version,processingState,expired,preReleaseVersion",
-                "fields[preReleaseVersions]": "version,platform",
-            }
-        )
-    )
-    data = payload.get("data") or {}
-    attrs = data.get("attributes") or {}
-    pre = next((row for row in payload.get("included") or [] if row.get("type") == "preReleaseVersions"), {})
-    pre_attrs = pre.get("attributes") or {}
+    payload = call(asc, "builds", "list", "--app", ASC_APP_ID, "--build-number", build_number, "--version",
+                   version_string, "--platform", PLATFORM, "--processing-state", "all", "--include", "preReleaseVersion")
+    included = {(row.get("type"), row.get("id")): row for row in (payload or {}).get("included") or []}
+    build = next((row for row in rows(payload) if row.get("id") == build_id), None)
     problems = []
-    if data.get("id") != build_id:
-        problems.append(f"id {data.get('id')!r}")
-    if attrs.get("version") != build_number:
-        problems.append(f"build number {attrs.get('version')!r}")
-    if attrs.get("processingState") != "VALID":
-        problems.append(f"processing state {attrs.get('processingState')!r}")
-    if attrs.get("expired"):
+    if build is None:
+        problems.append("not listed for this app, version and build number")
+        a: dict[str, Any] = {}
+        pre: dict[str, Any] = {}
+    else:
+        a = attrs(build)
+        pre = attrs(included.get(("preReleaseVersions", related_id(build, "preReleaseVersion"))))
+    if build is not None and a.get("version") != build_number:
+        problems.append(f"build number {a.get('version')!r}")
+    if build is not None and a.get("processingState") != "VALID":
+        problems.append(f"processing state {a.get('processingState')!r}")
+    if a.get("expired"):
         problems.append("expired")
-    if pre_attrs.get("version") != version_string or pre_attrs.get("platform") != "IOS":
-        problems.append(f"version {pre_attrs.get('platform')} {pre_attrs.get('version')!r}")
+    if build is not None and (pre.get("version") != version_string or pre.get("platform") != PLATFORM):
+        problems.append(f"version {pre.get('platform')} {pre.get('version')!r}")
     if problems:
         fail(
             f"build {build_id} is not {version_string} ({build_number}), VALID and unexpired: "
@@ -965,13 +1087,13 @@ def verify_build(client: Any, build_id: str, version_string: str, build_number: 
         )
 
 
-def attached_build_id(client: Any, version_id: str) -> str | None:
-    payload = client.get(f"/appStoreVersions/{version_id}/build")
-    return (payload.get("data") or {}).get("id")
+def attached_build_id(asc: asc_cli.Asc, version_id: str) -> str | None:
+    payload = call(asc, "versions", "view", "--version-id", version_id, "--include", "build")
+    return related_id(data(payload) or {}, "build")
 
 
-def confirm_selected_build(client: Any, version_id: str, build_id: str) -> None:
-    current = attached_build_id(client, version_id)
+def confirm_selected_build(asc: asc_cli.Asc, version_id: str, build_id: str) -> None:
+    current = attached_build_id(asc, version_id)
     if current != build_id:
         fail(
             f"App Store version {version_id} has build {current or 'none'} selected, "
@@ -979,61 +1101,71 @@ def confirm_selected_build(client: Any, version_id: str, build_id: str) -> None:
         )
 
 
-def select_build(client: Any, version_id: str, build_id: str, version_string: str, build_number: str) -> None:
+def select_build(asc: asc_cli.Asc, version_id: str, build_id: str, version_string: str, build_number: str) -> None:
     """Explicitly select this run's build for the version, then read it back."""
-    verify_build(client, build_id, version_string, build_number)
-    client.request(
-        "PATCH",
-        f"/appStoreVersions/{version_id}/relationships/build",
-        body={"data": {"type": "builds", "id": build_id}},
-    )
-    confirm_selected_build(client, version_id, build_id)
+    verify_build(asc, build_id, version_string, build_number)
+    call(asc, "versions", "attach-build", "--version-id", version_id, "--build-id", build_id)
+    confirm_selected_build(asc, version_id, build_id)
     print(f"  selected build {build_number} ({build_id}) for version {version_string}")
 
 
-def set_release_type(client: Any, version_id: str, *, public_release: bool) -> None:
+def set_release_type(asc: asc_cli.Asc, version_id: str, *, public_release: bool) -> None:
     release_type = RELEASE_TYPE_PUBLIC if public_release else RELEASE_TYPE_MANUAL
-    client.patch(
-        f"/appStoreVersions/{version_id}",
-        {"data": {"type": "appStoreVersions", "id": version_id, "attributes": {"releaseType": release_type}}},
-    )
+    call(asc, "versions", "update", "--version-id", version_id, "--release-type", release_type)
     print(
         "  release type: "
         + ("release automatically after approval" if public_release else "manual release after approval")
     )
 
 
-def get_or_create_draft_submission(client: Any, app_id: str) -> str:
-    """Return the app's draft (READY_FOR_REVIEW) iOS review submission, creating one."""
-    drafts = client.get(
-        f"/apps/{app_id}/reviewSubmissions?"
-        + urllib.parse.urlencode({"filter[state]": "READY_FOR_REVIEW", "filter[platform]": "IOS", "limit": "5"})
-    ).get("data") or []
+# Review submission items carry their related ids only when asc asks for them.
+ITEM_RELATIONSHIPS = ("appStoreVersion", "subscriptionVersion", "inAppPurchaseVersion", "appAssetLibraryImage")
+
+
+def submission_items(asc: asc_cli.Asc, submission_id: str) -> list[dict[str, Any]]:
+    """The submission's items with their related ids."""
+    return rows(
+        call(
+            asc, "review", "items-list", "--submission", submission_id, "--include", ",".join(ITEM_RELATIONSHIPS),
+            "--paginate",
+        )
+    )
+
+
+def draft_submission_ids(asc: asc_cli.Asc, app_id: str) -> list[str]:
+    payload = call(
+        asc, "review", "submissions-list", "--app", app_id, "--platform", PLATFORM, "--state", "READY_FOR_REVIEW",
+        "--paginate",
+    )
+    return [row["id"] for row in rows(payload)]
+
+
+def get_or_create_draft_submission(asc: asc_cli.Asc, app_id: str) -> str:
+    """Return the app's draft (READY_FOR_REVIEW) iOS review submission for the version, creating one.
+
+    A draft holding creative images belongs to their own review and is skipped.
+    """
+    drafts = [
+        submission_id
+        for submission_id in draft_submission_ids(asc, app_id)
+        if not any(related_id(item, "appAssetLibraryImage") for item in submission_items(asc, submission_id))
+    ]
     if len(drafts) > 1:
         fail(f"ambiguous: {len(drafts)} draft review submissions; remove the extras in App Store Connect")
     if drafts:
-        return drafts[0]["id"]
-    created = client.post(
-        "/reviewSubmissions",
-        {
-            "data": {
-                "type": "reviewSubmissions",
-                "attributes": {"platform": "IOS"},
-                "relationships": {"app": {"data": {"type": "apps", "id": app_id}}},
-            }
-        },
-    )
-    return created["data"]["id"]
+        return drafts[0]
+    created = data(call(asc, "review", "submissions-create", "--app", app_id, "--platform", PLATFORM)) or {}
+    if not created.get("id"):
+        fail("asc did not report the new review submission's id")
+    return created["id"]
 
 
-def draft_holds_version(client: Any, submission_id: str, version_id: str) -> bool:
+def draft_holds_version(asc: asc_cli.Asc, submission_id: str, version_id: str) -> bool:
     """True if the draft already holds this version; fails if it holds anything else."""
     holds = False
     others: list[str] = []
-    # Relationships are only returned when requested with `include`.
-    for item in iter_collection(client, f"/reviewSubmissions/{submission_id}/items?limit=50&include=appStoreVersion"):
-        related = (((item.get("relationships") or {}).get("appStoreVersion") or {}).get("data") or {}).get("id")
-        if related == version_id:
+    for item in submission_items(asc, submission_id):
+        if related_id(item, "appStoreVersion") == version_id:
             holds = True
         else:
             others.append(item.get("id", "?"))
@@ -1045,26 +1177,32 @@ def draft_holds_version(client: Any, submission_id: str, version_id: str) -> boo
     return holds
 
 
-def submit_for_review(client: Any, submission_id: str, version_id: str, *, already_added: bool) -> None:
-    if not already_added:
-        client.post(
-            "/reviewSubmissionItems",
-            {
-                "data": {
-                    "type": "reviewSubmissionItems",
-                    "relationships": {
-                        "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": submission_id}},
-                        "appStoreVersion": {"data": {"type": "appStoreVersions", "id": version_id}},
-                    },
-                }
-            },
+def check_draft_items(asc: asc_cli.Asc, submission_id: str, *, version_id: str) -> None:
+    """Right before submitting: the draft must hold this version and nothing else.
+
+    A reused draft can gain items added by hand or by another tool, and Scowld's
+    release submits nothing but the version, so they must not ride along into
+    App Review.
+    """
+    items = submission_items(asc, submission_id)
+    unexpected = [item.get("id") for item in items if related_id(item, "appStoreVersion") != version_id]
+    if unexpected:
+        fail(
+            f"review submission {submission_id} holds items this release did not choose "
+            f"({', '.join(map(str, unexpected))}); remove them in App Store Connect and rerun"
         )
-    # Submitting is a PATCH with submitted=true; there is no /submit action.
-    client.request(
-        "PATCH",
-        f"/reviewSubmissions/{submission_id}",
-        body={"data": {"type": "reviewSubmissions", "id": submission_id, "attributes": {"submitted": True}}},
-    )
+    if not items:
+        fail(f"review submission {submission_id} does not hold App Store version {version_id}; not submitting it")
+
+
+def submit_for_review(asc: asc_cli.Asc, submission_id: str, version_id: str, *, already_added: bool) -> None:
+    if not already_added:
+        call(
+            asc, "review", "items-add", "--submission", submission_id, "--item-type", "appStoreVersions",
+            "--item-id", version_id, "--if-exists", "skip",
+        )
+    check_draft_items(asc, submission_id, version_id=version_id)
+    call(asc, "review", "submissions-submit", "--id", submission_id, "--confirm")
     print(f"  submitted App Store version {version_id} for review (submission {submission_id})")
 
 
@@ -1074,16 +1212,22 @@ def submit_for_review(client: Any, submission_id: str, version_id: str, *, alrea
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--metadata-dir", type=Path, default=METADATA_DIR, help="store/metadata/ios")
+    parser.add_argument(
+        "--creative-dir",
+        type=Path,
+        default=CREATIVE_DIR,
+        help="Product page header and search results images, one per folder: "
+        + ", ".join(slot[0] for slot in CREATIVE_SLOTS),
+    )
     parser.add_argument("--bundle-id", default=DEFAULT_BUNDLE_ID)
-    parser.add_argument("--app-id", default=DEFAULT_APP_ID, help="Expected App Store Connect app id (--create-version)")
     parser.add_argument("--version", help="Marketing version from the release tag (v2.0.2 → 2.0.2)")
     parser.add_argument("--build-id", help="App Store Connect id of the build uploaded by this run")
     parser.add_argument("--build-number", help="CFBundleVersion of the build uploaded by this run")
-    parser.add_argument("--dry-run", action="store_true", help="Validate switches and local files only — no network")
+    parser.add_argument("--dry-run", action="store_true", help="Validate switches and local files only — no asc calls")
     parser.add_argument(
         "--preflight",
         action="store_true",
-        help="Read-only App Store Connect checks before the build is uploaded (no changes)",
+        help="Read-only App Store Connect checks before the build is uploaded (asc in read-only mode)",
     )
     parser.add_argument(
         "--create-version",
@@ -1091,6 +1235,10 @@ def main(argv: list[str] | None = None) -> None:
         help="Create the App Store version for --version when it is missing (CREATE_IOS_VERSION)",
     )
     args = parser.parse_args(argv)
+
+    # find_app() checks the pinned app's bundle id, so only this app is accepted.
+    if args.bundle_id != DEFAULT_BUNDLE_ID:
+        fail(f"this publisher only supports the Scowld iOS bundle ({DEFAULT_BUNDLE_ID})")
 
     if args.create_version:
         if args.preflight:
@@ -1106,9 +1254,9 @@ def main(argv: list[str] | None = None) -> None:
             print(f"ASC dry-run — would create App Store version {args.version} if it is missing")
             return
         ensure_ios_app_store_version(
-            client_from_environment(),
+            asc_from_environment(),
             bundle_id=args.bundle_id,
-            expected_app_id=args.app_id,
+            expected_app_id=ASC_APP_ID,
             version_string=args.version,
         )
         return
@@ -1116,11 +1264,15 @@ def main(argv: list[str] | None = None) -> None:
     do_listing = truthy("UPLOAD_LISTING")
     do_whats_new = truthy("UPLOAD_WHATS_NEW")
     do_screenshots = truthy("UPLOAD_SCREENSHOTS")
+    do_creative = truthy("UPLOAD_CREATIVE_ASSETS")
     do_submit = truthy("SUBMIT_IOS_REVIEW")
     do_public = truthy("PUBLIC_RELEASE")
 
-    if not (do_listing or do_whats_new or do_screenshots or do_submit):
-        print("ASC release skipped — UPLOAD_LISTING / UPLOAD_WHATS_NEW / UPLOAD_SCREENSHOTS / SUBMIT_IOS_REVIEW are off")
+    if not (do_listing or do_whats_new or do_screenshots or do_creative or do_submit):
+        print(
+            "ASC release skipped — UPLOAD_LISTING / UPLOAD_WHATS_NEW / UPLOAD_SCREENSHOTS / "
+            "UPLOAD_CREATIVE_ASSETS / SUBMIT_IOS_REVIEW are off"
+        )
         return
     if do_public and not do_submit:
         fail("PUBLIC_RELEASE only applies when SUBMIT_IOS_REVIEW is on")
@@ -1133,22 +1285,23 @@ def main(argv: list[str] | None = None) -> None:
         upload_screenshots=do_screenshots,
         metadata_dir=args.metadata_dir,
         root=ROOT,
+        upload_creative=do_creative,
+        creative_dir=args.creative_dir,
     )
     if args.dry_run:
         print(
-            f"ASC dry-run — local inputs OK for {', '.join(plan) or 'no locales'}; no API calls "
+            f"ASC dry-run — local inputs OK for {', '.join(plan) or 'no locales'}; no asc calls "
             f"(listing={do_listing} whats_new={do_whats_new} screenshots={do_screenshots} "
-            f"submit={do_submit} public_release={do_public})"
+            f"creative={do_creative} submit={do_submit} public_release={do_public})"
         )
         return
 
     if not args.version:
         fail("--version is required for live App Store Connect calls")
-    client = client_from_environment()
-    edits_metadata = do_listing or do_whats_new or do_screenshots
+    edits_metadata = do_listing or do_whats_new or do_screenshots or do_creative
     if args.preflight:
         preflight(
-            client,
+            asc_from_environment(read_only=True),
             bundle_id=args.bundle_id,
             version_string=args.version,
             plan=plan,
@@ -1156,12 +1309,15 @@ def main(argv: list[str] | None = None) -> None:
             do_whats_new=do_whats_new,
             do_screenshots=do_screenshots,
             do_submit=do_submit,
+            do_creative=do_creative,
+            creative_dir=args.creative_dir,
         )
         return
-    app_id = find_app(client, args.bundle_id)
-    version = get_ios_app_store_version(client, app_id, args.version)
+    asc = asc_from_environment()
+    app_id = find_app(asc, args.bundle_id)
+    version = get_ios_app_store_version(asc, app_id, args.version)
     version_id = version["id"]
-    state = (version.get("attributes") or {}).get("appStoreState") or ""
+    state = attrs(version).get("appStoreState") or ""
     print(f"ASC app={app_id} version={args.version} id={version_id} state={state}")
 
     # A rerun after this pipeline already submitted: nothing may change any more, so the
@@ -1172,11 +1328,11 @@ def main(argv: list[str] | None = None) -> None:
         require_version_state(args.version, state, edits_metadata=edits_metadata, submit=do_submit)
         if do_submit:
             # Checked before any change, so a blocked submission leaves the listing untouched.
-            refuse_pending_in_app_products(client, app_id)
+            refuse_pending_in_app_products(asc, app_id)
 
     text_locked, screenshots_locked = metadata_locks(args.version, state)
     sync_metadata(
-        client,
+        asc,
         app_id=app_id,
         version_id=version_id,
         plan=plan,
@@ -1185,26 +1341,28 @@ def main(argv: list[str] | None = None) -> None:
         screenshots=do_screenshots,
         text_locked=text_locked,
         screenshots_locked=screenshots_locked,
+        creative=do_creative,
+        creative_dir=args.creative_dir,
     )
 
     if already_submitted:
         if do_submit:
-            confirm_selected_build(client, version_id, args.build_id)
+            confirm_selected_build(asc, version_id, args.build_id)
             print(f"ASC submit skipped — version already {state} with this run's build (idempotent)")
         print("ASC release step finished")
         return
 
     if do_submit:
         print("selecting this run's build…")
-        select_build(client, version_id, args.build_id, args.version, args.build_number)
-        set_release_type(client, version_id, public_release=do_public)
-        submission_id = get_or_create_draft_submission(client, app_id)
-        already_added = draft_holds_version(client, submission_id, version_id)
+        select_build(asc, version_id, args.build_id, args.version, args.build_number)
+        set_release_type(asc, version_id, public_release=do_public)
+        submission_id = get_or_create_draft_submission(asc, app_id)
+        already_added = draft_holds_version(asc, submission_id, version_id)
         # Recheck immediately before submitting: the selection must still be this run's build.
-        verify_build(client, args.build_id, args.version, args.build_number)
-        confirm_selected_build(client, version_id, args.build_id)
+        verify_build(asc, args.build_id, args.version, args.build_number)
+        confirm_selected_build(asc, version_id, args.build_id)
         print("submitting for App Store review…")
-        submit_for_review(client, submission_id, version_id, already_added=already_added)
+        submit_for_review(asc, submission_id, version_id, already_added=already_added)
 
     print("ASC release step finished")
 
