@@ -5,7 +5,7 @@ Scowld's App Store releases run on
 shared set of reusable workflows and Python tooling. Scowld's own release scripts
 (`scripts/store/` at `5283a48`) moved there unchanged as its `scowld` flow, so a
 release does exactly what this repository's pipeline did. Two thin caller workflows
-pin store-release by commit SHA, with the version in a `# vX.Y.Z` comment (v0.2.0
+pin store-release by commit SHA, with the version in a `# vX.Y.Z` comment (v0.3.0
 today):
 
 | Workflow | Trigger | What it does |
@@ -20,16 +20,16 @@ releases: only a tag push does. The callers are rendered by store-release
 anything but a store-release release. Dependabot moves both pins to a new
 store-release release in one PR of its own, seven days after it is published.
 
-How the pipeline behaves is documented in store-release (v0.2.0):
-[Scowld's flow](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/flows.md#scowld-iosflow--scowld),
-[switches](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/switches.md),
-[secrets](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/secrets.md),
-[jobs and checks](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/workflows.md),
-[store plan](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/plan.md),
-[re-runs](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/rerun.md),
-[verifying downloads](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/verification.md),
-[the config file](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/config.md)
-and [how a new release reaches this repository](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/release-process.md#how-apps-receive-a-release).
+How the pipeline behaves is documented in store-release (v0.3.0):
+[Scowld's flow](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/flows.md#scowld-iosflow--scowld),
+[switches](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/switches.md),
+[secrets](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/secrets.md),
+[jobs and checks](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/workflows.md),
+[store plan](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/plan.md),
+[re-runs](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/rerun.md),
+[verifying downloads](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/verification.md),
+[the config file](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/config.md)
+and [how a new release reaches this repository](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/release-process.md#how-apps-receive-a-release).
 This file keeps only Scowld's own facts.
 
 **Xcode Cloud was removed on 2026-10-14.** Scowld's Xcode Cloud "Default" workflow
@@ -205,7 +205,9 @@ The CI Apple Development identity is certificate "Apple Development: Created via
 ID `NVNGDQGCKK`, **expiring 2027-10-14**. The same identity signs the archives of Fud
 AI, Verceltics, Abysm, iitjee, Quit All and Sesslet, because Apple allows one
 API-created development certificate per API key. Renewing it:
-[the shared CI signing identity](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/secrets.md#the-shared-ci-signing-identity).
+[the shared CI signing identity](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/provenance.md#facts-that-only-concern-the-six-apps);
+copying it to another repository:
+[sharing one development identity](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/secrets.md#sharing-one-development-identity-across-your-apps).
 When it is replaced, update both `IOS_DEV_SIGNING_*` secrets here and in every
 repository listed above.
 
@@ -246,7 +248,7 @@ in place of the two `--certificate-*` identity lines above.
    that would stop it.
 4. Turn on only the switches you want, then push the tag `vX.Y.Z`.
 5. If a later step fails, fix the cause and use **Re-run failed jobs**
-   ([re-runs](https://github.com/apoorvdarshan/store-release/blob/v0.2.0/docs/rerun.md)):
+   ([re-runs](https://github.com/apoorvdarshan/store-release/blob/v0.3.0/docs/rerun.md)):
    waiting for the build is its own job, so a re-run reuses the processed build.
 
 ## Checking locally
