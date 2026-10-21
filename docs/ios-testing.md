@@ -87,6 +87,14 @@ with audio that needs no hardware (`FakeLiveAudio`), and any HTTP is answered
 in-process by a `URLProtocol` stub, so no provider key, network, microphone or
 speaker is used. The unit-test host app stays idle on a black screen.
 
+Unit tests never create a `WKWebView`: one starts WebKit's GPU, networking and
+web content processes in the test host, which on CI took up to 30 seconds to
+launch and stalled the main thread under the tests that ran next. The companion
+coordinator's navigation and message handling are checked without a web view.
+Messages are compared as JSON, never as encoded strings: `JSONSerialization`
+writes a dictionary's keys in an order that can differ between two equal
+dictionaries.
+
 UI tests launch the app with `--ui-testing` (plus `--ui-testing-reset`,
 `--ui-testing-onboarded`, `--ui-testing-seed-chat`), handled by
 `ScowldTestEnvironment`, which compiles to `false` in Release builds and is
