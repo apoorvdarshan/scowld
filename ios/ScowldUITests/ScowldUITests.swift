@@ -87,6 +87,21 @@ final class ScowldUITests: XCTestCase {
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: length) + text)
     }
 
+    /// Flips a switch. Since iOS 26 a switch flips through a press gesture, which
+    /// starts only once the app has seen the finger down for a moment. A tap lifts
+    /// the finger about 50 ms after it lands, so when the app is busy as the tap
+    /// arrives (on CI it often is, answering the test's own accessibility queries),
+    /// the lift is already waiting when the app handles the touch, the press never
+    /// starts and the switch ignores the tap without moving. A one-second press
+    /// still flips it unless the app is blocked for longer than that. It lands on
+    /// the toggle's activation point, which is the switch itself, not the middle
+    /// of the row.
+    @MainActor
+    private func flip(_ toggle: XCUIElement) {
+        waitUntil(toggle, "hittable == true")
+        toggle.press(forDuration: 1)
+    }
+
     @MainActor
     private func choose(_ option: String, from picker: XCUIElement, in app: XCUIApplication) {
         picker.tap()
@@ -378,7 +393,7 @@ final class ScowldUITests: XCTestCase {
         let captions = app.switches["settings.captions"]
         XCTAssertTrue(captions.waitForExistence(timeout: 10))
         XCTAssertEqual(captions.value as? String, "0")
-        captions.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        flip(captions)
         waitUntil(captions, "value == %@", "1")
 
         relaunchPreservingData(app)

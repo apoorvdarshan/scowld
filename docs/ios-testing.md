@@ -104,6 +104,14 @@ never requests microphone or speech-recognition permission (so hands-free
 listening never starts). `--ui-testing-reset` removes only Scowld's simulator
 preferences, saved chats and provider keys before launch.
 
+UI tests flip a switch with a one-second press, not a tap. Since iOS 26 a switch
+flips through a press gesture that starts only once the app has seen the finger
+down for a moment. A tap lifts about 50 ms after it lands, so when the app is busy
+as the tap arrives (on CI it often is, answering the test's own accessibility
+queries), the press never starts and the switch ignores the tap. The other
+controls the tests use (buttons, tabs, segmented controls, menus, swipe actions)
+respond to a tap even when the app handles it late.
+
 UI tests leave out the bundled 3D companion (a WebGL page in a web view) and show
 a black placeholder behind the same native composer. CI simulators have no GPU,
 so they render it in software: with it loaded, every UI query took 10–60 seconds
