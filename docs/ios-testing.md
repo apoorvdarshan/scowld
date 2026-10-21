@@ -15,17 +15,31 @@ bash scripts/test-ios.sh
 ```
 
 The script creates its own simulator ("Scowld CI") and deletes it afterwards; it
-never erases or resets an existing simulator. Build products are reused under
+never erases or resets an existing simulator. It starts booting the simulator,
+builds the app and tests (`build-for-testing`) meanwhile, then runs them
+(`test-without-building`). Build products are reused under
 `~/Library/Developer/Xcode/DerivedData/Scowld-simulator-tests`, and each run keeps
-its own `TestResults/<timestamp>/Tests.xcresult` (printed at the end). Override
-`IOS_TEST_DERIVED_DATA`, `IOS_TEST_PACKAGES` or `IOS_TEST_RESULTS` when needed.
-The run fails if either test bundle runs zero tests
-(`scripts/ci/check_xcresult.py`), and prints the per-bundle counts.
+its own `TestResults/<timestamp>/` with `Build.xcresult` and `Tests.xcresult` (the
+latter printed at the end). Override `IOS_TEST_DERIVED_DATA`, `IOS_TEST_PACKAGES`
+or `IOS_TEST_RESULTS` when needed. Extra arguments go to the test step. The run
+fails if either test bundle runs zero tests (`scripts/ci/check_xcresult.py`), and
+prints the per-bundle counts.
 
 CI uses the GitHub-hosted `xcode-27` runner (Xcode 27.0). Tests run serially on
 one simulator. Results, failure screenshots and logs are kept as the
 `ios-test-results` artifact for seven days. Superseded pull-request runs are
 cancelled; `main` and release runs never are.
+
+On CI the tests start only once the new simulator has finished setting itself up.
+Minutes after a simulator's first boot, SpringBoard runs a background task in which
+PosterBoard prewarms the wallpaper gallery, rendering dozens of wallpapers (5 to 12
+minutes after boot in the runs measured). On the runner (3 CPUs, 7 GB, no GPU) that
+takes every CPU and about 2 GB of memory for one to three minutes; UI tests that ran
+meanwhile saw accessibility checks of 4 to 30 seconds and failed at random. The
+script waits for PosterBoard to log the end of that prewarm (usually it has ended
+by the time the build finishes), at most until 15 minutes after the boot, and says
+how long it waited. Local runs skip the wait; the slowdown was measured on the CI
+runner.
 
 ## Coverage
 
@@ -111,6 +125,11 @@ as the tap arrives (on CI it often is, answering the test's own accessibility
 queries), the press never starts and the switch ignores the tap. The other
 controls the tests use (buttons, tabs, segmented controls, menus, swipe actions)
 respond to a tap even when the app handles it late.
+
+Every UI query (`exists`, `isHittable`, a wait's check) takes a snapshot of the
+app's whole accessibility tree, which keeps the app busy for a fraction of a second
+on CI. Helpers stop querying once they have their answer: `reveal(_:in:)` checks
+whether the element is on screen before each swipe and stops as soon as it is.
 
 UI tests leave out the bundled 3D companion (a WebGL page in a web view) and show
 a black placeholder behind the same native composer. CI simulators have no GPU,
