@@ -1,7 +1,7 @@
 #!/bin/bash
 # Simulator unit and UI tests. This script never archives, uploads or publishes an app.
 #
-# Usage: bash scripts/test-ios.sh [extra xcodebuild arguments, e.g. -only-testing:ScowldTests]
+# Usage: bash scripts/test-ios.sh [extra xcodebuild test arguments, e.g. -only-testing:ScowldTests]
 # A partial run must name the bundles it expects in IOS_TEST_BUNDLES.
 set -euo pipefail
 
@@ -47,28 +47,72 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# A new simulator finishes setting itself up in the background, and the costliest
+# step comes minutes after the first boot: SpringBoard schedules a background task in
+# which PosterBoard prewarms the wallpaper gallery, rendering dozens of wallpapers. It
+# ran 5 to 12 minutes after boot. On the GitHub runner (3 CPUs, 7 GB, no GPU) that
+# rendering takes every CPU and about 2 GB of memory for one to three minutes, and UI
+# tests running meanwhile saw accessibility checks of 4 to 30 seconds instead of a
+# fraction of one. So the simulator boots before the build and sets up while the app
+# builds, and on CI the tests wait for PosterBoard to log the end of the prewarm.
+xcrun simctl boot "$simulator_id"
+booted_at=$SECONDS
+
+# Returns once PosterBoard has logged the outcome of its gallery prewarm, or 15 minutes
+# after the boot (the slowest runner measured needed 12); then the tests start anyway.
+wait_for_simulator_setup() {
+  local outcome='Prewarm is complete|prewarm bailed|prewarm finished with error|Prewarm invalidated'
+  local started=$SECONDS line
+  while true; do
+    line="$(xcrun simctl spawn "$simulator_id" log show --style compact --last 30m \
+      --predicate 'subsystem == "com.apple.PosterBoard" AND category == "Prewarm"' 2>/dev/null \
+      | grep -m 1 -E "$outcome" || true)"
+    if [[ -n "$line" ]]; then
+      echo "Simulator set up after $(( (SECONDS - booted_at) / 60 )) min; waited $((SECONDS - started)) s after the build: $line"
+      return 0
+    fi
+    if (( SECONDS - booted_at >= 900 )); then
+      echo 'warning: PosterBoard has not logged the end of its gallery prewarm 15 minutes after boot; starting the tests anyway' >&2
+      return 0
+    fi
+    sleep 10
+  done
+}
+
 # Simulator builds are signed ad hoc ("Sign to Run Locally"): no certificate or
 # provisioning profile is needed, and the signature carries the application
 # identifier that Keychain access requires (unit and UI tests save provider keys).
 # Failure screenshots and recordings stay in the result bundle; the simulator
 # diagnostics collection is skipped (on CI it only timed out after 10 minutes).
+xcode_options=(
+  -project ios/Scowld.xcodeproj
+  -scheme Scowld
+  -configuration Debug
+  -destination "platform=iOS Simulator,id=$simulator_id"
+  -destination-timeout 120
+  -derivedDataPath "$derived_data"
+  -clonedSourcePackagesDirPath "$packages"
+  -onlyUsePackageVersionsFromResolvedFile
+  -enableCodeCoverage YES
+)
 status=0
-xcodebuild test \
-  -project ios/Scowld.xcodeproj \
-  -scheme Scowld \
-  -configuration Debug \
-  -destination "platform=iOS Simulator,id=$simulator_id" \
-  -destination-timeout 120 \
-  -derivedDataPath "$derived_data" \
-  -clonedSourcePackagesDirPath "$packages" \
-  -onlyUsePackageVersionsFromResolvedFile \
-  -resultBundlePath "$results/Tests.xcresult" \
-  -enableCodeCoverage YES \
-  -parallel-testing-enabled NO \
-  -maximum-concurrent-test-simulator-destinations 1 \
-  -collect-test-diagnostics never \
-  "$@" \
+xcodebuild build-for-testing "${xcode_options[@]}" \
+  -resultBundlePath "$results/Build.xcresult" \
   2>&1 | tee "$results/xcodebuild.log" || status=$?
+
+if [[ "$status" == 0 ]]; then
+  # Only CI waits: the slowdown was measured on the GitHub runner.
+  if [[ "${CI:-}" == true ]]; then
+    wait_for_simulator_setup
+  fi
+  xcodebuild test-without-building "${xcode_options[@]}" \
+    -resultBundlePath "$results/Tests.xcresult" \
+    -parallel-testing-enabled NO \
+    -maximum-concurrent-test-simulator-destinations 1 \
+    -collect-test-diagnostics never \
+    "$@" \
+    2>&1 | tee -a "$results/xcodebuild.log" || status=$?
+fi
 
 # A test bundle that silently ran nothing must fail the run too.
 if [[ -e "$results/Tests.xcresult" ]]; then
