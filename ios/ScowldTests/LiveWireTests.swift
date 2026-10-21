@@ -18,6 +18,16 @@ final class LiveWireTests: XCTestCase {
         try XCTUnwrap(LiveJSON.object(message))
     }
 
+    /// The message re-encoded with sorted keys, so equal messages compare equal.
+    /// JSONSerialization writes a dictionary's keys in the dictionary's own order,
+    /// and two dictionaries built separately with the same keys can order them
+    /// differently, so the same message can come out as different strings.
+    private func canonical(_ message: String) throws -> String {
+        let object = try JSONSerialization.jsonObject(with: Data(message.utf8))
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        return String(decoding: data, as: UTF8.self)
+    }
+
     // MARK: Gemini
 
     func testPremiumGoesThroughScowldAndReadsItsNotices() throws {
@@ -27,7 +37,10 @@ final class LiveWireTests: XCTestCase {
         XCTAssertEqual(request.url?.absoluteString, "wss://scowld.xyz/api/live")
         XCTAssertEqual(request.value(forHTTPHeaderField: "X-Scowld-User"), "$RCAnonymousID:abc")
         XCTAssertNil(request.value(forHTTPHeaderField: "x-goog-api-key"))
-        XCTAssertEqual(wire.setupMessages(for: premium, resumptionHandle: nil), GeminiLiveWire().setupMessages(for: premium, resumptionHandle: nil))
+        XCTAssertEqual(
+            try wire.setupMessages(for: premium, resumptionHandle: nil).map(canonical),
+            try GeminiLiveWire().setupMessages(for: premium, resumptionHandle: nil).map(canonical)
+        )
         XCTAssertEqual(wire.inputSampleRate, 16_000)
         XCTAssertNil(wire.truncateMessage(itemID: "i", audioEndMs: 10))
 
