@@ -1,6 +1,6 @@
 # App Store Listing
 
-App Store Connect submission details for Scowld v2.1.0, including live voice and optional Scowld Premium. Each field is in a code block for easy copy-paste.
+App Store Connect submission details for Scowld v2.1.1, including live voice and optional Scowld Premium. Each field is in a code block for easy copy-paste.
 
 > Reference copy. The release automation uploads the listing from
 > [`store/metadata/ios/`](store/metadata/ios), which is exported from the live
@@ -81,19 +81,9 @@ App Store Connect submission details for Scowld v2.1.0, including live voice and
 
     Not affiliated with Google, OpenAI, xAI, Apple, or Cloudflare.
 
-## What's New (v2.1.0)
+## What's New (v2.1.1)
 
-    Scowld 2.1 introduces live voice conversations.
-
-    - Talk naturally with Google Gemini Live, OpenAI Realtime, or xAI Grok Voice, and interrupt replies by speaking.
-    - Use optional Scowld Premium to talk without an API key, with weekly or yearly plans and non-expiring minute packs.
-    - Bring your own supported provider key with no Scowld subscription; provider fees apply.
-    - Choose and preview built-in voices, with live lip sync and optional captions.
-    - Share optional camera context with Premium, Gemini, or OpenAI.
-    - Live transcripts are saved on your device, and past chats can be reused as context.
-    - Support development with optional one-time tips.
-
-    This update replaces typed chat and separate speech-to-text/text-to-speech settings with live voice. Claude, Ollama, and the other text-only integrations are no longer offered. Existing saved keys for Gemini, OpenAI, and xAI remain available in Own API Key mode.
+    Bug fixes and improvements.
 
 ## Keywords (100 chars max)
 
