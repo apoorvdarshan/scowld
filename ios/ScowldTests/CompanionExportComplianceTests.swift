@@ -57,22 +57,26 @@ final class CompanionExportComplianceTests: XCTestCase {
         }
     }
 
-    func testTheRemovedSharePageIsNeverOpened() async {
+    // The coordinator decides without a web view. Creating a WKWebView here would
+    // launch WebKit's GPU, networking and web content processes inside the test
+    // host; on CI they took up to 30 seconds to start and stalled the main thread
+    // under the tests that ran next.
+
+    func testTheRemovedSharePageIsNeverOpened() {
         let coordinator = AmicaFullView.Coordinator(memoryStore: MemoryStore(inMemory: true))
-        let webView = WKWebView()
         for path in ["/share", "/share/", "/share/?from=menu", "/share/avatar", "/%73hare/"] {
-            let policy = await coordinator.webView(webView, decidePolicyFor: Navigation(Self.origin + path))
-            XCTAssertEqual(policy, .cancel, path)
+            XCTAssertEqual(coordinator.policy(for: Navigation(Self.origin + path)), .cancel, path)
         }
+        // WebKit asks the coordinator for every navigation; it answers with that policy.
+        let decidePolicy = NSSelectorFromString("webView:decidePolicyForNavigationAction:decisionHandler:")
+        XCTAssertTrue(coordinator.responds(to: decidePolicy))
     }
 
-    func testEveryOtherCompanionPageStillOpens() async {
+    func testEveryOtherCompanionPageStillOpens() {
         let coordinator = AmicaFullView.Coordinator(memoryStore: MemoryStore(inMemory: true))
-        let webView = WKWebView()
         for path in ["/", "/index.html", "/import/", "/import/abc123/", "/shared/", "/sharepoint",
                      "/_next/static/chunks/pages/share-cb4d38ba21de5e45.js"] {
-            let policy = await coordinator.webView(webView, decidePolicyFor: Navigation(Self.origin + path))
-            XCTAssertEqual(policy, .allow, path)
+            XCTAssertEqual(coordinator.policy(for: Navigation(Self.origin + path)), .allow, path)
         }
         XCTAssertFalse(AmicaFullView.Coordinator.isRemovedCompanionPage(nil))
         XCTAssertFalse(AmicaFullView.Coordinator.isRemovedCompanionPage(URL(string: "about:blank")))

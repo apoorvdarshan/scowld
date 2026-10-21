@@ -1149,6 +1149,12 @@ struct AmicaFullView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            policy(for: navigationAction)
+        }
+
+        /// Cancels the removed share page and allows every other navigation. It
+        /// needs no web view, so unit tests check it without starting WebKit.
+        func policy(for navigationAction: WKNavigationAction) -> WKNavigationActionPolicy {
             if Self.isRemovedCompanionPage(navigationAction.request.url) {
                 logger.info("[Amica] Blocked the removed share page")
                 return .cancel
