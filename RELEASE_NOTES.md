@@ -9,6 +9,12 @@ release rather than publishing empty or ambiguous notes.
 App Store "What's New" text is separate: it lives in
 `store/metadata/ios/<locale>/whats_new.txt` (see `store/README.md`).
 
+## v2.1.1
+
+- Bug fixes and improvements.
+- Updated the RevenueCat purchases SDK to 5.96.0.
+- Releases are built, signed and uploaded by apoorvdarshan/store-release, which also signs the source archive attached to this release (verification commands in store/README.md).
+
 ## v2.1.0
 
 - Live voice conversations with Google Gemini Live, OpenAI Realtime, and xAI Grok Voice. Speak while the companion talks to interrupt a reply.
