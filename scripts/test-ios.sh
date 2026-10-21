@@ -41,47 +41,68 @@ PY
 )"
 
 cleanup() {
-  if [[ -n "${boot_pid:-}" ]]; then
-    kill "$boot_pid" >/dev/null 2>&1 || true
-  fi
   # Only the simulator created by this invocation is removed.
   xcrun simctl shutdown "$simulator_id" >/dev/null 2>&1 || true
   xcrun simctl delete "$simulator_id" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
-# A new simulator finishes setting itself up in the background, and the costliest
-# step comes minutes after the first boot: SpringBoard schedules a background task in
-# which PosterBoard prewarms the wallpaper gallery, rendering dozens of wallpapers. It
-# ran 5 to 12 minutes after boot. On the GitHub runner (3 CPUs, 7 GB, no GPU) that
-# rendering takes every CPU and about 2 GB of memory for one to three minutes, and UI
-# tests running meanwhile saw accessibility checks of 4 to 30 seconds instead of a
-# fraction of one. So the simulator boots while the app builds (simctl boot itself
-# took 2 to 6 minutes on CI), and on CI the tests wait for PosterBoard to log the end
-# of the prewarm.
-xcrun simctl boot "$simulator_id" &
-boot_pid=$!
-boot_started=$SECONDS
+# Why the simulator boots only after the build, and why CI removes dasd from it.
+#
+# A new simulator spends its first minutes setting itself up. On the GitHub runner
+# (3 CPUs, 7 GB, no GPU) a simulator booting during the build slowed the build from
+# 1-2 minutes to 5-16, so the app and its tests are built first and the simulator
+# boots afterwards.
+#
+# The costliest part of that setup comes 8 to 11 minutes after the first boot:
+# SpringBoard has dasd, the daemon that schedules background system tasks, run
+# com.apple.springboard.posterboardupdate.prewarm, in which PosterBoard renders the
+# wallpaper gallery's 368 previews. That takes every CPU for 1 to 4 minutes, and UI
+# tests running meanwhile saw accessibility checks of 4 to 30 seconds and failed at
+# random. Waiting for it to end made the job about 4 minutes slower. Instead, as soon
+# as the new simulator takes commands, CI removes dasd from it; in every run measured
+# that was before dasd had accepted the task, SpringBoard logged "Failed to submit
+# posters task" and nothing was rendered. That stops every background task in this
+# throwaway simulator; the app uses none, and no test relies on one. If dasd cannot
+# be removed, the tests wait for the prewarm to end instead.
 
-# Returns once PosterBoard has logged the outcome of its gallery prewarm, or 15 minutes
-# after the boot (the slowest runner measured needed 12); then the tests start anyway.
-wait_for_simulator_setup() {
-  local outcome='Prewarm is complete|prewarm bailed|prewarm finished with error|Prewarm invalidated'
-  local started=$SECONDS line
+# Removes dasd from the booted simulator. Fails if it is still loaded 30 s later.
+remove_background_task_scheduler() {
+  # spawn waits until the simulator's launchd takes commands (2 to 5 minutes after
+  # the boot on CI). launchctl warns "Please switch to user/foreground/com.apple.dasd
+  # service identifier" and removes the service all the same.
+  xcrun simctl spawn "$simulator_id" launchctl bootout system/com.apple.dasd || true
+  local deadline=$((SECONDS + 30)) services
   while true; do
+    # One "PID Status Label" line per loaded service; empty output means launchctl failed.
+    services="$(xcrun simctl spawn "$simulator_id" launchctl list 2>/dev/null || true)"
+    if [[ -n "$services" ]] && ! grep -q 'com\.apple\.dasd$' <<< "$services"; then
+      return 0
+    fi
+    if (( SECONDS >= deadline )); then
+      return 1
+    fi
+    sleep 2
+  done
+}
+
+# Fallback for when dasd could not be removed: returns once PosterBoard has logged the
+# outcome of its gallery prewarm, or 15 minutes after the boot started (the slowest
+# runner measured needed 12); then the tests start anyway.
+wait_for_gallery_prewarm() {
+  local outcome='Prewarm is complete|prewarm bailed|prewarm finished with error|Prewarm invalidated'
+  local line
+  while (( SECONDS - boot_started < 900 )); do
     line="$(xcrun simctl spawn "$simulator_id" log show --style compact --last 30m \
       --predicate 'subsystem == "com.apple.PosterBoard" AND category == "Prewarm"' 2>/dev/null \
       | grep -m 1 -E "$outcome" || true)"
     if [[ -n "$line" ]]; then
-      echo "Simulator set up $(( (SECONDS - boot_started) / 60 )) min after the boot started; waited $((SECONDS - started)) s after the build: $line"
-      return 0
-    fi
-    if (( SECONDS - boot_started >= 900 )); then
-      echo 'warning: PosterBoard has not logged the end of its gallery prewarm 15 minutes after boot; starting the tests anyway' >&2
+      echo "PosterBoard's gallery prewarm ended $(( (SECONDS - boot_started) / 60 )) min after the boot started: $line"
       return 0
     fi
     sleep 10
   done
+  echo 'warning: PosterBoard has not logged the end of its gallery prewarm 15 minutes after boot; starting the tests anyway' >&2
 }
 
 # Simulator builds are signed ad hoc ("Sign to Run Locally"): no certificate or
@@ -106,12 +127,22 @@ xcodebuild build-for-testing "${xcode_options[@]}" \
   2>&1 | tee "$results/xcodebuild.log" || status=$?
 
 if [[ "$status" == 0 ]]; then
+  boot_started=$SECONDS
   # A failed boot stops the run here.
-  wait "$boot_pid"
-  boot_pid=
-  # Only CI waits for the setup: the slowdown was measured on the GitHub runner.
+  xcrun simctl boot "$simulator_id"
+  # Only CI removes dasd: the slowdown was measured on the GitHub runner.
   if [[ "${CI:-}" == true ]]; then
-    wait_for_simulator_setup
+    if remove_background_task_scheduler; then
+      echo "Removed dasd from the simulator $((SECONDS - boot_started)) s after the boot started; no first-boot background task (wallpaper gallery prewarm included) will run."
+      prewarm_pending=
+    else
+      echo '::warning::dasd is still loaded in the CI simulator; the tests wait for its wallpaper gallery prewarm instead, which is slower.'
+      prewarm_pending=1
+    fi
+  fi
+  xcrun simctl bootstatus "$simulator_id" -b
+  if [[ -n "${prewarm_pending:-}" ]]; then
+    wait_for_gallery_prewarm
   fi
   xcodebuild test-without-building "${xcode_options[@]}" \
     -resultBundlePath "$results/Tests.xcresult" \

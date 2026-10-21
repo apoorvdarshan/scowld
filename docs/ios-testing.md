@@ -15,8 +15,8 @@ bash scripts/test-ios.sh
 ```
 
 The script creates its own simulator ("Scowld CI") and deletes it afterwards; it
-never erases or resets an existing simulator. It starts booting the simulator,
-builds the app and tests (`build-for-testing`) meanwhile, then runs them
+never erases or resets an existing simulator. It builds the app and tests
+(`build-for-testing`) first, then boots the simulator and runs them
 (`test-without-building`). Build products are reused under
 `~/Library/Developer/Xcode/DerivedData/Scowld-simulator-tests`, and each run keeps
 its own `TestResults/<timestamp>/` with `Build.xcresult` and `Tests.xcresult` (the
@@ -30,16 +30,30 @@ one simulator. Results, failure screenshots and logs are kept as the
 `ios-test-results` artifact for seven days. Superseded pull-request runs are
 cancelled; `main` and release runs never are.
 
-On CI the tests start only once the new simulator has finished setting itself up.
-Minutes after a simulator's first boot, SpringBoard runs a background task in which
-PosterBoard prewarms the wallpaper gallery, rendering dozens of wallpapers (5 to 12
-minutes after boot in the runs measured). On the runner (3 CPUs, 7 GB, no GPU) that
-takes every CPU and about 2 GB of memory for one to three minutes; UI tests that ran
-meanwhile saw accessibility checks of 4 to 30 seconds and failed at random. The
-script waits for PosterBoard to log the end of that prewarm (usually it has ended
-by the time the build finishes), at most until 15 minutes after the boot, and says
-how long it waited. Local runs skip the wait; the slowdown was measured on the CI
-runner.
+On CI the simulator boots only after the build, and its background task scheduler
+is removed before the tests run. A new simulator sets itself up for minutes after
+its first boot; booted during the build, it slowed the build from 1–2 minutes to
+5–16 on the runner (3 CPUs, 7 GB, no GPU). The costliest step comes 8 to 11 minutes
+after the first boot: SpringBoard has `dasd`, the daemon that schedules background
+system tasks, run a task in which PosterBoard prewarms the wallpaper gallery,
+rendering its 368 previews. That takes every CPU for one to four minutes, and UI
+tests running meanwhile saw accessibility checks of 4 to 30 seconds and failed at
+random. So once the simulator takes commands, the script removes `dasd` from it
+(`launchctl bootout system/com.apple.dasd`) and checks that it is gone; SpringBoard
+then fails to submit the prewarm and nothing is rendered. That stops every
+background task in the throwaway simulator; the app uses none and no test relies on
+one. If `dasd` is still loaded, the run logs a warning and waits for PosterBoard to
+log the end of its prewarm instead (at most until 15 minutes after the boot), which
+is slower. Local runs keep `dasd` and never wait; the slowdown was measured on the
+CI runner.
+
+Two things a fresh simulator still does slowly: the first keyboard to appear (the
+rename alert in `testCreateRenameSwitchAndDeleteChats`) took up to 18 seconds on
+CI, and PosterBoard renders 200 to 270 gallery snapshots once its extensions
+register, near the end of the boot. In every run measured with `dasd` removed that
+rendering had ended before the boot finished, but nothing waits for it, and in one
+earlier run it started after. Neither is timed by a test today; a timed wait added
+there could flake.
 
 ## Coverage
 
