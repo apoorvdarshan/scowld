@@ -126,6 +126,11 @@ queries), the press never starts and the switch ignores the tap. The other
 controls the tests use (buttons, tabs, segmented controls, menus, swipe actions)
 respond to a tap even when the app handles it late.
 
+Every UI query (`exists`, `isHittable`, a wait's check) takes a snapshot of the
+app's whole accessibility tree, which keeps the app busy for a fraction of a second
+on CI. Helpers stop querying once they have their answer: `reveal(_:in:)` checks
+whether the element is on screen before each swipe and stops as soon as it is.
+
 UI tests leave out the bundled 3D companion (a WebGL page in a web view) and show
 a black placeholder behind the same native composer. CI simulators have no GPU,
 so they render it in software: with it loaded, every UI query took 10–60 seconds

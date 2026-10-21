@@ -49,12 +49,19 @@ final class ScowldUITests: XCTestCase {
                        "\(element) never matched \(predicate)")
     }
 
+    /// Scrolls until `element` can be tapped, at most 12 swipes. Every check takes a
+    /// snapshot of the app's whole accessibility tree, so the loop stops as soon as the
+    /// element is on screen (a `for ... where` loop evaluates its condition all 12 times).
     @MainActor
     private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<12 where !(element.exists && element.isHittable) {
+        var onScreen = element.exists && element.isHittable
+        var swipes = 0
+        while !onScreen && swipes < 12 {
             app.swipeUp()
+            swipes += 1
+            onScreen = element.exists && element.isHittable
         }
-        XCTAssertTrue(element.isHittable, "Could not scroll to \(element)")
+        XCTAssertTrue(onScreen, "Could not scroll to \(element)")
     }
 
     @MainActor
