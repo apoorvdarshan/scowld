@@ -41,6 +41,9 @@ PY
 )"
 
 cleanup() {
+  if [[ -n "${boot_pid:-}" ]]; then
+    kill "$boot_pid" >/dev/null 2>&1 || true
+  fi
   # Only the simulator created by this invocation is removed.
   xcrun simctl shutdown "$simulator_id" >/dev/null 2>&1 || true
   xcrun simctl delete "$simulator_id" >/dev/null 2>&1 || true
@@ -53,10 +56,12 @@ trap cleanup EXIT
 # ran 5 to 12 minutes after boot. On the GitHub runner (3 CPUs, 7 GB, no GPU) that
 # rendering takes every CPU and about 2 GB of memory for one to three minutes, and UI
 # tests running meanwhile saw accessibility checks of 4 to 30 seconds instead of a
-# fraction of one. So the simulator boots before the build and sets up while the app
-# builds, and on CI the tests wait for PosterBoard to log the end of the prewarm.
-xcrun simctl boot "$simulator_id"
-booted_at=$SECONDS
+# fraction of one. So the simulator boots while the app builds (simctl boot itself
+# took 2 to 6 minutes on CI), and on CI the tests wait for PosterBoard to log the end
+# of the prewarm.
+xcrun simctl boot "$simulator_id" &
+boot_pid=$!
+boot_started=$SECONDS
 
 # Returns once PosterBoard has logged the outcome of its gallery prewarm, or 15 minutes
 # after the boot (the slowest runner measured needed 12); then the tests start anyway.
@@ -68,10 +73,10 @@ wait_for_simulator_setup() {
       --predicate 'subsystem == "com.apple.PosterBoard" AND category == "Prewarm"' 2>/dev/null \
       | grep -m 1 -E "$outcome" || true)"
     if [[ -n "$line" ]]; then
-      echo "Simulator set up after $(( (SECONDS - booted_at) / 60 )) min; waited $((SECONDS - started)) s after the build: $line"
+      echo "Simulator set up $(( (SECONDS - boot_started) / 60 )) min after the boot started; waited $((SECONDS - started)) s after the build: $line"
       return 0
     fi
-    if (( SECONDS - booted_at >= 900 )); then
+    if (( SECONDS - boot_started >= 900 )); then
       echo 'warning: PosterBoard has not logged the end of its gallery prewarm 15 minutes after boot; starting the tests anyway' >&2
       return 0
     fi
@@ -101,7 +106,10 @@ xcodebuild build-for-testing "${xcode_options[@]}" \
   2>&1 | tee "$results/xcodebuild.log" || status=$?
 
 if [[ "$status" == 0 ]]; then
-  # Only CI waits: the slowdown was measured on the GitHub runner.
+  # A failed boot stops the run here.
+  wait "$boot_pid"
+  boot_pid=
+  # Only CI waits for the setup: the slowdown was measured on the GitHub runner.
   if [[ "${CI:-}" == true ]]; then
     wait_for_simulator_setup
   fi

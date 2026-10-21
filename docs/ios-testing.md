@@ -15,9 +15,9 @@ bash scripts/test-ios.sh
 ```
 
 The script creates its own simulator ("Scowld CI") and deletes it afterwards; it
-never erases or resets an existing simulator. It boots the simulator first, builds
-the app and tests (`build-for-testing`) while the simulator starts up, then runs
-them (`test-without-building`). Build products are reused under
+never erases or resets an existing simulator. It starts booting the simulator,
+builds the app and tests (`build-for-testing`) meanwhile, then runs them
+(`test-without-building`). Build products are reused under
 `~/Library/Developer/Xcode/DerivedData/Scowld-simulator-tests`, and each run keeps
 its own `TestResults/<timestamp>/` with `Build.xcresult` and `Tests.xcresult` (the
 latter printed at the end). Override `IOS_TEST_DERIVED_DATA`, `IOS_TEST_PACKAGES`
