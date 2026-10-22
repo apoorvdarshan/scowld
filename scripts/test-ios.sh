@@ -20,35 +20,61 @@ fi
 
 xcodebuild -version
 
-# Create a task-owned simulator: never erase or reset a developer's existing one.
-simulator_id="$(python3 - <<'PY'
-import json, subprocess
-data = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', '--json']))
-def version(runtime):
-    return tuple(int(part) for part in runtime['version'].split('.'))
-runtimes = [r for r in data['runtimes'] if r.get('isAvailable') and
-            '.iOS-' in r['identifier'] and version(r) >= (17, 0)]
-if not runtimes:
-    raise SystemExit('Install an iOS 17 or newer Simulator runtime in Xcode.')
-runtime = max(runtimes, key=version)
-iphones = [d for d in runtime.get('supportedDeviceTypes', []) if d.get('productFamily') == 'iPhone']
-if not iphones:
-    raise SystemExit('Selected runtime has no supported iPhone device type.')
-device = next((d for d in iphones if d['name'] == 'iPhone 17 Pro'), iphones[-1])
-print(subprocess.check_output(['xcrun', 'simctl', 'create', 'Scowld CI',
-      device['identifier'], runtime['identifier']], text=True).strip())
-PY
-)"
+devices_dir="$HOME/Library/Developer/CoreSimulator/Devices"
+read -r device_type runtime <<< "$(python3 scripts/ci/ios_simulator.py pick)"
+simulator_id=
+boot_pid=
 
 cleanup() {
   if [[ -n "${boot_pid:-}" ]]; then
     kill "$boot_pid" >/dev/null 2>&1 || true
   fi
-  # Only the simulator created by this invocation is removed.
-  xcrun simctl shutdown "$simulator_id" >/dev/null 2>&1 || true
-  xcrun simctl delete "$simulator_id" >/dev/null 2>&1 || true
+  # Only the simulator this invocation created or restored is removed.
+  if [[ -n "$simulator_id" ]]; then
+    xcrun simctl shutdown "$simulator_id" >/dev/null 2>&1 || true
+    xcrun simctl delete "$simulator_id" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
+
+# On CI the workflow restores a simulator that has already been through its first
+# boot (made by scripts/ci/prepare-ios-simulator.sh) into IOS_SIM_SNAPSHOT, and sets
+# IOS_SIM_SNAPSHOT_RESTORED=true. It is moved into CoreSimulator's device set and used
+# if CoreSimulator accepts it. Otherwise, and on local runs, the script creates a new
+# simulator, as it always did.
+snapshot="${IOS_SIM_SNAPSHOT:-}"
+use_snapshot() {
+  local id
+  id="$(sed -n 's/^udid=//p' "$snapshot/snapshot.txt" 2>/dev/null || true)"
+  if [[ ! "$id" =~ ^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$ ||
+        ! -f "$snapshot/$id/device.plist" ]]; then
+    echo 'warning: the restored simulator is incomplete; using a new simulator' >&2
+    return 1
+  fi
+  if [[ -e "$devices_dir/$id" ]]; then
+    echo "warning: a simulator $id already exists; using a new simulator" >&2
+    return 1
+  fi
+  mkdir -p "$devices_dir"
+  mv "$snapshot/$id" "$devices_dir/$id"
+  simulator_id="$id"
+  # CoreSimulator reads the device folders when its service starts.
+  killall -9 com.apple.CoreSimulator.CoreSimulatorService >/dev/null 2>&1 || true
+  if ! python3 scripts/ci/ios_simulator.py check "$id" "$device_type" "$runtime"; then
+    echo 'warning: CoreSimulator does not accept the restored simulator; using a new simulator' >&2
+    xcrun simctl delete "$id" >/dev/null 2>&1 || rm -rf "${devices_dir:?}/$id"
+    simulator_id=
+    return 1
+  fi
+  echo "Using the simulator restored from the cache ($id)"
+}
+restored=false
+if [[ -n "$snapshot" && "${IOS_SIM_SNAPSHOT_RESTORED:-}" == true ]] && use_snapshot; then
+  restored=true
+else
+  # A task-owned simulator: never erase or reset a developer's existing one.
+  simulator_id="$(xcrun simctl create 'Scowld CI' "$device_type" "$runtime")"
+fi
 
 # A new simulator finishes setting itself up in the background, and the costliest
 # step comes minutes after the first boot: SpringBoard schedules a background task in
@@ -56,12 +82,18 @@ trap cleanup EXIT
 # ran 5 to 12 minutes after boot. On the GitHub runner (3 CPUs, 7 GB, no GPU) that
 # rendering takes every CPU and about 2 GB of memory for one to three minutes, and UI
 # tests running meanwhile saw accessibility checks of 4 to 30 seconds instead of a
-# fraction of one. So the simulator boots while the app builds (simctl boot itself
+# fraction of one. So a new simulator boots while the app builds (simctl boot itself
 # took 2 to 6 minutes on CI), and on CI the tests wait for PosterBoard to log the end
 # of the prewarm.
-xcrun simctl boot "$simulator_id" &
-boot_pid=$!
+#
+# A restored simulator has been through all of that, and PosterBoard's keynote mode
+# keeps it from prewarming again. It boots after the build: on its own the build takes
+# 1 to 2 minutes, next to a boot 5 to 15.
 boot_started=$SECONDS
+if [[ "$restored" == false ]]; then
+  xcrun simctl boot "$simulator_id" &
+  boot_pid=$!
+fi
 
 # Returns once PosterBoard has logged the outcome of its gallery prewarm, or 15 minutes
 # after the boot (the slowest runner measured needed 12); then the tests start anyway.
@@ -101,17 +133,26 @@ xcode_options=(
   -enableCodeCoverage YES
 )
 status=0
+build_started=$SECONDS
 xcodebuild build-for-testing "${xcode_options[@]}" \
   -resultBundlePath "$results/Build.xcresult" \
   2>&1 | tee "$results/xcodebuild.log" || status=$?
+echo "Built in $((SECONDS - build_started)) s"
 
 if [[ "$status" == 0 ]]; then
-  # A failed boot stops the run here.
-  wait "$boot_pid"
-  boot_pid=
-  # Only CI waits for the setup: the slowdown was measured on the GitHub runner.
-  if [[ "${CI:-}" == true ]]; then
-    wait_for_simulator_setup
+  if [[ "$restored" == true ]]; then
+    boot_started=$SECONDS
+    xcrun simctl boot "$simulator_id"
+    xcrun simctl bootstatus "$simulator_id" -b >/dev/null
+    echo "Booted the restored simulator in $((SECONDS - boot_started)) s"
+  else
+    # A failed boot stops the run here.
+    wait "$boot_pid"
+    boot_pid=
+    # Only CI waits for the setup: the slowdown was measured on the GitHub runner.
+    if [[ "${CI:-}" == true ]]; then
+      wait_for_simulator_setup
+    fi
   fi
   xcodebuild test-without-building "${xcode_options[@]}" \
     -resultBundlePath "$results/Tests.xcresult" \

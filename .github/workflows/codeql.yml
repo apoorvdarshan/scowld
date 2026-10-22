@@ -6,7 +6,7 @@
 # JavaScript and is not analyzed.
 #
 #   javascript-typescript  web/ (scowld.xyz: static pages and a Cloudflare Worker)
-#   python                 scripts/ (the test result checker in scripts/ci)
+#   python                 scripts/ (the test helpers in scripts/ci)
 #   actions                .github/workflows/
 #
 # Swift (ios/) needs a macOS runner and a full app build, so it is analyzed by
