@@ -30,16 +30,49 @@ one simulator. Results, failure screenshots and logs are kept as the
 `ios-test-results` artifact for seven days. Superseded pull-request runs are
 cancelled; `main` and release runs never are.
 
-On CI the tests start only once the new simulator has finished setting itself up.
-Minutes after a simulator's first boot, SpringBoard runs a background task in which
-PosterBoard prewarms the wallpaper gallery, rendering dozens of wallpapers (5 to 12
-minutes after boot in the runs measured). On the runner (3 CPUs, 7 GB, no GPU) that
-takes every CPU and about 2 GB of memory for one to three minutes; UI tests that ran
-meanwhile saw accessibility checks of 4 to 30 seconds and failed at random. The
-script waits for PosterBoard to log the end of that prewarm (usually it has ended
-by the time the build finishes), at most until 15 minutes after the boot, and says
-how long it waited. Local runs skip the wait; the slowdown was measured on the CI
-runner.
+A new simulator keeps setting itself up for 10 to 15 minutes after its first boot.
+The costliest part comes minutes in: SpringBoard runs a background task in which
+PosterBoard prewarms the wallpaper gallery, rendering 368 wallpaper previews (5 to
+12 minutes after boot in the runs measured). On the runner (3 CPUs, 7 GB, no GPU)
+that takes every CPU and about 2 GB of memory for one to three minutes; UI tests
+that ran meanwhile saw accessibility checks of 4 to 30 seconds and failed at
+random.
+
+So CI starts from a simulator that has already been through all of that:
+
+- The workflow's **Prepare the iOS test simulator** job runs next to the tests.
+  When the Actions cache has no simulator for this runner image, Xcode build,
+  simulator runtime build and device type (the cache key,
+  `scripts/ci/ios_simulator.py cache-key`), it runs
+  `scripts/ci/prepare-ios-simulator.sh`: it creates the simulator, boots it,
+  waits for PosterBoard's prewarm to complete and then for the rest of the
+  first boot's work to end (the simulator's processes under half a CPU for three
+  minutes, at most ten minutes), turns on PosterBoard's keynote mode, shuts the
+  simulator down and saves its device folder (about 1 GB) to the cache. Nothing
+  is ever installed on it. Otherwise it only looks the key up. The tests never
+  wait for this job, its failure never fails the run, and tag runs skip it.
+- Keynote mode, PosterBoard's switch for demo devices, is needed because every
+  boot, not only the first, has SpringBoard ask PosterBoard to prewarm the
+  gallery again, and it renders all 368 previews again two to eight minutes
+  after the boot. With keynote mode on it skips the prewarm. It changes only the
+  Lock Screen wallpaper gallery, which no test uses.
+- The tests job restores that simulator, moves it into CoreSimulator's device
+  set, restarts CoreSimulator's service so it is picked up, and checks that it
+  is listed, shut down and usable, with the expected runtime and device type.
+  The app is built first (1 to 2 minutes on its own, 5 to 15 next to a boot),
+  then the simulator boots and the tests start once `simctl bootstatus` says
+  the boot is over.
+- When there is no cached simulator, or the restored one is unusable, the
+  script falls back to a new simulator: it boots while the app builds, and the
+  tests wait for PosterBoard to log the end of its prewarm (usually it has ended
+  by the time the build finishes), at most until 15 minutes after the boot. The
+  script says how long it waited. Local runs always use a new simulator and skip
+  the wait; the slowdown was measured on the CI runner.
+
+A runner image update, a new Xcode or runtime, or a different device type changes
+the key, so the next run tests on a new simulator and prepares the next cached one
+meanwhile. A cache saved by a pull request is only visible to that pull request;
+one saved on `main` is visible to every run.
 
 ## Coverage
 

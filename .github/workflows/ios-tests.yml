@@ -10,6 +10,8 @@ on:
       - 'ios/**'
       - 'scripts/test-ios.sh'
       - 'scripts/ci/check_xcresult.py'
+      - 'scripts/ci/ios_simulator.py'
+      - 'scripts/ci/prepare-ios-simulator.sh'
       - '.github/workflows/ios-tests.yml'
   push:
     branches: [main]
@@ -17,6 +19,8 @@ on:
       - 'ios/**'
       - 'scripts/test-ios.sh'
       - 'scripts/ci/check_xcresult.py'
+      - 'scripts/ci/ios_simulator.py'
+      - 'scripts/ci/prepare-ios-simulator.sh'
       - '.github/workflows/ios-tests.yml'
   workflow_dispatch:
   workflow_call:
@@ -31,6 +35,50 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Puts a simulator that has been through its first boot in the cache for the tests
+  # job to start from (see docs/ios-testing.md). It runs next to the tests, which never
+  # wait for it, and only does work when the cache has no simulator for this runner
+  # image, Xcode, runtime and device type. Its failure never fails the run. Tag runs
+  # skip it: a cache saved there is only visible to that tag.
+  simulator:
+    name: Prepare the iOS test simulator
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    runs-on: xcode-27
+    timeout-minutes: 40
+    continue-on-error: true
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/ci/
+
+      - name: Pick the test simulator
+        id: simulator
+        run: python3 scripts/ci/ios_simulator.py cache-key | tee -a "$GITHUB_OUTPUT"
+
+      - name: Look for a set-up simulator in the cache
+        id: lookup
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ios-sim-snapshot
+          key: ${{ steps.simulator.outputs.key }}
+          lookup-only: true
+
+      - name: Set up a new simulator
+        if: steps.lookup.outputs.cache-hit != 'true'
+        run: bash scripts/ci/prepare-ios-simulator.sh "$GITHUB_WORKSPACE/.ios-sim-snapshot"
+
+      - name: Save the set-up simulator
+        if: steps.lookup.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ios-sim-snapshot
+          key: ${{ steps.simulator.outputs.key }}
+
   ios-tests:
     name: iOS unit and UI tests
     runs-on: xcode-27
@@ -58,11 +106,25 @@ jobs:
           path: .ios-test-packages
           key: ios-spm-${{ runner.os }}-${{ runner.arch }}-xcode27-${{ hashFiles('ios/**/Package.resolved') }}
 
+      # The simulator the job above saved, if any; without one the tests make a new one.
+      - name: Pick the test simulator
+        id: simulator
+        run: python3 scripts/ci/ios_simulator.py cache-key | tee -a "$GITHUB_OUTPUT"
+
+      - name: Restore the set-up simulator
+        id: simulator-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ios-sim-snapshot
+          key: ${{ steps.simulator.outputs.key }}
+
       - name: Build and run unit and UI tests
         env:
           IOS_TEST_RESULTS: ${{ runner.temp }}/ios-test-results
           IOS_TEST_DERIVED_DATA: ${{ runner.temp }}/ios-test-build
           IOS_TEST_PACKAGES: ${{ github.workspace }}/.ios-test-packages
+          IOS_SIM_SNAPSHOT: ${{ github.workspace }}/.ios-sim-snapshot
+          IOS_SIM_SNAPSHOT_RESTORED: ${{ steps.simulator-cache.outputs.cache-hit }}
         run: bash scripts/test-ios.sh
 
       - name: Keep test results and failure screenshots
