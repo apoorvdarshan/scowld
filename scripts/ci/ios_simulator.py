@@ -11,8 +11,9 @@
                                          first-boot work looks over, or after
                                          <seconds>
 
-The newest available iOS 17+ runtime is used, with an iPhone 17 Pro when the
-runtime supports one (otherwise its last iPhone). The cache key names everything
+The newest available iOS 17+ runtime that offers an iPhone 17 Pro is used (a newer
+device-specific runtime, such as iOS 27.1 with only the iPhone Duo, is skipped);
+without one, the newest runtime and its last iPhone. The cache key names everything
 a saved simulator depends on: the runner image, Xcode, the runtime build and the
 device type, so a change to any of them starts from a new simulator.
 """
@@ -41,7 +42,11 @@ def pick() -> tuple[dict, dict]:
                 '.iOS-' in r['identifier'] and version(r) >= (17, 0)]
     if not runtimes:
         raise SystemExit('Install an iOS 17 or newer Simulator runtime in Xcode.')
-    runtime = max(runtimes, key=version)
+    # A device-specific runtime can be newer than the general one (iOS 27.1 ships only the
+    # iPhone Duo, a 386x678 pt screen), so take the newest runtime that offers the preferred
+    # device instead of the newest runtime overall.
+    runtime = max((r for r in runtimes if any(d['name'] == 'iPhone 17 Pro' for d in r.get('supportedDeviceTypes', []))),
+                  key=version, default=max(runtimes, key=version))
     iphones = [d for d in runtime.get('supportedDeviceTypes', []) if d.get('productFamily') == 'iPhone']
     if not iphones:
         raise SystemExit('Selected runtime has no supported iPhone device type.')
