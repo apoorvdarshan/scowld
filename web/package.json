@@ -17,9 +17,9 @@
     "fast-check": "4.10.2",
     "fast-xml-parser": "5.11.2",
     "globals": "^17.13.0",
-    "html-validate": "^11.16.3",
+    "html-validate": "^11.17.0",
     "vitest": "5.0.5",
-    "wrangler": "^4.151.1"
+    "wrangler": "^4.152.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
