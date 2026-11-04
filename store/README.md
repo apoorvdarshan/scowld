@@ -57,7 +57,7 @@ same tag.
 ## Current switches
 
 Repository **Variables** (Settings → Secrets and variables → Actions → Variables),
-as of 2026-10-21. Missing means off; any value other than
+as of 2026-11-04. Missing means off; any value other than
 `true/false/yes/no/on/off/1/0` fails the run, even when the master switch is off.
 
 | Variable | Value |
@@ -66,8 +66,9 @@ as of 2026-10-21. Missing means off; any value other than
 | `IOS_CREATE_VERSION` | `true` |
 | `IOS_UPLOAD_BUILD` | `true` |
 | `IOS_UPLOAD_LISTING`, `IOS_UPLOAD_WHATS_NEW`, `IOS_UPLOAD_SCREENSHOTS` | `true` |
-| `IOS_SUBMIT_REVIEW`, `IOS_PUBLIC_RELEASE` | `false` |
-| `IOS_UPLOAD_CREATIVE_ASSETS` | not set (off; no header or search results image is committed yet, so leave it off) |
+| `IOS_SUBMIT_REVIEW` | `true` |
+| `IOS_PUBLIC_RELEASE` | `false` (manual release after approval) |
+| `IOS_UPLOAD_CREATIVE_ASSETS` | `true` |
 | `IOS_BUILD_POLL_SECONDS`, `IOS_BUILD_WAIT_MINUTES` | not set (30 s, 120 min from upload start) |
 
 Scowld needs no shared `STORE_*` switch: the pipeline never creates, changes or
@@ -76,11 +77,12 @@ submits in-app products (see [In-app purchases](#in-app-purchases)).
 With these values a `vX.Y.Z` tag runs the iOS tests, creates App Store version X.Y.Z
 when App Store Connect does not have it yet, builds, signs and uploads the binary,
 waits until App Store Connect has processed this build, and updates the version's
-listing, What's New and screenshots from `store/metadata/ios/`. It does not submit for
-review. Then it creates the GitHub Release `Scowld X.Y.Z` with the signed source
+listing, What's New and screenshots from `store/metadata/ios/`. It submits the exact
+processed build for review, keeping public release manual. New header and search
+images go to a separate creative-asset review; approved assets can be placed on an
+editable version on a later run. Then it creates the GitHub Release `Scowld X.Y.Z` with the signed source
 archive. Each **Run workflow** prints this plan for the switches as they are at that
-moment (the `store-plan` job's summary). Leave `IOS_SUBMIT_REVIEW` and
-`IOS_PUBLIC_RELEASE` off until you intend that release; `IOS_PUBLIC_RELEASE` needs
+moment (the `store-plan` job's summary). `IOS_PUBLIC_RELEASE` needs
 `IOS_SUBMIT_REVIEW`, which needs `IOS_UPLOAD_BUILD`.
 
 Listing, What's New, screenshots, header and search results images and review
@@ -155,16 +157,21 @@ today.
 | `screenshots.json` | Screenshot sets: display type → ordered image paths | 10 per set |
 
 An empty or missing text file leaves that field unchanged. `screenshots.json` points
-at App Store-ready images already in the repository, today exactly the live ones:
+at the approved cartoon App Store images in the repository:
 [`metadata/screenshots/ios/iphone-6.9/`](metadata/screenshots/ios/iphone-6.9) (iPhone
 6.9", 1320×2868, `APP_IPHONE_67`) and
 [`metadata/screenshots/ios/ipad-13/`](metadata/screenshots/ios/ipad-13) (iPad 13",
-2064×2752, `APP_IPAD_PRO_3GEN_129`). A set is replaced only when its ordered images
+2064×2752, `APP_IPAD_PRO_3GEN_129`), plus
+[`metadata/screenshots/ios/iphone-duo/`](metadata/screenshots/ios/iphone-duo) (Duo
+outer display, 1398×2034, `APP_IPHONE_DUO`). There are five iPhone, two iPad and two
+Duo images, approved on November 4, 2026. Duo's outer-display chat and settings
+were checked in the simulator; inner-display and unfolding continuity remain
+unverified. A screenshot set does not prove those transitions work.
+A set is replaced only when its ordered images
 differ from App Store Connect's. Screenshots are uploaded from RGB copies, never from
 the committed files: an RGB PNG without alpha (every committed screenshot today) is
-copied byte for byte, and a PNG that stores alpha is laid over black first. iPhone Duo
-(`APP_IPHONE_DUO`) and Apple Watch (`"watch"`) sets are supported but none exists for
-Scowld yet; adding the images and listing them in `screenshots.json` is all it takes.
+copied byte for byte, and a PNG that stores alpha is laid over black first.
+Apple Watch (`"watch"`) sets are supported but none exists for Scowld.
 
 `APPSTORE.md` is reference copy; the pipeline reads only `store/metadata/ios/`. After
 editing the listing directly in App Store Connect, re-export it (GET requests only;
@@ -183,8 +190,10 @@ Store product page: `header/` takes one PNG of exactly 3840×1646, and
 store alpha. A new image is uploaded to the Asset Library once and sent to App Review
 in a submission of its own, never the version's draft; once Apple approves it, a later
 run places it on the version's en-US page while the version can be edited. To change
-an image, commit it under a new file name. No image is committed for Scowld yet, so
-leave the switch off until one is.
+an image, commit it under a new file name. The approved cartoon images are
+`header/scowld-cartoon-v1.png` (3840×1646) and
+`search-results/scowld-cartoon-v1.png` (1920×1280), both RGB without alpha.
+Approval of the artwork does not mean Apple has approved its creative-asset review.
 
 ## Secrets
 

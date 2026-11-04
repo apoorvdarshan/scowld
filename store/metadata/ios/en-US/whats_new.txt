@@ -1,1 +1,5 @@
-Bug fixes and improvements.
+Find Scowld's dedicated Instagram account, @scowldapp, from the About screen.
+
+Refreshed App Store screenshots for iPhone and iPad, plus new iPhone Duo screenshots.
+
+Updated the purchase integration.

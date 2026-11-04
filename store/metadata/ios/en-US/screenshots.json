@@ -1,13 +1,17 @@
 {
   "APP_IPHONE_67": [
-    "store/metadata/screenshots/ios/iphone-6.9/chat.png",
-    "store/metadata/screenshots/ios/iphone-6.9/paywall.png",
-    "store/metadata/screenshots/ios/iphone-6.9/settings.png",
-    "store/metadata/screenshots/ios/iphone-6.9/own-api-key.png",
-    "store/metadata/screenshots/ios/iphone-6.9/chats.png"
+    "store/metadata/screenshots/ios/iphone-6.9/cartoon-01.png",
+    "store/metadata/screenshots/ios/iphone-6.9/cartoon-02.png",
+    "store/metadata/screenshots/ios/iphone-6.9/cartoon-03.png",
+    "store/metadata/screenshots/ios/iphone-6.9/cartoon-04.png",
+    "store/metadata/screenshots/ios/iphone-6.9/cartoon-05.png"
+  ],
+  "APP_IPHONE_DUO": [
+    "store/metadata/screenshots/ios/iphone-duo/cartoon-01.png",
+    "store/metadata/screenshots/ios/iphone-duo/cartoon-02.png"
   ],
   "APP_IPAD_PRO_3GEN_129": [
-    "store/metadata/screenshots/ios/ipad-13/chat.png",
-    "store/metadata/screenshots/ios/ipad-13/settings.png"
+    "store/metadata/screenshots/ios/ipad-13/cartoon-01.png",
+    "store/metadata/screenshots/ios/ipad-13/cartoon-02.png"
   ]
 }

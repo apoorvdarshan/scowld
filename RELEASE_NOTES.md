@@ -11,8 +11,10 @@ App Store "What's New" text is separate: it lives in
 
 ## v2.1.1
 
-- Bug fixes and improvements.
-- Updated the RevenueCat purchases SDK to 5.96.0.
+- Updated the About screen, website and store description to Scowld's dedicated Instagram account, @scowldapp.
+- Refreshed the App Store screenshots for iPhone and iPad, and added an iPhone Duo outer-display screenshot set.
+- Added the approved cartoon product-page header and search-results artwork; these assets use Apple's separate creative-asset review.
+- Updated the RevenueCat purchases SDK to 5.98.0.
 - Releases are built, signed and uploaded by apoorvdarshan/store-release, which also signs the source archive attached to this release (verification commands in store/README.md).
 
 ## v2.1.0
