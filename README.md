@@ -12,7 +12,7 @@
   <a href="https://apps.apple.com/app/id6760672848"><img src="https://img.shields.io/badge/App%20Store-Download-black?logo=apple" alt="App Store"></a>
   <a href="https://github.com/apoorvdarshan/scowld/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT"></a>
   <a href="https://scowld.xyz"><img src="https://img.shields.io/badge/Website-scowld.xyz-blue" alt="Website"></a>
-  <a href="https://www.instagram.com/apoorvcodes/"><img src="https://img.shields.io/badge/Instagram-@apoorvcodes-pink" alt="Instagram"></a>
+  <a href="https://www.instagram.com/scowldapp/"><img src="https://img.shields.io/badge/Instagram-@scowldapp-pink" alt="Instagram"></a>
   <a href="https://www.producthunt.com/products/scowld-2"><img src="https://img.shields.io/badge/Product%20Hunt-Scowld-orange" alt="Product Hunt"></a>
 </p>
 
@@ -218,7 +218,7 @@ See [web/.env.example](web/.env.example) for defaults.
 - Blog: https://scowld.xyz/blog
 - Privacy: https://scowld.xyz/privacy
 - Terms: https://scowld.xyz/terms
-- Instagram: https://www.instagram.com/apoorvcodes/
+- Instagram: https://www.instagram.com/scowldapp/
 - Product Hunt: https://www.producthunt.com/products/scowld-2
 - Ko-fi: https://ko-fi.com/apoorvdarshan
 

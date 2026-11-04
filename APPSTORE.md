@@ -73,7 +73,7 @@ App Store Connect submission details for Scowld v2.1.1, including live voice and
 
     Website: https://scowld.xyz
     Blog: https://scowld.xyz/blog
-    Instagram: https://www.instagram.com/apoorvcodes/
+    Instagram: https://www.instagram.com/scowldapp/
     Product Hunt: https://www.producthunt.com/products/scowld-2
     Terms of Use: https://scowld.xyz/terms
     Privacy Policy: https://scowld.xyz/privacy
