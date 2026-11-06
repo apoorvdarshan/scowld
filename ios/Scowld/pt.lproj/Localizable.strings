@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Minutos extras nunca expiram.";
 "Yearly" = "Anual";
 "Weekly" = "Semanal";
-"%d-day free trial" = "Teste grátis de %d dias";
 "Best value" = "Melhor custo-benefício";
 "%d minutes a month" = "%d minutos por mês";
 "%@/month · %@" = "%@/mês · %@";
 "%d minutes a week" = "%d minutos por semana";
 "%@/year" = "%@/ano";
 "%@/week" = "%@/semana";
-"Start Free Trial" = "Iniciar teste grátis";
 "Subscribe" = "Assinar";
 "Prices aren't available right now. Check your connection and try again." = "Os preços não estão disponíveis no momento. Verifique sua conexão e tente novamente.";
 "Your purchase is waiting for approval." = "Sua compra está aguardando aprovação.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Grátis por %d dias com %d minutos, depois %@ por ano. Renovação automática até o cancelamento. Cancele quando quiser em Ajustes, pelo menos 24 horas antes do fim do teste.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ por ano. Renovação automática até o cancelamento. Cancele quando quiser em Ajustes, pelo menos 24 horas antes da renovação.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ por semana. Renovação automática até o cancelamento. Cancele quando quiser em Ajustes, pelo menos 24 horas antes da renovação.";
 "Restore Purchases" = "Restaurar compras";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Gerenciar assinatura";
 "Change or cancel your plan" = "Altere ou cancele seu plano";
 "See Premium Plans" = "Ver planos Premium";
-"Weekly or yearly, with a free trial" = "Semanal ou anual, com teste grátis";
+"Weekly or yearly plans" = "Planos semanais ou anuais";
 "Buy More Minutes" = "Comprar mais minutos";
 "Extra minutes never expire" = "Minutos extras nunca expiram";
 "Yearly plan" = "Plano anual";

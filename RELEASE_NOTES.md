@@ -9,6 +9,12 @@ release rather than publishing empty or ambiguous notes.
 App Store "What's New" text is separate: it lives in
 `store/metadata/ios/<locale>/whats_new.txt` (see `store/README.md`).
 
+## v2.1.2
+
+- Removed the introductory free-trial offer. Weekly and yearly Premium plans start as paid subscriptions.
+- Updated the paywall, Settings, website and App Store description to show the paid plans consistently.
+- Existing purchases, active trial entitlements and non-expiring minute packs remain available.
+
 ## v2.1.1
 
 - Updated the About screen, website and store description to Scowld's dedicated Instagram account, @scowldapp.

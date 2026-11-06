@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "追加した時間に有効期限はありません。";
 "Yearly" = "年額";
 "Weekly" = "週額";
-"%d-day free trial" = "%d日間無料トライアル";
 "Best value" = "いちばんお得";
 "%d minutes a month" = "毎月%d分";
 "%@/month · %@" = "%@/月 · %@";
 "%d minutes a week" = "毎週%d分";
 "%@/year" = "%@/年";
 "%@/week" = "%@/週";
-"Start Free Trial" = "無料トライアルを開始";
 "Subscribe" = "登録する";
 "Prices aren't available right now. Check your connection and try again." = "現在価格を表示できません。接続を確認して、もう一度お試しください。";
 "Your purchase is waiting for approval." = "購入は承認待ちです。";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "%d日間無料（%d分付き）、その後は年額%@。キャンセルしない限り自動更新されます。無料トライアル終了の24時間前までに、「設定」からいつでもキャンセルできます。";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "年額%@。キャンセルしない限り自動更新されます。更新の24時間前までに、「設定」からいつでもキャンセルできます。";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "週額%@。キャンセルしない限り自動更新されます。更新の24時間前までに、「設定」からいつでもキャンセルできます。";
 "Restore Purchases" = "購入を復元";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "サブスクリプションを管理";
 "Change or cancel your plan" = "プランの変更またはキャンセル";
 "See Premium Plans" = "Premiumプランを見る";
-"Weekly or yearly, with a free trial" = "週額または年額、無料トライアル付き";
+"Weekly or yearly plans" = "週額または年額プラン";
 "Buy More Minutes" = "時間を追加購入";
 "Extra minutes never expire" = "追加した時間に有効期限はありません";
 "Yearly plan" = "年額プラン";

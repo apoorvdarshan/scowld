@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "额外分钟数永不过期。";
 "Yearly" = "年度";
 "Weekly" = "每周";
-"%d-day free trial" = "免费试用 %d 天";
 "Best value" = "最超值";
 "%d minutes a month" = "每月 %d 分钟";
 "%@/month · %@" = "%@/月 · %@";
 "%d minutes a week" = "每周 %d 分钟";
 "%@/year" = "%@/年";
 "%@/week" = "%@/周";
-"Start Free Trial" = "开始免费试用";
 "Subscribe" = "订阅";
 "Prices aren't available right now. Check your connection and try again." = "目前无法显示价格。请检查网络连接后重试。";
 "Your purchase is waiting for approval." = "你的购买正在等待批准。";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "免费试用 %d 天（含 %d 分钟），之后每年 %@。除非取消，否则将自动续订。你可以随时在“设置”中取消，但需在试用期结束前至少 24 小时操作。";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "每年 %@。除非取消，否则将自动续订。你可以随时在“设置”中取消，但需在续订前至少 24 小时操作。";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "每周 %@。除非取消，否则将自动续订。你可以随时在“设置”中取消，但需在续订前至少 24 小时操作。";
 "Restore Purchases" = "恢复购买";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "管理订阅";
 "Change or cancel your plan" = "更改或取消你的套餐";
 "See Premium Plans" = "查看 Premium 套餐";
-"Weekly or yearly, with a free trial" = "按周或按年，含免费试用";
+"Weekly or yearly plans" = "按周或按年订阅";
 "Buy More Minutes" = "购买更多分钟数";
 "Extra minutes never expire" = "额外分钟数永不过期";
 "Yearly plan" = "年度套餐";

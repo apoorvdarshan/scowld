@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Extra minuten verlopen nooit.";
 "Yearly" = "Jaarlijks";
 "Weekly" = "Wekelijks";
-"%d-day free trial" = "%d dagen gratis proberen";
 "Best value" = "Voordeligst";
 "%d minutes a month" = "%d minuten per maand";
 "%@/month · %@" = "%@/maand · %@";
 "%d minutes a week" = "%d minuten per week";
 "%@/year" = "%@/jaar";
 "%@/week" = "%@/week";
-"Start Free Trial" = "Gratis proefperiode starten";
 "Subscribe" = "Abonneren";
 "Prices aren't available right now. Check your connection and try again." = "Prijzen zijn nu niet beschikbaar. Controleer je verbinding en probeer het opnieuw.";
 "Your purchase is waiting for approval." = "Je aankoop wacht op goedkeuring.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "%d dagen gratis met %d minuten, daarna %@ per jaar. Wordt automatisch verlengd tot je opzegt. Je kunt altijd opzeggen in Instellingen, uiterlijk 24 uur voor het einde van de proefperiode.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ per jaar. Wordt automatisch verlengd tot je opzegt. Je kunt altijd opzeggen in Instellingen, uiterlijk 24 uur voor de verlenging.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ per week. Wordt automatisch verlengd tot je opzegt. Je kunt altijd opzeggen in Instellingen, uiterlijk 24 uur voor de verlenging.";
 "Restore Purchases" = "Aankopen herstellen";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Abonnement beheren";
 "Change or cancel your plan" = "Wijzig of zeg je abonnement op";
 "See Premium Plans" = "Premium-abonnementen bekijken";
-"Weekly or yearly, with a free trial" = "Wekelijks of jaarlijks, met gratis proefperiode";
+"Weekly or yearly plans" = "Wekelijkse of jaarlijkse abonnementen";
 "Buy More Minutes" = "Meer minuten kopen";
 "Extra minutes never expire" = "Extra minuten verlopen nooit";
 "Yearly plan" = "Jaarabonnement";

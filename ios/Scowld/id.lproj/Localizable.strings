@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Menit tambahan tidak pernah kedaluwarsa.";
 "Yearly" = "Tahunan";
 "Weekly" = "Mingguan";
-"%d-day free trial" = "Uji coba gratis %d hari";
 "Best value" = "Paling hemat";
 "%d minutes a month" = "%d menit per bulan";
 "%@/month · %@" = "%@/bulan · %@";
 "%d minutes a week" = "%d menit per minggu";
 "%@/year" = "%@/tahun";
 "%@/week" = "%@/minggu";
-"Start Free Trial" = "Mulai Uji Coba Gratis";
 "Subscribe" = "Berlangganan";
 "Prices aren't available right now. Check your connection and try again." = "Harga tidak tersedia saat ini. Periksa koneksi Anda dan coba lagi.";
 "Your purchase is waiting for approval." = "Pembelian Anda menunggu persetujuan.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Gratis selama %d hari dengan %d menit, lalu %@ per tahun. Diperpanjang otomatis hingga dibatalkan. Batalkan kapan saja di Pengaturan, paling lambat 24 jam sebelum masa uji coba berakhir.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ per tahun. Diperpanjang otomatis hingga dibatalkan. Batalkan kapan saja di Pengaturan, paling lambat 24 jam sebelum perpanjangan.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ per minggu. Diperpanjang otomatis hingga dibatalkan. Batalkan kapan saja di Pengaturan, paling lambat 24 jam sebelum perpanjangan.";
 "Restore Purchases" = "Pulihkan Pembelian";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Kelola Langganan";
 "Change or cancel your plan" = "Ubah atau batalkan paket Anda";
 "See Premium Plans" = "Lihat Paket Premium";
-"Weekly or yearly, with a free trial" = "Mingguan atau tahunan, dengan uji coba gratis";
+"Weekly or yearly plans" = "Paket mingguan atau tahunan";
 "Buy More Minutes" = "Beli Menit Tambahan";
 "Extra minutes never expire" = "Menit tambahan tidak pernah kedaluwarsa";
 "Yearly plan" = "Paket tahunan";

@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Дополнительные минуты не сгорают.";
 "Yearly" = "Годовой";
 "Weekly" = "Недельный";
-"%d-day free trial" = "%d дн. бесплатно";
 "Best value" = "Выгоднее всего";
 "%d minutes a month" = "%d минут в месяц";
 "%@/month · %@" = "%@/мес. · %@";
 "%d minutes a week" = "%d минут в неделю";
 "%@/year" = "%@/год";
 "%@/week" = "%@/нед.";
-"Start Free Trial" = "Попробовать бесплатно";
 "Subscribe" = "Оформить подписку";
 "Prices aren't available right now. Check your connection and try again." = "Цены сейчас недоступны. Проверьте подключение и попробуйте снова.";
 "Your purchase is waiting for approval." = "Покупка ожидает одобрения.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Бесплатно в течение %d дней с %d минутами, затем %@ в год. Подписка продлевается автоматически, пока вы её не отмените. Отменить её можно в любой момент в Настройках, но не позднее чем за 24 часа до окончания пробного периода.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ в год. Подписка продлевается автоматически, пока вы её не отмените. Отменить её можно в любой момент в Настройках, но не позднее чем за 24 часа до продления.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ в неделю. Подписка продлевается автоматически, пока вы её не отмените. Отменить её можно в любой момент в Настройках, но не позднее чем за 24 часа до продления.";
 "Restore Purchases" = "Восстановить покупки";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Управление подпиской";
 "Change or cancel your plan" = "Изменить или отменить тариф";
 "See Premium Plans" = "Тарифы Premium";
-"Weekly or yearly, with a free trial" = "Недельный или годовой, с бесплатным пробным периодом";
+"Weekly or yearly plans" = "Недельные или годовые планы";
 "Buy More Minutes" = "Купить ещё минуты";
 "Extra minutes never expire" = "Дополнительные минуты не сгорают";
 "Yearly plan" = "Годовой тариф";

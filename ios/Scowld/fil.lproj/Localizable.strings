@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Hindi kailanman nag-e-expire ang dagdag na minuto.";
 "Yearly" = "Taunan";
 "Weekly" = "Lingguhan";
-"%d-day free trial" = "%d araw na libreng trial";
 "Best value" = "Pinakasulit";
 "%d minutes a month" = "%d minuto kada buwan";
 "%@/month · %@" = "%@/buwan · %@";
 "%d minutes a week" = "%d minuto kada linggo";
 "%@/year" = "%@/taon";
 "%@/week" = "%@/linggo";
-"Start Free Trial" = "Simulan ang Libreng Trial";
 "Subscribe" = "Mag-subscribe";
 "Prices aren't available right now. Check your connection and try again." = "Hindi available ang mga presyo ngayon. Tingnan ang iyong koneksyon at subukang muli.";
 "Your purchase is waiting for approval." = "Naghihintay ng pag-apruba ang iyong pagbili.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Libre sa loob ng %d araw na may %d minuto, pagkatapos ay %@ kada taon. Awtomatikong nire-renew hangga't hindi kinakansela. Kanselahin anumang oras sa Settings nang hindi bababa sa 24 oras bago matapos ang trial.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ kada taon. Awtomatikong nire-renew hangga't hindi kinakansela. Kanselahin anumang oras sa Settings nang hindi bababa sa 24 oras bago ito ma-renew.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ kada linggo. Awtomatikong nire-renew hangga't hindi kinakansela. Kanselahin anumang oras sa Settings nang hindi bababa sa 24 oras bago ito ma-renew.";
 "Restore Purchases" = "I-restore ang Mga Pagbili";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Pamahalaan ang Subscription";
 "Change or cancel your plan" = "Baguhin o kanselahin ang iyong plan";
 "See Premium Plans" = "Tingnan ang Mga Premium Plan";
-"Weekly or yearly, with a free trial" = "Lingguhan o taunan, may libreng trial";
+"Weekly or yearly plans" = "Lingguhan o taunang mga plano";
 "Buy More Minutes" = "Bumili ng Dagdag na Minuto";
 "Extra minutes never expire" = "Hindi kailanman nag-e-expire ang dagdag na minuto";
 "Yearly plan" = "Taunang plan";

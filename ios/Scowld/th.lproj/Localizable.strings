@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "นาทีเพิ่มเติมไม่มีวันหมดอายุ";
 "Yearly" = "รายปี";
 "Weekly" = "รายสัปดาห์";
-"%d-day free trial" = "ทดลองใช้ฟรี %d วัน";
 "Best value" = "คุ้มที่สุด";
 "%d minutes a month" = "%d นาทีต่อเดือน";
 "%@/month · %@" = "%@/เดือน · %@";
 "%d minutes a week" = "%d นาทีต่อสัปดาห์";
 "%@/year" = "%@/ปี";
 "%@/week" = "%@/สัปดาห์";
-"Start Free Trial" = "เริ่มทดลองใช้ฟรี";
 "Subscribe" = "สมัครสมาชิก";
 "Prices aren't available right now. Check your connection and try again." = "ไม่สามารถแสดงราคาได้ในขณะนี้ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง";
 "Your purchase is waiting for approval." = "รายการซื้อของคุณกำลังรอการอนุมัติ";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "ใช้ฟรี %d วันพร้อม %d นาที จากนั้น %@ ต่อปี ต่ออายุอัตโนมัติจนกว่าจะยกเลิก ยกเลิกได้ทุกเมื่อในการตั้งค่า อย่างน้อย 24 ชั่วโมงก่อนสิ้นสุดช่วงทดลองใช้";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ ต่อปี ต่ออายุอัตโนมัติจนกว่าจะยกเลิก ยกเลิกได้ทุกเมื่อในการตั้งค่า อย่างน้อย 24 ชั่วโมงก่อนการต่ออายุ";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ ต่อสัปดาห์ ต่ออายุอัตโนมัติจนกว่าจะยกเลิก ยกเลิกได้ทุกเมื่อในการตั้งค่า อย่างน้อย 24 ชั่วโมงก่อนการต่ออายุ";
 "Restore Purchases" = "กู้คืนรายการซื้อ";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "จัดการการสมัครสมาชิก";
 "Change or cancel your plan" = "เปลี่ยนหรือยกเลิกแพ็กเกจ";
 "See Premium Plans" = "ดูแพ็กเกจ Premium";
-"Weekly or yearly, with a free trial" = "รายสัปดาห์หรือรายปี พร้อมทดลองใช้ฟรี";
+"Weekly or yearly plans" = "แผนรายสัปดาห์หรือรายปี";
 "Buy More Minutes" = "ซื้อนาทีเพิ่ม";
 "Extra minutes never expire" = "นาทีเพิ่มเติมไม่มีวันหมดอายุ";
 "Yearly plan" = "แพ็กเกจรายปี";

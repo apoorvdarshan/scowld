@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Додаткові хвилини не згоряють.";
 "Yearly" = "Річний";
 "Weekly" = "Тижневий";
-"%d-day free trial" = "%d дн. безкоштовно";
 "Best value" = "Найвигідніше";
 "%d minutes a month" = "%d хвилин на місяць";
 "%@/month · %@" = "%@/міс. · %@";
 "%d minutes a week" = "%d хвилин на тиждень";
 "%@/year" = "%@/рік";
 "%@/week" = "%@/тиж.";
-"Start Free Trial" = "Спробувати безкоштовно";
 "Subscribe" = "Підписатися";
 "Prices aren't available right now. Check your connection and try again." = "Ціни зараз недоступні. Перевірте з’єднання та спробуйте ще раз.";
 "Your purchase is waiting for approval." = "Покупка очікує схвалення.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Безкоштовно протягом %d днів із %d хвилинами, далі %@ на рік. Підписка поновлюється автоматично, доки ви її не скасуєте. Скасувати її можна будь-коли в Параметрах, але не пізніше ніж за 24 години до завершення пробного періоду.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ на рік. Підписка поновлюється автоматично, доки ви її не скасуєте. Скасувати її можна будь-коли в Параметрах, але не пізніше ніж за 24 години до поновлення.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ на тиждень. Підписка поновлюється автоматично, доки ви її не скасуєте. Скасувати її можна будь-коли в Параметрах, але не пізніше ніж за 24 години до поновлення.";
 "Restore Purchases" = "Відновити покупки";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Керувати підпискою";
 "Change or cancel your plan" = "Змінити або скасувати план";
 "See Premium Plans" = "Плани Premium";
-"Weekly or yearly, with a free trial" = "Тижневий або річний, із безкоштовним пробним періодом";
+"Weekly or yearly plans" = "Тижневі або річні плани";
 "Buy More Minutes" = "Купити ще хвилини";
 "Extra minutes never expire" = "Додаткові хвилини не згоряють";
 "Yearly plan" = "Річний план";

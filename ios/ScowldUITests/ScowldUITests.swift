@@ -223,6 +223,10 @@ final class ScowldUITests: XCTestCase {
         XCTAssertTrue(paywall.waitForExistence(timeout: 5), "The mic opens the plans")
         XCTAssertTrue(app.buttons["premium.plan.yearly"].exists)
         XCTAssertTrue(app.buttons["premium.plan.weekly"].exists)
+        XCTAssertEqual(app.buttons["premium.subscribe"].label, "Subscribe")
+        XCTAssertTrue(app.buttons["premium.plan.yearly"].label.contains("Best value"))
+        XCTAssertFalse(app.staticTexts["3-day free trial"].exists)
+        XCTAssertFalse(app.buttons["Start Free Trial"].exists)
         XCTAssertTrue(app.buttons["premium.restore"].exists)
         XCTAssertTrue(app.buttons["Terms"].exists)
         XCTAssertTrue(app.buttons["Privacy"].exists)
@@ -279,6 +283,7 @@ final class ScowldUITests: XCTestCase {
 
         let plans = app.buttons["settings.premium.plans"]
         reveal(plans, in: app)
+        XCTAssertTrue(plans.label.contains("Weekly or yearly plans"))
         plans.tap()
         XCTAssertTrue(app.staticTexts["premium.title"].waitForExistence(timeout: 5))
         app.buttons["premium.close"].tap()

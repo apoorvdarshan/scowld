@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Phút bổ sung không bao giờ hết hạn.";
 "Yearly" = "Hằng năm";
 "Weekly" = "Hằng tuần";
-"%d-day free trial" = "Dùng thử miễn phí %d ngày";
 "Best value" = "Tiết kiệm nhất";
 "%d minutes a month" = "%d phút mỗi tháng";
 "%@/month · %@" = "%@/tháng · %@";
 "%d minutes a week" = "%d phút mỗi tuần";
 "%@/year" = "%@/năm";
 "%@/week" = "%@/tuần";
-"Start Free Trial" = "Bắt đầu dùng thử miễn phí";
 "Subscribe" = "Đăng ký";
 "Prices aren't available right now. Check your connection and try again." = "Giá hiện không khả dụng. Kiểm tra kết nối của bạn và thử lại.";
 "Your purchase is waiting for approval." = "Giao dịch mua của bạn đang chờ phê duyệt.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Miễn phí %d ngày với %d phút, sau đó %@ mỗi năm. Tự động gia hạn cho đến khi bị hủy. Hủy bất cứ lúc nào trong Cài đặt, ít nhất 24 giờ trước khi thời gian dùng thử kết thúc.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ mỗi năm. Tự động gia hạn cho đến khi bị hủy. Hủy bất cứ lúc nào trong Cài đặt, ít nhất 24 giờ trước khi gia hạn.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ mỗi tuần. Tự động gia hạn cho đến khi bị hủy. Hủy bất cứ lúc nào trong Cài đặt, ít nhất 24 giờ trước khi gia hạn.";
 "Restore Purchases" = "Khôi phục giao dịch mua";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Quản lý gói đăng ký";
 "Change or cancel your plan" = "Thay đổi hoặc hủy gói của bạn";
 "See Premium Plans" = "Xem các gói Premium";
-"Weekly or yearly, with a free trial" = "Hằng tuần hoặc hằng năm, có dùng thử miễn phí";
+"Weekly or yearly plans" = "Gói hằng tuần hoặc hằng năm";
 "Buy More Minutes" = "Mua thêm phút";
 "Extra minutes never expire" = "Phút bổ sung không bao giờ hết hạn";
 "Yearly plan" = "Gói năm";

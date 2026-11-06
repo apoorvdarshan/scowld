@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "額外分鐘數永不過期。";
 "Yearly" = "年繳";
 "Weekly" = "週繳";
-"%d-day free trial" = "免費試用 %d 天";
 "Best value" = "最划算";
 "%d minutes a month" = "每月 %d 分鐘";
 "%@/month · %@" = "%@/月 · %@";
 "%d minutes a week" = "每週 %d 分鐘";
 "%@/year" = "%@/年";
 "%@/week" = "%@/週";
-"Start Free Trial" = "開始免費試用";
 "Subscribe" = "訂閱";
 "Prices aren't available right now. Check your connection and try again." = "目前無法顯示價格。請檢查網路連線後再試一次。";
 "Your purchase is waiting for approval." = "你的購買項目正在等待核准。";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "免費試用 %d 天（含 %d 分鐘），之後每年 %@。除非取消，否則將自動續訂。你可以隨時在「設定」中取消，但需在試用期結束前至少 24 小時操作。";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "每年 %@。除非取消，否則將自動續訂。你可以隨時在「設定」中取消，但需在續訂前至少 24 小時操作。";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "每週 %@。除非取消，否則將自動續訂。你可以隨時在「設定」中取消，但需在續訂前至少 24 小時操作。";
 "Restore Purchases" = "回復購買項目";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "管理訂閱";
 "Change or cancel your plan" = "更改或取消你的方案";
 "See Premium Plans" = "查看 Premium 方案";
-"Weekly or yearly, with a free trial" = "週繳或年繳，含免費試用";
+"Weekly or yearly plans" = "週繳或年繳方案";
 "Buy More Minutes" = "購買更多分鐘數";
 "Extra minutes never expire" = "額外分鐘數永不過期";
 "Yearly plan" = "年繳方案";

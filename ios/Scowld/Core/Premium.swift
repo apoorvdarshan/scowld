@@ -29,9 +29,6 @@ nonisolated enum PremiumPlan: String, CaseIterable, Identifiable, Sendable {
         case .weekly: 20
         }
     }
-
-    /// Minutes during the yearly plan's free trial.
-    static let trialMinutes = 10
 }
 
 /// Extra minutes bought once. They never expire and are used after a plan's minutes.
@@ -120,8 +117,6 @@ nonisolated struct PremiumProduct: Equatable, Sendable {
     let localizedPrice: String
     /// The yearly price spread over 12 months, for comparison.
     let localizedMonthlyPrice: String?
-    /// Days of free trial for a new subscriber, if the product offers one.
-    let freeTrialDays: Int?
 }
 
 /// The store Premium talks to: RevenueCat in the app, a fake in tests.
@@ -153,20 +148,10 @@ actor RevenueCatPremiumStore: PremiumStore {
             if product.subscriptionPeriod?.unit == .year, let formatter = product.priceFormatter {
                 monthly = formatter.string(from: (product.price / 12) as NSDecimalNumber)
             }
-            var trialDays: Int?
-            if let intro = product.introductoryDiscount, intro.paymentMode == .freeTrial {
-                let period = intro.subscriptionPeriod
-                switch period.unit {
-                case .day: trialDays = period.value
-                case .week: trialDays = period.value * 7
-                default: trialDays = nil
-                }
-            }
             return PremiumProduct(
                 productID: product.productIdentifier,
                 localizedPrice: product.localizedPriceString,
-                localizedMonthlyPrice: monthly,
-                freeTrialDays: trialDays
+                localizedMonthlyPrice: monthly
             )
         }
     }

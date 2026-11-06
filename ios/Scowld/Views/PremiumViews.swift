@@ -10,7 +10,7 @@ enum PremiumSheet: String, Identifiable {
 
 // MARK: - Paywall
 
-/// Scowld Premium plans: yearly (with the free trial, chosen by default) and weekly.
+/// Scowld Premium plans: yearly (chosen by default) and weekly.
 struct PremiumPaywallView: View {
     @Environment(PremiumModel.self) private var premium
     @Environment(\.dismiss) private var dismiss
@@ -141,8 +141,7 @@ struct PremiumPaywallView: View {
                         Text(plan == .yearly ? LocalizedStringKey("Yearly") : LocalizedStringKey("Weekly"))
                             .font(.headline)
                         if plan == .yearly {
-                            Text(trialDays(product).map { String.localizedStringWithFormat(NSLocalizedString("%d-day free trial", comment: "Trial badge"), $0) }
-                                ?? NSLocalizedString("Best value", comment: "Plan badge"))
+                            Text("Best value")
                                 .font(.caption2.weight(.bold))
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 3)
@@ -172,10 +171,6 @@ struct PremiumPaywallView: View {
         .accessibilityIdentifier("premium.plan.\(plan.rawValue)")
     }
 
-    private func trialDays(_ product: PremiumProduct?) -> Int? {
-        product?.freeTrialDays
-    }
-
     private func planDetail(_ plan: PremiumPlan, product: PremiumProduct?) -> String {
         switch plan {
         case .yearly:
@@ -197,9 +192,6 @@ struct PremiumPaywallView: View {
     private var purchaseButton: some View {
         let product = premium.products[selected.productID]
         let isPurchasing = premium.status == .purchasing(selected.productID)
-        let title = selected == .yearly && trialDays(product) != nil
-            ? NSLocalizedString("Start Free Trial", comment: "Paywall button")
-            : NSLocalizedString("Subscribe", comment: "Paywall button")
         return Button {
             Task { await premium.purchase(selected.productID) }
         } label: {
@@ -207,7 +199,7 @@ struct PremiumPaywallView: View {
                 if isPurchasing {
                     ProgressView().tint(.black)
                 } else {
-                    Text(title).font(.headline)
+                    Text("Subscribe").font(.headline)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -244,12 +236,6 @@ struct PremiumPaywallView: View {
     private func renewalTerms(_ product: PremiumProduct) -> String {
         switch selected {
         case .yearly:
-            if let days = product.freeTrialDays {
-                return String.localizedStringWithFormat(
-                    NSLocalizedString("Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends.", comment: "Yearly trial terms"),
-                    days, PremiumPlan.trialMinutes, product.localizedPrice
-                )
-            }
             return String.localizedStringWithFormat(
                 NSLocalizedString("%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews.", comment: "Yearly terms"),
                 product.localizedPrice

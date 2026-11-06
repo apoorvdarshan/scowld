@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Los minutos extra nunca caducan.";
 "Yearly" = "Anual";
 "Weekly" = "Semanal";
-"%d-day free trial" = "Prueba gratis de %d días";
 "Best value" = "Mejor oferta";
 "%d minutes a month" = "%d minutos al mes";
 "%@/month · %@" = "%@/mes · %@";
 "%d minutes a week" = "%d minutos a la semana";
 "%@/year" = "%@/año";
 "%@/week" = "%@/semana";
-"Start Free Trial" = "Empezar prueba gratis";
 "Subscribe" = "Suscribirse";
 "Prices aren't available right now. Check your connection and try again." = "Los precios no están disponibles en este momento. Revisa tu conexión e inténtalo de nuevo.";
 "Your purchase is waiting for approval." = "Tu compra está pendiente de aprobación.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Gratis durante %d días con %d minutos y, después, %@ al año. Se renueva automáticamente hasta que lo canceles. Puedes cancelarlo cuando quieras en Ajustes, al menos 24 horas antes de que termine la prueba.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ al año. Se renueva automáticamente hasta que lo canceles. Puedes cancelarlo cuando quieras en Ajustes, al menos 24 horas antes de la renovación.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ a la semana. Se renueva automáticamente hasta que lo canceles. Puedes cancelarlo cuando quieras en Ajustes, al menos 24 horas antes de la renovación.";
 "Restore Purchases" = "Restaurar compras";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Gestionar suscripción";
 "Change or cancel your plan" = "Cambia o cancela tu plan";
 "See Premium Plans" = "Ver planes Premium";
-"Weekly or yearly, with a free trial" = "Semanal o anual, con prueba gratis";
+"Weekly or yearly plans" = "Planes semanales o anuales";
 "Buy More Minutes" = "Comprar más minutos";
 "Extra minutes never expire" = "Los minutos extra nunca caducan";
 "Yearly plan" = "Plan anual";

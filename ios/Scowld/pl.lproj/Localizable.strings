@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Dodatkowe minuty nigdy nie wygasają.";
 "Yearly" = "Roczny";
 "Weekly" = "Tygodniowy";
-"%d-day free trial" = "%d dni za darmo";
 "Best value" = "Najlepsza oferta";
 "%d minutes a month" = "%d minut miesięcznie";
 "%@/month · %@" = "%@/mies. · %@";
 "%d minutes a week" = "%d minut tygodniowo";
 "%@/year" = "%@/rok";
 "%@/week" = "%@/tydz.";
-"Start Free Trial" = "Wypróbuj za darmo";
 "Subscribe" = "Subskrybuj";
 "Prices aren't available right now. Check your connection and try again." = "Ceny są teraz niedostępne. Sprawdź połączenie i spróbuj ponownie.";
 "Your purchase is waiting for approval." = "Twój zakup czeka na zatwierdzenie.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Za darmo przez %d dni z %d minutami, potem %@ rocznie. Subskrypcja odnawia się automatycznie do czasu anulowania. Możesz ją anulować w dowolnej chwili w Ustawieniach, co najmniej 24 godziny przed końcem okresu próbnego.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ rocznie. Subskrypcja odnawia się automatycznie do czasu anulowania. Możesz ją anulować w dowolnej chwili w Ustawieniach, co najmniej 24 godziny przed odnowieniem.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ tygodniowo. Subskrypcja odnawia się automatycznie do czasu anulowania. Możesz ją anulować w dowolnej chwili w Ustawieniach, co najmniej 24 godziny przed odnowieniem.";
 "Restore Purchases" = "Przywróć zakupy";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Zarządzaj subskrypcją";
 "Change or cancel your plan" = "Zmień lub anuluj plan";
 "See Premium Plans" = "Zobacz plany Premium";
-"Weekly or yearly, with a free trial" = "Tygodniowy lub roczny, z bezpłatnym okresem próbnym";
+"Weekly or yearly plans" = "Plany tygodniowe lub roczne";
 "Buy More Minutes" = "Kup więcej minut";
 "Extra minutes never expire" = "Dodatkowe minuty nigdy nie wygasają";
 "Yearly plan" = "Plan roczny";
