@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "I minuti extra non scadono mai.";
 "Yearly" = "Annuale";
 "Weekly" = "Settimanale";
-"%d-day free trial" = "Prova gratuita di %d giorni";
 "Best value" = "Più conveniente";
 "%d minutes a month" = "%d minuti al mese";
 "%@/month · %@" = "%@/mese · %@";
 "%d minutes a week" = "%d minuti a settimana";
 "%@/year" = "%@/anno";
 "%@/week" = "%@/settimana";
-"Start Free Trial" = "Inizia la prova gratuita";
 "Subscribe" = "Abbonati";
 "Prices aren't available right now. Check your connection and try again." = "I prezzi non sono disponibili al momento. Controlla la connessione e riprova.";
 "Your purchase is waiting for approval." = "Il tuo acquisto è in attesa di approvazione.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Gratis per %d giorni con %d minuti, poi %@ all’anno. Si rinnova automaticamente fino alla disdetta. Puoi disdire in qualsiasi momento in Impostazioni, almeno 24 ore prima della fine della prova.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ all’anno. Si rinnova automaticamente fino alla disdetta. Puoi disdire in qualsiasi momento in Impostazioni, almeno 24 ore prima del rinnovo.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ a settimana. Si rinnova automaticamente fino alla disdetta. Puoi disdire in qualsiasi momento in Impostazioni, almeno 24 ore prima del rinnovo.";
 "Restore Purchases" = "Ripristina acquisti";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Gestisci abbonamento";
 "Change or cancel your plan" = "Cambia o annulla il tuo piano";
 "See Premium Plans" = "Vedi i piani Premium";
-"Weekly or yearly, with a free trial" = "Settimanale o annuale, con prova gratuita";
+"Weekly or yearly plans" = "Piani settimanali o annuali";
 "Buy More Minutes" = "Acquista altri minuti";
 "Extra minutes never expire" = "I minuti extra non scadono mai";
 "Yearly plan" = "Piano annuale";

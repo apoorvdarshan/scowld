@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "추가 시간은 만료되지 않습니다.";
 "Yearly" = "연간";
 "Weekly" = "주간";
-"%d-day free trial" = "%d일 무료 체험";
 "Best value" = "최고 혜택";
 "%d minutes a month" = "매월 %d분";
 "%@/month · %@" = "월 %@ · %@";
 "%d minutes a week" = "매주 %d분";
 "%@/year" = "연 %@";
 "%@/week" = "주 %@";
-"Start Free Trial" = "무료 체험 시작";
 "Subscribe" = "구독하기";
 "Prices aren't available right now. Check your connection and try again." = "지금은 가격을 불러올 수 없습니다. 연결을 확인하고 다시 시도하세요.";
 "Your purchase is waiting for approval." = "구입이 승인을 기다리고 있습니다.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "%d일 동안 무료(%d분 포함), 이후 연 %@. 해지하기 전까지 자동으로 갱신됩니다. 체험 기간이 끝나기 최소 24시간 전까지 설정에서 언제든지 해지할 수 있습니다.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "연 %@. 해지하기 전까지 자동으로 갱신됩니다. 갱신 최소 24시간 전까지 설정에서 언제든지 해지할 수 있습니다.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "주 %@. 해지하기 전까지 자동으로 갱신됩니다. 갱신 최소 24시간 전까지 설정에서 언제든지 해지할 수 있습니다.";
 "Restore Purchases" = "구입 항목 복원";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "구독 관리";
 "Change or cancel your plan" = "요금제 변경 또는 해지";
 "See Premium Plans" = "Premium 요금제 보기";
-"Weekly or yearly, with a free trial" = "주간 또는 연간, 무료 체험 제공";
+"Weekly or yearly plans" = "주간 또는 연간 요금제";
 "Buy More Minutes" = "시간 추가 구입";
 "Extra minutes never expire" = "추가 시간은 만료되지 않음";
 "Yearly plan" = "연간 요금제";

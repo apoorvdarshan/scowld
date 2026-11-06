@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "अतिरिक्त मिनट कभी एक्सपायर नहीं होते।";
 "Yearly" = "सालाना";
 "Weekly" = "साप्ताहिक";
-"%d-day free trial" = "%d दिन का फ़्री ट्रायल";
 "Best value" = "सबसे किफ़ायती";
 "%d minutes a month" = "हर महीने %d मिनट";
 "%@/month · %@" = "%@/माह · %@";
 "%d minutes a week" = "हर हफ़्ते %d मिनट";
 "%@/year" = "%@/वर्ष";
 "%@/week" = "%@/सप्ताह";
-"Start Free Trial" = "फ़्री ट्रायल शुरू करें";
 "Subscribe" = "सब्सक्राइब करें";
 "Prices aren't available right now. Check your connection and try again." = "कीमतें अभी उपलब्ध नहीं हैं। अपना कनेक्शन जाँचें और फिर से कोशिश करें।";
 "Your purchase is waiting for approval." = "आपकी खरीदारी मंज़ूरी का इंतज़ार कर रही है।";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "%d दिनों तक %d मिनट के साथ फ़्री, फिर %@ प्रति वर्ष। रद्द करने तक अपने आप रिन्यू होता है। ट्रायल खत्म होने से कम से कम 24 घंटे पहले सेटिंग्ज़ में कभी भी रद्द करें।";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ प्रति वर्ष। रद्द करने तक अपने आप रिन्यू होता है। रिन्यू होने से कम से कम 24 घंटे पहले सेटिंग्ज़ में कभी भी रद्द करें।";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ प्रति सप्ताह। रद्द करने तक अपने आप रिन्यू होता है। रिन्यू होने से कम से कम 24 घंटे पहले सेटिंग्ज़ में कभी भी रद्द करें।";
 "Restore Purchases" = "खरीदारी रीस्टोर करें";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "सब्सक्रिप्शन मैनेज करें";
 "Change or cancel your plan" = "अपना प्लान बदलें या रद्द करें";
 "See Premium Plans" = "Premium प्लान देखें";
-"Weekly or yearly, with a free trial" = "साप्ताहिक या सालाना, फ़्री ट्रायल के साथ";
+"Weekly or yearly plans" = "साप्ताहिक या सालाना प्लान";
 "Buy More Minutes" = "और मिनट खरीदें";
 "Extra minutes never expire" = "अतिरिक्त मिनट कभी एक्सपायर नहीं होते";
 "Yearly plan" = "सालाना प्लान";

@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Extra minutes never expire.";
 "Yearly" = "Yearly";
 "Weekly" = "Weekly";
-"%d-day free trial" = "%d-day free trial";
 "Best value" = "Best value";
 "%d minutes a month" = "%d minutes a month";
 "%@/month · %@" = "%@/month · %@";
 "%d minutes a week" = "%d minutes a week";
 "%@/year" = "%@/year";
 "%@/week" = "%@/week";
-"Start Free Trial" = "Start Free Trial";
 "Subscribe" = "Subscribe";
 "Prices aren't available right now. Check your connection and try again." = "Prices aren't available right now. Check your connection and try again.";
 "Your purchase is waiting for approval." = "Your purchase is waiting for approval.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews.";
 "Restore Purchases" = "Restore Purchases";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Manage Subscription";
 "Change or cancel your plan" = "Change or cancel your plan";
 "See Premium Plans" = "See Premium Plans";
-"Weekly or yearly, with a free trial" = "Weekly or yearly, with a free trial";
+"Weekly or yearly plans" = "Weekly or yearly plans";
 "Buy More Minutes" = "Buy More Minutes";
 "Extra minutes never expire" = "Extra minutes never expire";
 "Yearly plan" = "Yearly plan";

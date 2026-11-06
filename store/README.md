@@ -57,7 +57,7 @@ same tag.
 ## Current switches
 
 Repository **Variables** (Settings → Secrets and variables → Actions → Variables),
-as of 2026-11-04. Missing means off; any value other than
+as of 2026-11-06. Missing means off; any value other than
 `true/false/yes/no/on/off/1/0` fails the run, even when the master switch is off.
 
 | Variable | Value |
@@ -67,7 +67,7 @@ as of 2026-11-04. Missing means off; any value other than
 | `IOS_UPLOAD_BUILD` | `true` |
 | `IOS_UPLOAD_LISTING`, `IOS_UPLOAD_WHATS_NEW`, `IOS_UPLOAD_SCREENSHOTS` | `true` |
 | `IOS_SUBMIT_REVIEW` | `true` |
-| `IOS_PUBLIC_RELEASE` | `false` (manual release after approval) |
+| `IOS_PUBLIC_RELEASE` | `true` (release automatically after approval) |
 | `IOS_UPLOAD_CREATIVE_ASSETS` | `true` |
 | `IOS_BUILD_POLL_SECONDS`, `IOS_BUILD_WAIT_MINUTES` | not set (30 s, 120 min from upload start) |
 
@@ -78,7 +78,7 @@ With these values a `vX.Y.Z` tag runs the iOS tests, creates App Store version X
 when App Store Connect does not have it yet, builds, signs and uploads the binary,
 waits until App Store Connect has processed this build, and updates the version's
 listing, What's New and screenshots from `store/metadata/ios/`. It submits the exact
-processed build for review, keeping public release manual. New header and search
+processed build for review and releases it automatically after approval. New header and search
 images go to a separate creative-asset review; approved assets can be placed on an
 editable version on a later run. Then it creates the GitHub Release `Scowld X.Y.Z` with the signed source
 archive. Each **Run workflow** prints this plan for the switches as they are at that
@@ -95,11 +95,12 @@ not newer than every existing version). The version needs every language in
 
 ### In-app purchases
 
-Scowld sells optional Scowld Premium subscriptions (weekly and yearly, the yearly
-plan with a free trial), consumable minute packs, and optional one-time tips. All of
+Scowld sells optional Scowld Premium subscriptions (weekly and yearly), consumable
+minute packs, and optional one-time tips. All of
 them are App Store in-app purchases managed with RevenueCat; Premium minutes are
 enforced by the Worker in [`web/`](../web) (see the main README). Using your own API
-key needs no purchase.
+key needs no purchase. New subscriptions have no introductory free trial; the
+backend still honors any previously granted trial entitlement until it expires.
 
 The pipeline does not submit in-app products. If App Store Connect holds a product
 that would have to go to review with a version (`READY_TO_SUBMIT`,

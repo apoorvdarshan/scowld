@@ -17,12 +17,12 @@ WHAT YOU GET
 SCOWLD PREMIUM (OPTIONAL)
 Google Gemini Live with Scowld's own key, so there's nothing to set up.
 - Weekly: $6.99 a week, with 20 minutes a week
-- Yearly: $99.99 a year, with 50 minutes a month; new subscribers get a 3-day free trial that includes 10 minutes
+- Yearly: $99.99 a year, with 50 minutes a month
 - Minute packs, no subscription needed: 20 minutes for $6.99, 60 for $16.99, or 150 for $34.99. They never expire and are used after a plan's minutes run out
 - Minutes count the time a Premium conversation is connected. Plan minutes reset each week or each month of the subscription year and don't roll over
 - US prices shown; other countries get local equivalents
 
-Payment is charged to your Apple ID at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period. The free trial converts to the paid yearly plan unless canceled at least 24 hours before it ends. Manage or cancel in the iPhone Settings app > [your name] > Subscriptions.
+Payment is charged to your Apple ID at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period. Manage or cancel in the iPhone Settings app > [your name] > Subscriptions.
 
 PRIVACY AND SECURITY
 - No user account is required

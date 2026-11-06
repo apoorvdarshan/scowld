@@ -8,9 +8,9 @@ final class PremiumTests: XCTestCase {
     private final class FakeStore: PremiumStore, @unchecked Sendable {
         var userID: String? = "$RCAnonymousID:0123456789abcdef0123456789abcdef"
         var available: [PremiumProduct] = [
-            PremiumProduct(productID: PremiumPlan.yearly.productID, localizedPrice: "$99.99", localizedMonthlyPrice: "$8.33", freeTrialDays: 3),
-            PremiumProduct(productID: PremiumPlan.weekly.productID, localizedPrice: "$6.99", localizedMonthlyPrice: nil, freeTrialDays: nil),
-            PremiumProduct(productID: MinutePack.all[0].productID, localizedPrice: "$6.99", localizedMonthlyPrice: nil, freeTrialDays: nil),
+            PremiumProduct(productID: PremiumPlan.yearly.productID, localizedPrice: "$99.99", localizedMonthlyPrice: "$8.33"),
+            PremiumProduct(productID: PremiumPlan.weekly.productID, localizedPrice: "$6.99", localizedMonthlyPrice: nil),
+            PremiumProduct(productID: MinutePack.all[0].productID, localizedPrice: "$6.99", localizedMonthlyPrice: nil),
         ]
         var subscriptions: Set<String> = []
         var outcome: Result<TipPurchaseOutcome, Error> = .success(.completed)
@@ -50,7 +50,7 @@ final class PremiumTests: XCTestCase {
             return self.balance(plan: "weekly", planLeft: 600, packLeft: 120)
         }
         await model.load()
-        XCTAssertEqual(model.products[PremiumPlan.yearly.productID]?.freeTrialDays, 3)
+        XCTAssertEqual(model.products[PremiumPlan.yearly.productID]?.localizedPrice, "$99.99")
         XCTAssertTrue(model.isSubscribed)
         XCTAssertEqual(model.activePlan, .weekly)
         XCTAssertEqual(model.balance?.minutesLeft, 12)
@@ -78,7 +78,7 @@ final class PremiumTests: XCTestCase {
         XCTAssertFalse(model.canTalk, "Out of minutes")
     }
 
-    func testBuyingAPlanRefreshesWhatTheUserHas() async {
+    func testExistingTrialEntitlementRemainsUsableAfterPurchaseRefresh() async {
         let store = FakeStore()
         store.subscribesOnPurchase = PremiumPlan.yearly.productID
         let model = PremiumModel(store: store) { _ in self.balance(plan: "trial", planLeft: 600) }
@@ -196,7 +196,6 @@ final class PremiumTests: XCTestCase {
         XCTAssertEqual(PremiumPlan.yearly.productID, "com.apoorvdarshan.Scowld.premium.yearly")
         XCTAssertEqual(PremiumPlan.weekly.minutes, 20)
         XCTAssertEqual(PremiumPlan.yearly.minutes, 50)
-        XCTAssertEqual(PremiumPlan.trialMinutes, 10)
         XCTAssertEqual(MinutePack.all.map(\.minutes), [20, 60, 150])
         XCTAssertEqual(MinutePack.all.map(\.productID), [
             "com.apoorvdarshan.Scowld.minutes.20",

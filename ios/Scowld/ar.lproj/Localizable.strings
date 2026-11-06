@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "لا تنتهي صلاحية الدقائق الإضافية أبدًا.";
 "Yearly" = "سنوي";
 "Weekly" = "أسبوعي";
-"%d-day free trial" = "تجربة مجانية لمدة %d أيام";
 "Best value" = "أفضل قيمة";
 "%d minutes a month" = "%d دقيقة شهريًا";
 "%@/month · %@" = "%@ شهريًا · %@";
 "%d minutes a week" = "%d دقيقة أسبوعيًا";
 "%@/year" = "%@ سنويًا";
 "%@/week" = "%@ أسبوعيًا";
-"Start Free Trial" = "ابدأ التجربة المجانية";
 "Subscribe" = "اشترك";
 "Prices aren't available right now. Check your connection and try again." = "الأسعار غير متاحة حاليًا. تحقق من اتصالك وحاول مرة أخرى.";
 "Your purchase is waiting for approval." = "عملية الشراء بانتظار الموافقة.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "مجانًا لمدة %d أيام مع %d دقائق، ثم %@ سنويًا. يتجدد الاشتراك تلقائيًا حتى إلغائه. يمكنك الإلغاء في أي وقت من الإعدادات قبل انتهاء الفترة التجريبية بـ 24 ساعة على الأقل.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ سنويًا. يتجدد الاشتراك تلقائيًا حتى إلغائه. يمكنك الإلغاء في أي وقت من الإعدادات قبل التجديد بـ 24 ساعة على الأقل.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ أسبوعيًا. يتجدد الاشتراك تلقائيًا حتى إلغائه. يمكنك الإلغاء في أي وقت من الإعدادات قبل التجديد بـ 24 ساعة على الأقل.";
 "Restore Purchases" = "استعادة المشتريات";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "إدارة الاشتراك";
 "Change or cancel your plan" = "غيّر خطتك أو ألغها";
 "See Premium Plans" = "عرض خطط Premium";
-"Weekly or yearly, with a free trial" = "أسبوعيًا أو سنويًا، مع تجربة مجانية";
+"Weekly or yearly plans" = "خطط أسبوعية أو سنوية";
 "Buy More Minutes" = "شراء دقائق إضافية";
 "Extra minutes never expire" = "لا تنتهي صلاحية الدقائق الإضافية أبدًا";
 "Yearly plan" = "خطة سنوية";

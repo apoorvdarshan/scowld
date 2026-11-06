@@ -65,7 +65,7 @@ Scowld Premium is an optional way to talk without an API key. It uses Google Gem
 | Plan | Price (US) | Minutes |
 |------|------------|---------|
 | Weekly | $6.99/week | 20 minutes a week |
-| Yearly | $99.99/year | 50 minutes a month; new subscribers get a 3-day free trial that includes 10 minutes |
+| Yearly | $99.99/year | 50 minutes a month |
 
 Both plans are auto-renewing subscriptions; other countries get local equivalent prices. Plan minutes reset each week (weekly) or each month of the subscription year (yearly) and don't roll over. Minute packs are one-time consumable purchases that anyone can buy, with or without a plan: 20 minutes for $6.99, 60 minutes for $16.99, and 150 minutes for $34.99. They never expire and are used after a plan's minutes run out. Minutes count the time a Premium conversation is connected.
 

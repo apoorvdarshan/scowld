@@ -290,7 +290,7 @@ struct SettingsView: View {
         } else {
             settingsActionRow(
                 title: NSLocalizedString("See Premium Plans", comment: "Settings row"),
-                subtitle: NSLocalizedString("Weekly or yearly, with a free trial", comment: "Settings row subtitle"),
+                subtitle: NSLocalizedString("Weekly or yearly plans", comment: "Settings row subtitle"),
                 systemImage: "sparkles",
                 tint: .amicaBlue
             ) {

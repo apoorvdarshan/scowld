@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Extraminuter går aldrig ut.";
 "Yearly" = "Årsvis";
 "Weekly" = "Veckovis";
-"%d-day free trial" = "%d dagars gratis provperiod";
 "Best value" = "Mest prisvärd";
 "%d minutes a month" = "%d minuter per månad";
 "%@/month · %@" = "%@/mån · %@";
 "%d minutes a week" = "%d minuter per vecka";
 "%@/year" = "%@/år";
 "%@/week" = "%@/vecka";
-"Start Free Trial" = "Starta gratis provperiod";
 "Subscribe" = "Prenumerera";
 "Prices aren't available right now. Check your connection and try again." = "Priserna är inte tillgängliga just nu. Kontrollera anslutningen och försök igen.";
 "Your purchase is waiting for approval." = "Ditt köp väntar på godkännande.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "Gratis i %d dagar med %d minuter, sedan %@ per år. Förnyas automatiskt tills du avslutar. Avsluta när som helst i Inställningar, senast 24 timmar innan provperioden slutar.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ per år. Förnyas automatiskt tills du avslutar. Avsluta när som helst i Inställningar, senast 24 timmar före förnyelsen.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "%@ per vecka. Förnyas automatiskt tills du avslutar. Avsluta när som helst i Inställningar, senast 24 timmar före förnyelsen.";
 "Restore Purchases" = "Återställ köp";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Hantera prenumeration";
 "Change or cancel your plan" = "Ändra eller avsluta din prenumeration";
 "See Premium Plans" = "Visa Premium-alternativ";
-"Weekly or yearly, with a free trial" = "Veckovis eller årsvis, med gratis provperiod";
+"Weekly or yearly plans" = "Vecko- eller årsabonnemang";
 "Buy More Minutes" = "Köp fler minuter";
 "Extra minutes never expire" = "Extraminuter går aldrig ut";
 "Yearly plan" = "Årsprenumeration";

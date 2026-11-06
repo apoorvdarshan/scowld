@@ -1,8 +1,8 @@
 {
   "APP_IPHONE_67": [
     "store/metadata/screenshots/ios/iphone-6.9/cartoon-01.png",
-    "store/metadata/screenshots/ios/iphone-6.9/cartoon-02.png",
-    "store/metadata/screenshots/ios/iphone-6.9/cartoon-03.png",
+    "store/metadata/screenshots/ios/iphone-6.9/cartoon-02-no-trial.png",
+    "store/metadata/screenshots/ios/iphone-6.9/cartoon-03-no-trial.png",
     "store/metadata/screenshots/ios/iphone-6.9/cartoon-04.png",
     "store/metadata/screenshots/ios/iphone-6.9/cartoon-05.png"
   ],
@@ -12,6 +12,6 @@
   ],
   "APP_IPAD_PRO_3GEN_129": [
     "store/metadata/screenshots/ios/ipad-13/cartoon-01.png",
-    "store/metadata/screenshots/ios/ipad-13/cartoon-02.png"
+    "store/metadata/screenshots/ios/ipad-13/cartoon-02-no-trial.png"
   ]
 }

@@ -109,18 +109,15 @@
 "Extra minutes never expire." = "Ek dakikaların süresi hiç dolmaz.";
 "Yearly" = "Yıllık";
 "Weekly" = "Haftalık";
-"%d-day free trial" = "%d gün ücretsiz deneme";
 "Best value" = "En avantajlı";
 "%d minutes a month" = "Ayda %d dakika";
 "%@/month · %@" = "%@/ay · %@";
 "%d minutes a week" = "Haftada %d dakika";
 "%@/year" = "%@/yıl";
 "%@/week" = "%@/hafta";
-"Start Free Trial" = "Ücretsiz Denemeyi Başlat";
 "Subscribe" = "Abone Ol";
 "Prices aren't available right now. Check your connection and try again." = "Fiyatlar şu anda gösterilemiyor. Bağlantınızı kontrol edip tekrar deneyin.";
 "Your purchase is waiting for approval." = "Satın alma işleminiz onay bekliyor.";
-"Free for %d days with %d minutes, then %@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before the trial ends." = "%d gün boyunca %d dakikayla ücretsiz, ardından yıllık %@. İptal edilene kadar otomatik olarak yenilenir. Deneme süresi bitmeden en az 24 saat önce Ayarlar’dan istediğiniz zaman iptal edebilirsiniz.";
 "%@ a year. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "Yıllık %@. İptal edilene kadar otomatik olarak yenilenir. Yenilemeden en az 24 saat önce Ayarlar’dan istediğiniz zaman iptal edebilirsiniz.";
 "%@ a week. Renews automatically until canceled. Cancel anytime in Settings at least 24 hours before it renews." = "Haftalık %@. İptal edilene kadar otomatik olarak yenilenir. Yenilemeden en az 24 saat önce Ayarlar’dan istediğiniz zaman iptal edebilirsiniz.";
 "Restore Purchases" = "Satın Alınanları Geri Yükle";
@@ -138,7 +135,7 @@
 "Manage Subscription" = "Aboneliği Yönet";
 "Change or cancel your plan" = "Planınızı değiştirin veya iptal edin";
 "See Premium Plans" = "Premium Planları Gör";
-"Weekly or yearly, with a free trial" = "Haftalık veya yıllık, ücretsiz denemeyle";
+"Weekly or yearly plans" = "Haftalık veya yıllık planlar";
 "Buy More Minutes" = "Daha Fazla Dakika Satın Al";
 "Extra minutes never expire" = "Ek dakikaların süresi hiç dolmaz";
 "Yearly plan" = "Yıllık plan";
