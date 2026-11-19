@@ -15,11 +15,11 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.14.0",
     "fast-check": "4.10.2",
-    "fast-xml-parser": "5.11.2",
-    "globals": "^17.13.0",
-    "html-validate": "^11.17.0",
-    "vitest": "5.0.5",
-    "wrangler": "^4.156.2"
+    "fast-xml-parser": "5.12.0",
+    "globals": "^17.14.0",
+    "html-validate": "^11.18.0",
+    "vitest": "5.1.0",
+    "wrangler": "^4.158.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

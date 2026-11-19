@@ -12,7 +12,6 @@
   <a href="https://apps.apple.com/app/id6760672848"><img src="https://img.shields.io/badge/App%20Store-Download-black?logo=apple" alt="App Store"></a>
   <a href="https://github.com/apoorvdarshan/scowld/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT"></a>
   <a href="https://scowld.xyz"><img src="https://img.shields.io/badge/Website-scowld.xyz-blue" alt="Website"></a>
-  <a href="https://www.instagram.com/scowldapp/"><img src="https://img.shields.io/badge/Instagram-@scowldapp-pink" alt="Instagram"></a>
   <a href="https://www.producthunt.com/products/scowld-2"><img src="https://img.shields.io/badge/Product%20Hunt-Scowld-orange" alt="Product Hunt"></a>
 </p>
 
@@ -46,7 +45,7 @@ This is the open-source repository for the Scowld iOS app and the marketing webs
 - **Reply language** - Defaults to the iPhone language, with supported language overrides.
 - **Local key storage** - Provider API keys are stored in iOS Keychain and sent only to their provider; the connection (Scowld Premium or Own API Key) and provider, model, and voice choices are stored in local preferences.
 - **Startup onboarding** - Local companion videos and Privacy/Terms acceptance with links to the web policies.
-- **About actions** - Update check, rating, share, Product Hunt, an Open Source section (source code, Star on GitHub, and the GitHub bug report and feature request forms), contact, Instagram, X, privacy, and terms.
+- **About actions** - Update check, rating, share, Product Hunt, an Open Source section (source code, Star on GitHub, and the GitHub bug report and feature request forms), contact, X, privacy, and terms.
 
 ## Live Voice Providers
 
@@ -218,7 +217,6 @@ See [web/.env.example](web/.env.example) for defaults.
 - Blog: https://scowld.xyz/blog
 - Privacy: https://scowld.xyz/privacy
 - Terms: https://scowld.xyz/terms
-- Instagram: https://www.instagram.com/scowldapp/
 - Product Hunt: https://www.producthunt.com/products/scowld-2
 - Ko-fi: https://ko-fi.com/apoorvdarshan
 

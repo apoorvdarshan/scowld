@@ -17,7 +17,6 @@ App Store "What's New" text is separate: it lives in
 
 ## v2.1.1
 
-- Updated the About screen, website and store description to Scowld's dedicated Instagram account, @scowldapp.
 - Refreshed the App Store screenshots for iPhone and iPad, and added an iPhone Duo outer-display screenshot set.
 - Added the approved cartoon product-page header and search-results artwork; these assets use Apple's separate creative-asset review.
 - Updated the RevenueCat purchases SDK to 5.98.0.
