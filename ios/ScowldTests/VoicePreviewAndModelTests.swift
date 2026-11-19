@@ -28,15 +28,23 @@ final class LiveModelCatalogTests: XCTestCase {
             ["name": "models/gemini-3.8-live", "supportedGenerationMethods": ["bidiGenerateContent", "countTokens"]],
             ["name": "models/gemini-3.5-flash-lite", "supportedGenerationMethods": ["generateContent"]],
             ["name": "models/gemini-live-new", "supportedGenerationMethods": ["bidiGenerateContent"]],
+            ["name": "models/gemini-3.1-flash-live-preview", "supportedGenerationMethods": ["bidiGenerateContent"]],
+            ["name": "models/gemini-3.5-live-translate-preview", "supportedGenerationMethods": ["bidiGenerateContent"]],
+            ["name": "models/gemini-3.5-transcribe-live", "supportedGenerationMethods": ["bidiGenerateContent"]],
         ]])
         XCTAssertEqual(LiveModelCatalog.liveModels(in: gemini, for: .gemini), ["gemini-3.8-live", "gemini-live-new"])
 
         let openAI = data(["data": [
             ["id": "gpt-realtime-2.1"], ["id": "gpt-6-luna"], ["id": "gpt-realtime-transcribe"], ["id": "gpt-realtime-2.1-mini"],
+            ["id": "gpt-realtime-whisper"], ["id": "gpt-live-1"], ["id": "gpt-realtime-mini"],
+            ["id": "gpt-realtime-2.1-next", "shutdown_date": "2027-01-20"],
         ]])
         XCTAssertEqual(LiveModelCatalog.liveModels(in: openAI, for: .openai), ["gpt-realtime-2.1", "gpt-realtime-2.1-mini"])
 
-        let xai = data(["data": [["id": "grok-voice-3.0"], ["id": "grok-6"]]])
+        let xai = data(["data": [
+            ["id": "grok-voice-3.0"], ["id": "grok-6"], ["id": "grok-voice-2.0"],
+            ["id": "grok-voice-transcribe-2.0"], ["id": "grok-voice-tts-1.0"],
+        ]])
         XCTAssertEqual(LiveModelCatalog.liveModels(in: xai, for: .xai), ["grok-voice-3.0"])
 
         XCTAssertEqual(LiveModelCatalog.liveModels(in: Data("nope".utf8), for: .gemini), [])
