@@ -30,7 +30,7 @@ nonisolated enum AIProvider: String, CaseIterable, Codable, Sendable {
     var availableModels: [String] {
         switch self {
         case .gemini:
-            ["gemini-3.8-live", "gemini-3.8-live-extended-thinking", "gemini-3.1-flash-live-preview"]
+            ["gemini-3.8-live", "gemini-3.8-live-extended-thinking"]
         case .openai:
             ["gpt-realtime-2.1-mini", "gpt-realtime-2.1"]
         case .xai:
@@ -118,11 +118,40 @@ nonisolated enum AIProvider: String, CaseIterable, Codable, Sendable {
         keyURL.host() ?? keyURL.absoluteString
     }
 
-    /// Model IDs this app offered before that the provider has retired, mapped to
-    /// their replacement. A saved selection of one moves to the replacement (see
+    /// Retired or deprecated model IDs, including ones previously discoverable,
+    /// mapped to their replacement. A saved selection moves to the replacement (see
     /// `HostedServiceConfig.selectedModel(for:)`).
     var retiredModels: [String: String] {
-        [:]
+        switch self {
+        case .gemini:
+            [
+                "gemini-3.1-flash-live-preview": "gemini-3.8-live",
+                "gemini-2.5-flash-native-audio-preview-12-2025": "gemini-3.8-live",
+                "gemini-2.5-flash-native-audio-preview-09-2025": "gemini-3.8-live",
+                "gemini-2.5-flash-preview-native-audio-dialog": "gemini-3.8-live",
+                "gemini-2.0-flash-live-001": "gemini-3.8-live",
+                "gemini-2.0-live-001": "gemini-3.8-live",
+                "gemini-live-2.5-flash-preview": "gemini-3.8-live",
+            ]
+        case .openai:
+            [
+                "gpt-realtime": "gpt-realtime-2.1",
+                "gpt-realtime-2025-08-28": "gpt-realtime-2.1",
+                "gpt-4o-realtime": "gpt-realtime-2.1",
+                "gpt-4o-realtime-preview": "gpt-realtime-2.1",
+                "gpt-4o-realtime-preview-2024-10-01": "gpt-realtime-2.1",
+                "gpt-4o-realtime-preview-2024-12-17": "gpt-realtime-2.1",
+                "gpt-4o-realtime-preview-2025-06-03": "gpt-realtime-2.1",
+                "gpt-realtime-mini": "gpt-realtime-2.1-mini",
+                "gpt-realtime-mini-2025-10-06": "gpt-realtime-2.1-mini",
+                "gpt-realtime-mini-2025-12-15": "gpt-realtime-2.1-mini",
+                "gpt-4o-mini-realtime": "gpt-realtime-2.1-mini",
+                "gpt-4o-mini-realtime-preview": "gpt-realtime-2.1-mini",
+                "gpt-4o-mini-realtime-preview-2024-12-17": "gpt-realtime-2.1-mini",
+            ]
+        case .xai:
+            ["grok-voice-2.0": "grok-voice-3.0"]
+        }
     }
 }
 
