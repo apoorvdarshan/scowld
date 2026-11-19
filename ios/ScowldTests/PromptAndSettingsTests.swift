@@ -147,6 +147,22 @@ final class ServiceSettingsTests: XCTestCase {
         XCTAssertEqual(HostedServiceConfig.selectedVoice(for: .xai), "ara")
     }
 
+    func testRetiredModelSelectionsAreReplacedAndPersisted() {
+        cleanDefaults()
+        let migrations: [(AIProvider, String, String)] = [
+            (.gemini, "gemini-3.1-flash-live-preview", "gemini-3.8-live"),
+            (.openai, "gpt-realtime-mini", "gpt-realtime-2.1-mini"),
+            (.xai, "grok-voice-2.0", "grok-voice-3.0"),
+        ]
+        for (provider, retired, replacement) in migrations {
+            XCTAssertFalse(provider.availableModels.contains(retired))
+            XCTAssertTrue(provider.availableModels.contains(replacement))
+            UserDefaults.standard.set(retired, forKey: provider.modelDefaultsKey)
+            XCTAssertEqual(HostedServiceConfig.selectedModel(for: provider), replacement)
+            XCTAssertEqual(UserDefaults.standard.string(forKey: provider.modelDefaultsKey), replacement)
+        }
+    }
+
     func testServiceLanguageSelection() {
         cleanDefaults()
         let defaults = UserDefaults.standard

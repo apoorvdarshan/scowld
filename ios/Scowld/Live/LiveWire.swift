@@ -228,7 +228,7 @@ nonisolated struct OpenAIRealtimeWire: LiveWire {
     let waitsForSetupAcknowledgement = false
 
     /// Transcribes what the user says so it can be saved to the chat.
-    static let transcriptionModel = "whisper-1"
+    static let transcriptionModel = "gpt-transcribe"
 
     func request(for config: LiveSessionConfig) -> URLRequest {
         var components = URLComponents(string: "wss://api.openai.com/v1/realtime")!

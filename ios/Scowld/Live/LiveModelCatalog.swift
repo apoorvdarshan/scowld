@@ -38,13 +38,21 @@ nonisolated enum LiveModelCatalog {
             }
         case .openai:
             let models = json["data"] as? [[String: Any]] ?? []
-            ids = models.compactMap { $0["id"] as? String }
-                .filter { $0.contains("realtime") && !$0.contains("transcri") && !$0.contains("translat") }
+            ids = models.compactMap { model in
+                // OpenAI may still list models after announcing their shutdown.
+                guard model["shutdown_date"] == nil || model["shutdown_date"] is NSNull else { return nil }
+                return model["id"] as? String
+            }
+            .filter { $0.hasPrefix("gpt-realtime") || $0.hasPrefix("gpt-4o-realtime") || $0.hasPrefix("gpt-4o-mini-realtime") }
         case .xai:
             let models = (json["data"] ?? json["models"]) as? [[String: Any]] ?? []
             ids = models.compactMap { $0["id"] as? String }.filter { $0.hasPrefix("grok-voice") }
         }
-        return Array(Set(ids)).sorted()
+        let retired = provider.retiredModels
+        return Set(ids).filter { id in
+            retired[id] == nil && !id.contains("transcri") && !id.contains("translat")
+                && id != "gpt-realtime-whisper" && !id.hasPrefix("grok-voice-tts")
+        }.sorted()
     }
 
     static func fetch(for provider: AIProvider, apiKey: String, session: URLSession = .shared) async throws -> [String] {

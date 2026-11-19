@@ -156,7 +156,7 @@ final class LiveWireTests: XCTestCase {
 
         let transcription = try XCTUnwrap(try json(messages[1])["session"] as? [String: Any])
         let model = (((transcription["audio"] as? [String: Any])?["input"] as? [String: Any])?["transcription"] as? [String: Any])?["model"] as? String
-        XCTAssertEqual(model, OpenAIRealtimeWire.transcriptionModel)
+        XCTAssertEqual(model, "gpt-transcribe")
     }
 
     func testOpenAIInputMessages() throws {
