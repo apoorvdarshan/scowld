@@ -9,6 +9,12 @@ release rather than publishing empty or ambiguous notes.
 App Store "What's New" text is separate: it lives in
 `store/metadata/ios/<locale>/whats_new.txt` (see `store/README.md`).
 
+## v2.1.3
+
+- Moved saved selections for retired or deprecated voice models to supported replacements and filtered them out of model discovery.
+- Updated OpenAI Realtime transcription for saved conversations.
+- Restored the developer's personal Instagram link in About and removed the dedicated Scowld account from the app, website, and App Store description.
+
 ## v2.1.2
 
 - Removed the introductory free-trial offer. Weekly and yearly Premium plans start as paid subscriptions.
