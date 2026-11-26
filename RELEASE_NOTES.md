@@ -9,6 +9,10 @@ release rather than publishing empty or ambiguous notes.
 App Store "What's New" text is separate: it lives in
 `store/metadata/ios/<locale>/whats_new.txt` (see `store/README.md`).
 
+## v2.1.4
+
+Updated the developer’s Instagram link to @apoorvxi.
+
 ## v2.1.3
 
 - Moved saved selections for retired or deprecated voice models to supported replacements and filtered them out of model discovery.

@@ -1,1 +1,1 @@
-Updated the live voice model picker. If you selected a retired model, Scowld switches you to a supported replacement. We also updated OpenAI transcription for saved conversations and restored the developer's Instagram link in About.
+Updated the developer’s Instagram link to @apoorvxi.
